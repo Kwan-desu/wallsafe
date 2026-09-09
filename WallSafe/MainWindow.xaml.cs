@@ -38,6 +38,33 @@ namespace WallSafe
         private List<PostItem> _trendingPosts = new();
         private bool _showingFavoriteInHero;
         private int _favoriteHeroIndex;
+        private string _currentCategoryFilter = "All";
+
+        private readonly List<SeriesCategoryItem> _curatedCategories = new()
+        {
+            // Anime
+            new SeriesCategoryItem { Name = "Frieren", Tag = "sousou_no_frieren", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Bocchi the Rock!", Tag = "bocchi_the_rock!", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Chainsaw Man", Tag = "chainsaw_man", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Fate / Stay Night", Tag = "fate/stay_night", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Demon Slayer", Tag = "kimetsu_no_yaiba", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Evangelion", Tag = "neon_genesis_evangelion", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Sword Art Online", Tag = "sword_art_online", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Cyberpunk: Edgerunners", Tag = "cyberpunk:_edgerunners", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Spy × Family", Tag = "spy_x_family", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Oshi no Ko", Tag = "oshi_no_ko", Type = "Anime" },
+
+            // Games
+            new SeriesCategoryItem { Name = "Genshin Impact", Tag = "genshin_impact", Type = "Game" },
+            new SeriesCategoryItem { Name = "Honkai: Star Rail", Tag = "honkai:_star_rail", Type = "Game" },
+            new SeriesCategoryItem { Name = "Blue Archive", Tag = "blue_archive", Type = "Game" },
+            new SeriesCategoryItem { Name = "NieR", Tag = "nier", Type = "Game" },
+            new SeriesCategoryItem { Name = "Arknights", Tag = "arknights", Type = "Game" },
+            new SeriesCategoryItem { Name = "Fate / Grand Order", Tag = "fate/grand_order", Type = "Game" },
+            new SeriesCategoryItem { Name = "Elden Ring", Tag = "elden_ring", Type = "Game" },
+            new SeriesCategoryItem { Name = "Touhou Project", Tag = "touhou", Type = "Game" },
+            new SeriesCategoryItem { Name = "Hololive", Tag = "hololive", Type = "Game" }
+        };
 
         public MainWindow()
         {
@@ -59,6 +86,7 @@ namespace WallSafe
 
             Loaded += async (_, _) =>
             {
+                InitializeCategories();
                 await LoadHomeDataAsync();
                 _ = DoExploreSearch(append: false);
             };
@@ -1356,6 +1384,7 @@ namespace WallSafe
                     HomeDisplayInfoText.Text = $"{screenW} × {screenH}";
 
                 UpdateQuickShelf();
+                InitializeCategories();
             }
             catch { }
         }
@@ -1533,6 +1562,125 @@ namespace WallSafe
             UpdateHeroFavState();
             UpdateQuickShelf();
             ShowToast(_heroPost.IsFavorite ? "♥" : "✕", _heroPost.IsFavorite ? "Added to Favorites" : "Removed from Favorites");
+        }
+
+        private void InitializeCategories()
+        {
+            if (CategoriesItemsControl == null) return;
+
+            var all = new List<SeriesCategoryItem>(_curatedCategories);
+            if (Settings.Instance.CustomCategories != null)
+            {
+                all.AddRange(Settings.Instance.CustomCategories);
+            }
+
+            IEnumerable<SeriesCategoryItem> filtered = _currentCategoryFilter switch
+            {
+                "Anime" => all.Where(c => c.Type == "Anime"),
+                "Games" => all.Where(c => c.Type == "Game"),
+                "Custom" => all.Where(c => c.IsCustom),
+                _ => all
+            };
+
+            CategoriesItemsControl.ItemsSource = filtered.ToList();
+        }
+
+        private void CategoryType_Checked(object sender, RoutedEventArgs e)
+        {
+            if (CategoryFilterAnime?.IsChecked == true)
+                _currentCategoryFilter = "Anime";
+            else if (CategoryFilterGames?.IsChecked == true)
+                _currentCategoryFilter = "Games";
+            else if (CategoryFilterCustom?.IsChecked == true)
+                _currentCategoryFilter = "Custom";
+            else
+                _currentCategoryFilter = "All";
+
+            InitializeCategories();
+        }
+
+        private void CategoryPill_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement elem && elem.DataContext is SeriesCategoryItem item)
+            {
+                NavExplore.IsChecked = true;
+                TagSearchBox.Text = item.Tag;
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        private void AddCategoryToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (AddCategoryFormBorder == null) return;
+            AddCategoryFormBorder.Visibility = AddCategoryFormBorder.Visibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            if (AddCategoryFormBorder.Visibility == Visibility.Visible && NewCategoryNameBox != null)
+            {
+                NewCategoryNameBox.Focus();
+            }
+        }
+
+        private void CancelCustomCategory_Click(object sender, RoutedEventArgs e)
+        {
+            if (AddCategoryFormBorder != null)
+                AddCategoryFormBorder.Visibility = Visibility.Collapsed;
+        }
+
+        private void SaveCustomCategory_Click(object sender, RoutedEventArgs e)
+        {
+            string name = NewCategoryNameBox?.Text?.Trim() ?? "";
+            string tag = NewCategoryTagBox?.Text?.Trim() ?? "";
+            string type = (NewCategoryTypeCombo?.SelectedItem as ComboBoxItem)?.Tag as string ?? "Custom";
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                ShowToast("⚠", "Please enter a category name");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                tag = name.ToLower().Replace(" ", "_").Replace(":", "");
+            }
+            else
+            {
+                tag = tag.ToLower().Replace(" ", "_");
+            }
+
+            var customItem = new SeriesCategoryItem
+            {
+                Name = name,
+                Tag = tag,
+                Type = type,
+                IsCustom = true
+            };
+
+            Settings.Instance.CustomCategories.Add(customItem);
+            Settings.Instance.Save();
+
+            if (NewCategoryNameBox != null) NewCategoryNameBox.Text = "";
+            if (NewCategoryTagBox != null) NewCategoryTagBox.Text = "";
+            if (AddCategoryFormBorder != null) AddCategoryFormBorder.Visibility = Visibility.Collapsed;
+
+            InitializeCategories();
+            ShowToast("✓", $"Category '{name}' added!");
+        }
+
+        private void DeleteCustomCategory_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is string id)
+            {
+                var item = Settings.Instance.CustomCategories.FirstOrDefault(c => c.Id == id);
+                if (item != null)
+                {
+                    Settings.Instance.CustomCategories.Remove(item);
+                    Settings.Instance.Save();
+                    InitializeCategories();
+                    ShowToast("✓", $"Category '{item.Name}' removed");
+                }
+            }
         }
 
         private void UniversePill_Click(object sender, RoutedEventArgs e)

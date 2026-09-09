@@ -771,7 +771,145 @@
                                                  DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
                         </Grid>
 
+                        <!-- 4. Explore by Universe & Series Section -->
+                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="10" Padding="16,14" Margin="0,0,0,20">
+                            <StackPanel>
+                                <!-- Header & Controls Row -->
+                                <Grid Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconSparkleGeo}" Fill="{DynamicResource AccentHoverBrush}"
+                                              Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="POPULAR UNIVERSES &amp; FRANCHISES" Foreground="{DynamicResource TextBrush}"
+                                                   FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                                    </StackPanel>
 
+                                    <!-- Filter Category Type Pills + Add Custom Button -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <RadioButton x:Name="CategoryFilterAll" Content="All"
+                                                     GroupName="CategoryTypeGroup" Style="{StaticResource FilterPillStyle}"
+                                                     IsChecked="True" Checked="CategoryType_Checked" Margin="0,0,4,0"/>
+                                        <RadioButton x:Name="CategoryFilterAnime" Content="Anime"
+                                                     GroupName="CategoryTypeGroup" Style="{StaticResource FilterPillStyle}"
+                                                     Checked="CategoryType_Checked" Margin="0,0,4,0"/>
+                                        <RadioButton x:Name="CategoryFilterGames" Content="Games"
+                                                     GroupName="CategoryTypeGroup" Style="{StaticResource FilterPillStyle}"
+                                                     Checked="CategoryType_Checked" Margin="0,0,4,0"/>
+                                        <RadioButton x:Name="CategoryFilterCustom" Content="My Custom"
+                                                     GroupName="CategoryTypeGroup" Style="{StaticResource FilterPillStyle}"
+                                                     Checked="CategoryType_Checked" Margin="0,0,8,0"/>
+
+                                        <Button x:Name="AddCategoryBtn" Style="{StaticResource TabButton}"
+                                                Padding="8,3" Click="AddCategoryToggle_Click"
+                                                ToolTip="Add a custom anime/game series category">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="+ Add Category" FontSize="10.5" Foreground="{DynamicResource AccentHoverBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Add Custom Category Inline Expandable Form (Collapsed by default) -->
+                                <Border x:Name="AddCategoryFormBorder" Background="{DynamicResource CardBgBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                        CornerRadius="8" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Name input -->
+                                        <TextBox Grid.Column="0" x:Name="NewCategoryNameBox" Style="{StaticResource ModernSearchBox}"
+                                                 Margin="0,0,6,0" Tag="Series Name" ToolTip="Display Name (e.g. Azur Lane)"/>
+                                        <!-- Tag input -->
+                                        <TextBox Grid.Column="1" x:Name="NewCategoryTagBox" Style="{StaticResource ModernSearchBox}"
+                                                 Margin="0,0,6,0" Tag="Booru Tag" ToolTip="Booru Tag (e.g. azur_lane)"/>
+
+                                        <!-- Type combo -->
+                                        <ComboBox Grid.Column="2" x:Name="NewCategoryTypeCombo" Width="100" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="Anime" Tag="Anime"/>
+                                            <ComboBoxItem Content="Game" Tag="Game"/>
+                                            <ComboBoxItem Content="Custom" Tag="Custom" IsSelected="True"/>
+                                        </ComboBox>
+
+                                        <!-- Action Buttons -->
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource PrimaryButton}" Content="Save" Padding="12,5"
+                                                    Click="SaveCustomCategory_Click" Margin="0,0,4,0"/>
+                                            <Button Style="{StaticResource ToolButton}" Content="✕" Padding="6,4"
+                                                    Click="CancelCustomCategory_Click"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Margin="2,6,0,0"
+                                                   Text="Enter the display name and booru search tag (e.g. 'azur_lane', 'overwatch'). Category will be verified and saved."
+                                                   Foreground="{DynamicResource SubtextBrush}" FontSize="9.5"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Categories WrapPanel / ItemsControl -->
+                                <ItemsControl x:Name="CategoriesItemsControl">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource CardBgBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1" CornerRadius="8"
+                                                    Padding="10,6" Margin="0,0,8,8"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="CategoryPill_Click">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Badge -->
+                                                    <Border Background="{Binding TypeBadgeColor}" CornerRadius="4" Padding="5,1.5" Margin="0,0,7,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Type}" Foreground="White" FontSize="9" FontFamily="Segoe UI Bold"/>
+                                                    </Border>
+                                                    <!-- Series Name -->
+                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextBrush}"
+                                                               FontFamily="Segoe UI Semibold" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,4,0"/>
+
+                                                    <!-- Delete button if custom -->
+                                                    <Button Content="✕" FontSize="9"
+                                                            Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                            Tag="{Binding Id}" Click="DeleteCustomCategory_Click"
+                                                            ToolTip="Delete category">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource ToolButton}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsCustom}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
 
                         <!-- 5. Quick Shelf: Recent Favorites / Downloads -->
                         <Grid Margin="0,0,0,10">

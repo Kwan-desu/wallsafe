@@ -18,6 +18,7 @@ namespace WallSafe
         public bool SfwOnlyMode { get; set; } = true; // SFW Only (default) vs Include NSFW
         public bool AllowAllSources { get; set; } = true;
         public List<CustomSourceConfig> CustomSources { get; set; } = new();
+        public List<SeriesCategoryItem> CustomCategories { get; set; } = new();
         public int HotkeyModifiers { get; set; } = (int)(ModifierKeys.Control | ModifierKeys.Shift);
         public int HotkeyKey { get; set; } = (int)Keys.W;
         public bool AutoStartWithWindows { get; set; } = false;

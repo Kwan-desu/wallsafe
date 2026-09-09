@@ -172,4 +172,20 @@ namespace WallSafe
         public bool IsSfw { get; set; } = true;
         public bool Enabled { get; set; } = true;
     }
+
+    public class SeriesCategoryItem
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = string.Empty;
+        public string Tag { get; set; } = string.Empty;
+        public string Type { get; set; } = "Anime"; // "Anime", "Game", "Custom"
+        public bool IsCustom { get; set; } = false;
+
+        public string TypeBadgeColor => Type switch
+        {
+            "Game" => "#06B6D4",   // Cyan
+            "Custom" => "#EC4899", // Pink
+            _ => "#A855F7"         // Purple for Anime
+        };
+    }
 }

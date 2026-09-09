@@ -20,6 +20,11 @@ WallSafe is a sleek, modern Windows 11 desktop application crafted in WPF / .NET
     - 📥 **Download**: Download original high-resolution art to your pictures folder.
     - ↗️ **Source**: Open the original booru post in your browser.
 
+- **✨ Explore by Universe & Series**
+  - Instant discovery on the Home page for popular Anime (*Frieren, Bocchi the Rock!, Chainsaw Man, Demon Slayer, Fate, Evangelion*) and Gaming franchises (*Genshin Impact, Honkai: Star Rail, Blue Archive, NieR, Arknights, Elden Ring, Touhou*).
+  - Filter by All, Anime, Gaming, or My Custom categories.
+  - Add your own custom series categories directly from the UI with full persistence.
+
 - **♾️ Pixiv-Style Infinite Scroll & In-Memory Caching**
   - Smooth, non-blocking infinite scrolling with subtle bottom-loader indicators.
   - Multi-tier cache architecture: LRU in-memory bitmap cache for 0ms card re-renders + content-addressable disk cache.
