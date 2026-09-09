@@ -1,0 +1,1582 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using RadioButton = System.Windows.Controls.RadioButton;
+
+namespace WallSafe
+{
+    public partial class MainWindow : Window
+    {
+        private readonly TextBlock? StatusText = null;
+        private readonly System.Windows.Shapes.Ellipse? StatusDot = null;
+        private readonly TextBlock? PanicButtonLabel = null;
+
+        private enum ActiveSection { Home, Explore, Favorites, Downloaded }
+
+        private ActiveSection _currentSection = ActiveSection.Home;
+        private readonly ApiClient _api = new();
+        private CancellationTokenSource _searchCts = new();
+        private CancellationTokenSource _autocompleteCts = new();
+
+        private string _currentSource = "yande";
+        private int _currentPage = 1;
+        private int _isLoading = 0; // 0=false, 1=true — use Interlocked for thread safety
+        private List<PostItem> _cachedExplorePosts = new();
+        private CancellationTokenSource _toastCts = new();
+        private string[]? _cachedBlacklist;
+        private string _cachedBlacklistSource = string.Empty;
+        private PostItem? _previewItem;
+        private PostItem? _heroPost;
+        private List<PostItem> _trendingPosts = new();
+        private bool _showingFavoriteInHero;
+        private int _favoriteHeroIndex;
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            PositionNearTray();
+            UpdatePanicButtonLabel();
+            UpdateSlideshowQuickToggleState();
+            UpdateHotkeyRegistrationStatus(HotkeyManager.Instance.IsRegistered);
+
+            FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
+            DownloadsManager.Instance.DownloadsChanged += OnDownloadsChanged;
+            WallpaperManager.Instance.SafeWallpaperTriggered += OnSafeWallpaperTriggered;
+            WallpaperManager.Instance.SafeWallpaperRestored += OnSafeWallpaperRestored;
+            HotkeyManager.Instance.RegistrationChanged += OnHotkeyRegistrationChanged;
+            ThemeManager.ThemeChanged += _ => Dispatcher.Invoke(UpdateThemeIcon);
+            UpdateThemeIcon();
+            UpdateSfwToggleVisuals();
+            ApplySfwModeToFilters();
+
+            Loaded += async (_, _) =>
+            {
+                await LoadHomeDataAsync();
+                _ = DoExploreSearch(append: false);
+            };
+
+            KeyDown += (s, e) =>
+            {
+                if (PreviewModal.Visibility == Visibility.Visible)
+                {
+                    if (e.Key == Key.Escape)
+                    {
+                        ClosePreview_Click(s, e);
+                        e.Handled = true;
+                        return;
+                    }
+                    else if (e.Key == Key.Enter)
+                    {
+                        PreviewApply_Click(s, e);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (e.Key == Key.F5)
+                {
+                    Refresh_Click(s, e);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.F && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {
+                    TagSearchBox.Focus();
+                    TagSearchBox.SelectAll();
+                    e.Handled = true;
+                }
+            };
+        }
+
+        private void OnHotkeyRegistrationChanged(bool isRegistered)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateHotkeyRegistrationStatus(isRegistered);
+            });
+        }
+
+        private void UpdateHotkeyRegistrationStatus(bool registered)
+        {
+            if (StatusDot == null) return;
+            if (registered)
+            {
+                StatusDot.Fill = (System.Windows.Media.Brush)FindResource("EmeraldBrush");
+                StatusDot.ToolTip = "WallSafe Engine Ready • Hotkey Active";
+            }
+            else
+            {
+                StatusDot.Fill = (System.Windows.Media.Brush)FindResource("DangerBrush");
+                StatusDot.ToolTip = "Hotkey Conflict! The configured shortcut is already in use by another app.";
+            }
+        }
+
+        public void UpdatePanicButtonLabel()
+        {
+            string hotkey = Settings.Instance.GetHotkeyDisplayName();
+            if (PanicButtonLabel != null) PanicButtonLabel.Text = $"SAFE  {hotkey}";
+            if (HomePanicKeyText != null) HomePanicKeyText.Text = hotkey;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
+            source?.AddHook(WndProc);
+        }
+
+        private const int WM_NCHITTEST = 0x0084;
+        private const int HTLEFT = 10;
+        private const int HTRIGHT = 11;
+        private const int HTTOP = 12;
+        private const int HTTOPLEFT = 13;
+        private const int HTTOPRIGHT = 14;
+        private const int HTBOTTOM = 15;
+        private const int HTBOTTOMLEFT = 16;
+        private const int HTBOTTOMRIGHT = 17;
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_NCHITTEST)
+            {
+                int x = (short)(lParam.ToInt32() & 0xFFFF);
+                int y = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
+                var p = PointFromScreen(new System.Windows.Point(x, y));
+
+                int grip = 12;
+                bool left = p.X <= grip;
+                bool right = p.X >= ActualWidth - grip;
+                bool top = p.Y <= grip;
+                bool bottom = p.Y >= ActualHeight - grip;
+
+                if (top && left) { handled = true; return new IntPtr(HTTOPLEFT); }
+                if (top && right) { handled = true; return new IntPtr(HTTOPRIGHT); }
+                if (bottom && left) { handled = true; return new IntPtr(HTBOTTOMLEFT); }
+                if (bottom && right) { handled = true; return new IntPtr(HTBOTTOMRIGHT); }
+                if (left) { handled = true; return new IntPtr(HTLEFT); }
+                if (right) { handled = true; return new IntPtr(HTRIGHT); }
+                if (top) { handled = true; return new IntPtr(HTTOP); }
+                if (bottom) { handled = true; return new IntPtr(HTBOTTOM); }
+            }
+            return IntPtr.Zero;
+        }
+
+        private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                RootBorder.Clip = new System.Windows.Media.RectangleGeometry(
+                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
+            }
+        }
+
+        private void SlideshowQuickToggle_Click(object sender, RoutedEventArgs e)
+        {
+            Settings.Instance.SlideshowEnabled = !Settings.Instance.SlideshowEnabled;
+            Settings.Instance.Save();
+            if (Settings.Instance.SlideshowEnabled)
+            {
+                WallpaperManager.Instance.StartSlideshow(Settings.Instance.SlideshowIntervalMinutes);
+                ShowToast("▶", "Slideshow Started");
+            }
+            else
+            {
+                WallpaperManager.Instance.StopSlideshow();
+                ShowToast("⏸", "Slideshow Paused");
+            }
+            UpdateSlideshowQuickToggleState();
+        }
+
+        private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ThemeManager.ToggleTheme();
+            UpdateThemeIcon();
+            ShowToast("✓", ThemeManager.IsDark ? "Dark Mode Enabled" : "Light Mode Enabled");
+        }
+
+        private void UpdateThemeIcon()
+        {
+            if (ThemeIconPath == null || ThemeToggleBtn == null) return;
+            bool isDark = ThemeManager.IsDark;
+            if (isDark)
+            {
+                ThemeIconPath.Data = (System.Windows.Media.Geometry)FindResource("IconSunGeo");
+                ThemeToggleBtn.ToolTip = "Switch to Light Mode";
+            }
+            else
+            {
+                ThemeIconPath.Data = (System.Windows.Media.Geometry)FindResource("IconMoonGeo");
+                ThemeToggleBtn.ToolTip = "Switch to Dark Mode";
+            }
+        }
+
+        private void UpdateSlideshowQuickToggleState()
+        {
+            if (SlideshowQuickToggle == null || SlideshowIconPath == null) return;
+            bool isEnabled = Settings.Instance.SlideshowEnabled;
+            if (isEnabled)
+            {
+                SlideshowIconPath.Fill = (System.Windows.Media.Brush)FindResource("AccentHoverBrush");
+                SlideshowQuickToggle.ToolTip = "Automated Slideshow Active (Click to Pause)";
+                if (SlideshowActiveDot != null)
+                    SlideshowActiveDot.Visibility = Visibility.Visible;
+                if (HomeSlideshowStatusText != null)
+                    HomeSlideshowStatusText.Text = $"Active ({Settings.Instance.SlideshowIntervalMinutes}m interval)";
+                if (HomeSlideshowBtnText != null)
+                    HomeSlideshowBtnText.Text = "Pause";
+                if (HomeSlideshowBtnIcon != null)
+                    HomeSlideshowBtnIcon.Data = (System.Windows.Media.Geometry)FindResource("IconPauseGeo");
+            }
+            else
+            {
+                SlideshowIconPath.Fill = (System.Windows.Media.Brush)FindResource("SubtextBrush");
+                SlideshowQuickToggle.ToolTip = "Automated Slideshow Paused (Click to Start)";
+                if (SlideshowActiveDot != null)
+                    SlideshowActiveDot.Visibility = Visibility.Collapsed;
+                if (HomeSlideshowStatusText != null)
+                    HomeSlideshowStatusText.Text = $"Paused ({Settings.Instance.SlideshowIntervalMinutes}m interval)";
+                if (HomeSlideshowBtnText != null)
+                    HomeSlideshowBtnText.Text = "Start";
+                if (HomeSlideshowBtnIcon != null)
+                    HomeSlideshowBtnIcon.Data = (System.Windows.Media.Geometry)FindResource("IconPlayGeo");
+            }
+        }
+
+        private void OnSafeWallpaperRestored()
+        {
+            ShowToast("✓", "Previous Wallpaper Restored");
+        }
+
+        private void PositionNearTray()
+        {
+            var screen = SystemParameters.WorkArea;
+            Left = Math.Max(10, (screen.Width - Width) / 2);
+            Top = Math.Max(10, (screen.Height - Height) / 2);
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Section Navigation
+        // ═════════════════════════════════════════════════════════════════
+
+        private void NavTab_Checked(object sender, RoutedEventArgs e)
+        {
+            if (NavHome == null || NavExplore == null || NavFavorites == null || NavDownloads == null) return;
+
+            if (NavHome.IsChecked == true)
+            {
+                _currentSection = ActiveSection.Home;
+                HomeView.Visibility = Visibility.Visible;
+                WallpaperGridControl.Visibility = Visibility.Collapsed;
+                ExploreToolbar.Visibility = Visibility.Collapsed;
+                FilterDrawer.Visibility = Visibility.Collapsed;
+                EmptyState.Visibility = Visibility.Collapsed;
+                DisplayCurrentSection();
+            }
+            else if (NavExplore.IsChecked == true)
+            {
+                _currentSection = ActiveSection.Explore;
+                HomeView.Visibility = Visibility.Collapsed;
+                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreToolbar.Visibility = Visibility.Visible;
+                FilterDrawer.Visibility = FilterDrawerToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+                DisplayCurrentSection();
+            }
+            else if (NavFavorites.IsChecked == true)
+            {
+                _currentSection = ActiveSection.Favorites;
+                HomeView.Visibility = Visibility.Collapsed;
+                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreToolbar.Visibility = Visibility.Collapsed;
+                FilterDrawer.Visibility = Visibility.Collapsed;
+                DisplayCurrentSection();
+            }
+            else if (NavDownloads.IsChecked == true)
+            {
+                _currentSection = ActiveSection.Downloaded;
+                HomeView.Visibility = Visibility.Collapsed;
+                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreToolbar.Visibility = Visibility.Collapsed;
+                FilterDrawer.Visibility = Visibility.Collapsed;
+                DisplayCurrentSection();
+            }
+        }
+
+        private void DisplayCurrentSection()
+        {
+            switch (_currentSection)
+            {
+                case ActiveSection.Home:
+                    UpdateQuickShelf();
+                    if (StatusText != null) StatusText.Text = "WallSafe Engine Ready  •  Global Panic Hotkey Active";
+                    break;
+
+                case ActiveSection.Explore:
+                    WallpaperGridControl.SetPosts(_cachedExplorePosts, canLoadMore: _cachedExplorePosts.Count >= 10);
+                    CheckEmptyState(_cachedExplorePosts.Count, "No wallpapers found", "Try adjusting tags or content filters.");
+                    if (StatusText != null) StatusText.Text = $"{_cachedExplorePosts.Count} wallpapers online  •  Page {_currentPage}";
+                    break;
+
+                case ActiveSection.Favorites:
+                    var favs = FavoritesManager.Instance.GetAllFavorites();
+                    WallpaperGridControl.SetPosts(favs, canLoadMore: false);
+                    CheckEmptyState(favs.Count, "No Favorites Yet", "Click the ♥ heart on any wallpaper card to save it here!");
+                    if (StatusText != null) StatusText.Text = $"{favs.Count} favorite wallpapers";
+                    break;
+
+                case ActiveSection.Downloaded:
+                    var downs = DownloadsManager.Instance.GetAllDownloads();
+                    WallpaperGridControl.SetPosts(downs, canLoadMore: false);
+                    CheckEmptyState(downs.Count, "No Downloaded Wallpapers", "Click 📥 on any wallpaper to download original high-res files.");
+                    if (StatusText != null) StatusText.Text = $"{downs.Count} offline wallpapers";
+                    break;
+            }
+        }
+
+        private void CheckEmptyState(int count, string title, string subtitle)
+        {
+            if (count == 0)
+            {
+                EmptyTitleText.Text = title;
+                EmptySubtitleText.Text = subtitle;
+                EmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                EmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnFavoritesChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (_currentSection == ActiveSection.Favorites)
+                    DisplayCurrentSection();
+                else if (_currentSection == ActiveSection.Home)
+                    UpdateQuickShelf();
+            });
+        }
+
+        private void OnDownloadsChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (_currentSection == ActiveSection.Downloaded)
+                    DisplayCurrentSection();
+                else if (_currentSection == ActiveSection.Home)
+                    UpdateQuickShelf();
+            });
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Source & Filters
+        // ═════════════════════════════════════════════════════════════════
+
+        private void Source_Changed(object sender, RoutedEventArgs e)
+        {
+            if (SourceAll == null || SourceKonaSfw == null || SourceYande == null || SourceKonaNsfw == null) return;
+
+            if (SourceAll.IsChecked == true) _currentSource = "all";
+            else if (SourceKonaSfw.IsChecked == true) _currentSource = "konasfw";
+            else if (SourceYande.IsChecked == true) _currentSource = "yande";
+            else if (SourceKonaNsfw.IsChecked == true) _currentSource = "konansfw";
+            else if (sender is RadioButton rb && rb.Tag is string customId) _currentSource = customId;
+
+            _currentPage = 1;
+            if (_currentSection == ActiveSection.Explore && IsLoaded)
+            {
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        public void SfwToggle_Click(object sender, RoutedEventArgs e)
+        {
+            Settings.Instance.SfwOnlyMode = !Settings.Instance.SfwOnlyMode;
+            Settings.Instance.Save();
+
+            UpdateSfwToggleVisuals();
+            ApplySfwModeToFilters();
+
+            ShowToast(Settings.Instance.SfwOnlyMode ? "🛡" : "🔞",
+                Settings.Instance.SfwOnlyMode ? "Safe Mode: SFW Content Only (konachan.net)" : "Unrestricted: NSFW Content Included (all sources)");
+
+            if (_currentSection == ActiveSection.Explore && IsLoaded)
+            {
+                _currentPage = 1;
+                _ = DoExploreSearch(append: false);
+            }
+            else if (_currentSection == ActiveSection.Home && IsLoaded)
+            {
+                _ = LoadHomeDataAsync();
+            }
+        }
+
+        public void UpdateSfwToggleVisuals()
+        {
+            if (SfwToggleBtn == null || SfwToggleText == null || SfwToggleIcon == null) return;
+
+            bool sfw = Settings.Instance.SfwOnlyMode;
+            if (sfw)
+            {
+                SfwToggleText.Text = "SFW Only";
+                if (TryFindResource("IconShieldGeo") is System.Windows.Media.Geometry shieldGeo)
+                    SfwToggleIcon.Data = shieldGeo;
+                if (TryFindResource("EmeraldBrush") is System.Windows.Media.Brush emerald)
+                {
+                    SfwToggleIcon.Fill = emerald;
+                    SfwToggleText.Foreground = emerald;
+                }
+                SfwToggleBtn.ToolTip = "Safe Mode Active: Restricted strictly to konachan.net & safe sources. Click to switch to Unrestricted (Include NSFW).";
+            }
+            else
+            {
+                SfwToggleText.Text = "Include NSFW";
+                if (TryFindResource("IconFireGeo") is System.Windows.Media.Geometry fireGeo)
+                    SfwToggleIcon.Data = fireGeo;
+
+                if (TryFindResource("DangerBrush") is System.Windows.Media.Brush danger)
+                {
+                    SfwToggleIcon.Fill = danger;
+                    SfwToggleText.Foreground = danger;
+                }
+                SfwToggleBtn.ToolTip = "Unrestricted Mode: Includes yande.re, konachan.com & all sources. Click to switch to Safe Mode (SFW Only).";
+            }
+        }
+
+        public void ApplySfwModeToFilters()
+        {
+            if (SourceKonaNsfw == null || SourceYande == null || SourceKonaSfw == null) return;
+
+            bool sfw = Settings.Instance.SfwOnlyMode;
+            if (sfw)
+            {
+                SourceKonaNsfw.Visibility = Visibility.Collapsed;
+                SourceYande.Visibility = Visibility.Collapsed;
+
+                if (SourceKonaNsfw.IsChecked == true || SourceYande.IsChecked == true)
+                {
+                    SourceKonaSfw.IsChecked = true;
+                    _currentSource = "konasfw";
+                }
+
+                if (RatingBox != null)
+                {
+                    RatingBox.SelectedIndex = 0; // Safe Only (SFW)
+                    RatingBox.IsEnabled = false;
+                }
+            }
+            else
+            {
+                SourceKonaNsfw.Visibility = Visibility.Visible;
+                SourceYande.Visibility = Visibility.Visible;
+
+                if (RatingBox != null)
+                {
+                    RatingBox.IsEnabled = true;
+                }
+            }
+
+            RebuildCustomSourcePills();
+        }
+
+        public void RebuildCustomSourcePills()
+        {
+            if (SourcePillsPanel == null) return;
+
+            var toRemove = SourcePillsPanel.Children.OfType<RadioButton>()
+                .Where(rb => rb != SourceAll && rb != SourceKonaSfw && rb != SourceYande && rb != SourceKonaNsfw)
+                .ToList();
+
+            foreach (var rb in toRemove)
+                SourcePillsPanel.Children.Remove(rb);
+
+            bool sfw = Settings.Instance.SfwOnlyMode;
+            foreach (var cs in Settings.Instance.CustomSources)
+            {
+                if (!cs.Enabled) continue;
+                if (sfw && !cs.IsSfw) continue;
+
+                var pill = new RadioButton
+                {
+                    Content = cs.Name,
+                    Tag = cs.Id,
+                    Style = (Style)FindResource("FilterPillStyle"),
+                    Margin = new Thickness(0, 0, 6, 6)
+                };
+                pill.Checked += Source_Changed;
+                SourcePillsPanel.Children.Add(pill);
+            }
+        }
+
+        private void FilterDrawer_Click(object sender, RoutedEventArgs e)
+        {
+            FilterDrawer.Visibility = FilterDrawerToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void Filter_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateFilterBadge();
+            if (_currentSection == ActiveSection.Explore && IsLoaded)
+            {
+                _currentPage = 1;
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        private void UpdateFilterBadge()
+        {
+            if (RatingBox == null || SortBox == null || ResolutionBox == null || AspectBox == null) return;
+
+            int activeCount = 0;
+            if (RatingBox.SelectedIndex > 0) activeCount++;
+            if (SortBox.SelectedIndex > 0) activeCount++;
+            if (ResolutionBox.SelectedIndex > 0) activeCount++;
+            if (AspectBox.SelectedIndex > 0) activeCount++;
+
+            if (activeCount > 0)
+            {
+                FilterCountText.Text = activeCount.ToString();
+                FilterCountBadge.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                FilterCountBadge.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Modern Interactive Search Engine & Discovery
+        // ═════════════════════════════════════════════════════════════════
+
+        private readonly List<string> _recentSearches = new();
+
+        private void TagSearch_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TagSearchBox.Text))
+            {
+                ShowRecentSearches();
+            }
+        }
+
+        private async void TagSearch_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var text = TagSearchBox.Text;
+            var trimmed = text.Trim();
+            TagPlaceholder.Visibility = string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+            ClearSearchBtn.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                ShowRecentSearches();
+                return;
+            }
+
+            RecentSearchesPanel.Visibility = Visibility.Collapsed;
+            AutocompleteList.Visibility = Visibility.Visible;
+
+            // Zero-latency instant local predictive match (aliases, popular characters, series, cache)
+            var instant = _api.GetInstantLocalSuggestions(trimmed);
+            if (instant.Count > 0)
+            {
+                AutocompleteList.ItemsSource = instant;
+                AutocompletePopup.IsOpen = true;
+            }
+
+            if (trimmed.Length < 2)
+            {
+                if (instant.Count == 0)
+                    AutocompletePopup.IsOpen = false;
+                return;
+            }
+
+            _autocompleteCts.Cancel();
+            _autocompleteCts = new CancellationTokenSource();
+            var ct = _autocompleteCts.Token;
+
+            try
+            {
+                // Fast 80ms debounce for network query
+                await Task.Delay(80, ct);
+                var suggestions = await _api.FetchTagSuggestionsAsync(_currentSource, trimmed, ct);
+                if (ct.IsCancellationRequested) return;
+
+                if (suggestions.Count > 0)
+                {
+                    AutocompleteList.ItemsSource = suggestions;
+                    AutocompletePopup.IsOpen = true;
+                }
+                else if (instant.Count == 0)
+                {
+                    AutocompletePopup.IsOpen = false;
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch { }
+        }
+
+        private void TagSearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (AutocompletePopup.IsOpen && AutocompleteList.SelectedItem is TagSuggestion selected)
+                {
+                    SelectAutocompleteTag(selected.Name);
+                }
+                else
+                {
+                    ExecuteSearch();
+                }
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                AutocompletePopup.IsOpen = false;
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Down && AutocompletePopup.IsOpen)
+            {
+                if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.Items.Count > 0)
+                {
+                    AutocompleteList.Focus();
+                    AutocompleteList.SelectedIndex = 0;
+                }
+                else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.Items.Count > 0)
+                {
+                    RecentSearchesList.Focus();
+                    RecentSearchesList.SelectedIndex = 0;
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void AutocompleteList_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && AutocompleteList.SelectedItem is TagSuggestion tag)
+            {
+                SelectAutocompleteTag(tag.Name);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                AutocompletePopup.IsOpen = false;
+                TagSearchBox.Focus();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Up && AutocompleteList.SelectedIndex == 0)
+            {
+                TagSearchBox.Focus();
+                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                e.Handled = true;
+            }
+        }
+
+        private void Autocomplete_Selected(object sender, SelectionChangedEventArgs e)
+        {
+            // Only act on mouse-driven selection (not keyboard navigation which also fires SelectionChanged)
+            // Mouse single-click selection is handled by PreviewMouseLeftButtonUp on the ListBox items
+        }
+
+        private void AutocompleteList_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left && AutocompleteList.SelectedItem is TagSuggestion tag)
+            {
+                SelectAutocompleteTag(tag.Name);
+            }
+        }
+
+        private void SelectAutocompleteTag(string tagName)
+        {
+            TagSearchBox.Text = tagName;
+            TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+            AutocompletePopup.IsOpen = false;
+            ExecuteSearch();
+        }
+
+        private void ShowRecentSearches()
+        {
+            if (_recentSearches.Count > 0)
+            {
+                RecentSearchesList.ItemsSource = null;
+                RecentSearchesList.ItemsSource = _recentSearches;
+                RecentSearchesPanel.Visibility = Visibility.Visible;
+                AutocompleteList.Visibility = Visibility.Collapsed;
+                AutocompletePopup.IsOpen = true;
+            }
+            else
+            {
+                AutocompletePopup.IsOpen = false;
+            }
+        }
+
+        private void RecentSearch_Selected(object sender, SelectionChangedEventArgs e)
+        {
+            if (RecentSearchesList.SelectedItem is string query)
+            {
+                TagSearchBox.Text = query;
+                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                AutocompletePopup.IsOpen = false;
+                ExecuteSearch();
+            }
+        }
+
+        private void ClearRecentSearches_Click(object sender, RoutedEventArgs e)
+        {
+            _recentSearches.Clear();
+            AutocompletePopup.IsOpen = false;
+        }
+
+        private void ClearSearch_Click(object sender, RoutedEventArgs e)
+        {
+            TagSearchBox.Text = "";
+            TagSearchBox.Focus();
+            ExecuteSearch();
+        }
+
+        private void Search_Click(object sender, RoutedEventArgs e)
+        {
+            ExecuteSearch();
+        }
+
+        private void ExecuteSearch()
+        {
+            var text = TagSearchBox.Text.Trim();
+            AutocompletePopup.IsOpen = false;
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                if (!_recentSearches.Contains(text, StringComparer.OrdinalIgnoreCase))
+                {
+                    _recentSearches.Insert(0, text);
+                    if (_recentSearches.Count > 8) _recentSearches.RemoveAt(_recentSearches.Count - 1);
+                }
+            }
+
+            _currentPage = 1;
+            if (_currentSection != ActiveSection.Explore)
+            {
+                NavExplore.IsChecked = true;
+            }
+            else
+            {
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Explore Search Execution
+        // ═════════════════════════════════════════════════════════════════
+
+        private async Task DoExploreSearch(bool append)
+        {
+            // Atomic compare-exchange: only enter if _isLoading was 0 (false), sets to 1 (true)
+            if (Interlocked.CompareExchange(ref _isLoading, 1, 0) != 0) return;
+
+            _searchCts.Cancel();
+            _searchCts = new CancellationTokenSource();
+            var ct = _searchCts.Token;
+
+            if (!append)
+            {
+                _currentPage = 1;
+                _cachedExplorePosts.Clear();
+                WallpaperGridControl.Clear();
+                SetLoading(true, "Searching anime wallpapers…");
+            }
+            else
+            {
+                WallpaperGridControl.SetLoadingMore(true);
+            }
+
+            try
+            {
+                string tagQuery = BuildTagQuery();
+                int limit = 24;
+
+                var rawPosts = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
+
+                // Apply client-side resolution, blacklist and aspect ratio filters
+                var filtered = FilterPosts(rawPosts);
+
+                // Batch Accumulator: if filtering aggressively reduced cards, fetch next page automatically
+                int attempts = 0;
+                while (filtered.Count < 10 && rawPosts.Count >= limit && attempts < 2)
+                {
+                    attempts++;
+                    _currentPage++;
+                    var extra = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
+                    if (extra.Count == 0) break;
+                    rawPosts.AddRange(extra);
+                    filtered.AddRange(FilterPosts(extra));
+                }
+
+                if (!append)
+                {
+                    _cachedExplorePosts = filtered;
+                    WallpaperGridControl.SetPosts(_cachedExplorePosts, canLoadMore: rawPosts.Count >= limit);
+                }
+                else
+                {
+                    _cachedExplorePosts.AddRange(filtered);
+                    WallpaperGridControl.AddPosts(filtered, canLoadMore: rawPosts.Count >= limit);
+                }
+
+                // Background pre-fetch thumbnails to disk cache for buttery smooth scrolling
+                ImageCacheService.Instance.PreloadThumbnails(filtered.Select(p => p.PreviewUrl));
+
+                CheckEmptyState(_cachedExplorePosts.Count, "No wallpapers found", "Try removing some tags or relaxing filters.");
+                if (StatusText != null) StatusText.Text = $"{_cachedExplorePosts.Count} wallpapers loaded  •  Page {_currentPage}";
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (StatusText != null) StatusText.Text = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                WallpaperGridControl.SetLoadingMore(false);
+                SetLoading(false);
+                Interlocked.Exchange(ref _isLoading, 0); // Release lock
+            }
+        }
+
+        private string BuildTagQuery()
+        {
+            var tags = new List<string>();
+
+            // Parse and resolve search input using predictive alias engine
+            string searchText = TagSearchBox.Text.Trim();
+            if (!string.IsNullOrEmpty(searchText))
+            {
+                if (searchText.Contains(','))
+                {
+                    var parts = searchText.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var part in parts)
+                    {
+                        string resolved = ApiClient.ResolveTag(part);
+                        if (!string.IsNullOrEmpty(resolved) && !tags.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+                            tags.Add(resolved);
+                    }
+                }
+                else
+                {
+                    string resolved = ApiClient.ResolveTag(searchText);
+                    if (!string.IsNullOrEmpty(resolved) && !tags.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+                        tags.Add(resolved);
+                }
+            }
+
+            var ratingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string;
+            var sortTag = ((ComboBoxItem?)SortBox?.SelectedItem)?.Tag as string;
+
+            if (!string.IsNullOrEmpty(ratingTag)) tags.Add(ratingTag);
+            if (!string.IsNullOrEmpty(sortTag)) tags.Add(sortTag);
+
+            return string.Join(" ", tags);
+        }
+
+        private List<PostItem> FilterPosts(List<PostItem> posts)
+        {
+            int minWidth = 0;
+            if (ResolutionBox?.SelectedItem is ComboBoxItem resItem && int.TryParse(resItem.Tag as string, out int mw))
+                minWidth = mw;
+
+            string aspect = ((ComboBoxItem?)AspectBox?.SelectedItem)?.Tag as string ?? "all";
+
+            // Global client-side blacklist filtering — cache parsed array to avoid re-splitting every call
+            string blacklistStr = Settings.Instance.TagBlacklist ?? string.Empty;
+            if (blacklistStr != _cachedBlacklistSource)
+            {
+                _cachedBlacklistSource = blacklistStr;
+                _cachedBlacklist = !string.IsNullOrWhiteSpace(blacklistStr)
+                    ? blacklistStr.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    : null;
+            }
+            var blacklist = _cachedBlacklist;
+
+            bool discretionBlur = Settings.Instance.DiscretionBlur;
+
+            return posts.Where(p =>
+            {
+                if (minWidth > 0 && p.Width < minWidth) return false;
+
+                if (aspect == "landscape" && (p.Width <= p.Height || (double)p.Width / p.Height < 1.3)) return false;
+                if (aspect == "ultrawide" && ((double)p.Width / Math.Max(1, p.Height) < 2.0)) return false;
+                if (aspect == "portrait" && (p.Width >= p.Height)) return false;
+
+                if (blacklist != null && blacklist.Length > 0)
+                {
+                    if (blacklist.Any(b => p.Tags.Contains(b, StringComparison.OrdinalIgnoreCase)))
+                        return false;
+                }
+
+                p.IsDiscreet = discretionBlur && (p.Rating == "q" || p.Rating == "e");
+
+                return true;
+            }).ToList();
+        }
+
+        private async void WallpaperGrid_LoadMoreRequested(object? sender, EventArgs e)
+        {
+            _currentPage++;
+            await DoExploreSearch(append: true);
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Card Events & Wallpaper Applied
+        // ═════════════════════════════════════════════════════════════════
+
+        private void WallpaperGrid_WallpaperApplied(object? sender, PostItem e)
+        {
+            ShowToast("✓", "Wallpaper applied to desktop!");
+        }
+
+        private void WallpaperGrid_FavoriteToggled(object? sender, PostItem e)
+        {
+            if (e.IsFavorite)
+                ShowToast("♥", "Added to Favorites");
+            else
+                ShowToast("✕", "Removed from Favorites");
+
+            if (_currentSection == ActiveSection.Favorites)
+                DisplayCurrentSection();
+        }
+
+        private void WallpaperGrid_DownloadCompleted(object? sender, PostItem e)
+        {
+            ShowToast("📥", "Saved to Downloaded Wallpapers!");
+        }
+
+        private async void WallpaperGrid_PreviewRequested(object? sender, PostItem item)
+        {
+            _previewItem = item;
+            if (_previewItem == null) return;
+            int targetId = _previewItem.Id;
+
+            PreviewTitleText.Text = $"Wallpaper #{_previewItem.Id} ({_previewItem.Source})";
+            PreviewResText.Text = $" • {_previewItem.ResolutionText} • {_previewItem.AspectRatioText}";
+            PreviewRatingText.Text = _previewItem.RatingDisplay;
+            try
+            {
+                PreviewRatingBadge.Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_previewItem.RatingBadgeBackground));
+            }
+            catch { }
+
+            PreviewTagsText.Text = string.IsNullOrWhiteSpace(_previewItem.Tags) ? "No tags" : _previewItem.Tags.Replace(" ", " • ");
+            PreviewScoreText.Text = $"★ {_previewItem.Score}";
+
+            UpdatePreviewFavState();
+            UpdatePreviewDownloadState();
+            if (PreviewApplyText != null) PreviewApplyText.Text = "Apply";
+            if (PreviewApplyBtn != null) PreviewApplyBtn.IsEnabled = true;
+
+            // 1. INSTANT ARTWORK DISPLAY (0ms delay):
+            // Show the already-cached thumbnail immediately so user never stares at an empty black box!
+            var memThumb = ImageCacheService.Instance.GetFromMemoryCache(_previewItem.PreviewUrl);
+            if (memThumb != null)
+            {
+                PreviewMainImage.Source = memThumb;
+            }
+            else
+            {
+                string thumbPath = await ImageCacheService.Instance.GetCachedImagePathAsync(_previewItem.PreviewUrl);
+                if (_previewItem?.Id == targetId && File.Exists(thumbPath))
+                {
+                    try
+                    {
+                        var thumbBi = new System.Windows.Media.Imaging.BitmapImage();
+                        thumbBi.BeginInit();
+                        thumbBi.UriSource = new Uri(thumbPath, UriKind.Absolute);
+                        thumbBi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                        thumbBi.EndInit();
+                        thumbBi.Freeze();
+                        PreviewMainImage.Source = thumbBi;
+                    }
+                    catch { }
+                }
+            }
+
+            PreviewLoadingIndicator.Visibility = Visibility.Visible;
+            PreviewModal.Visibility = Visibility.Visible;
+
+            // 2. FAST BACKGROUND HIGH-RES STREAMING:
+            // Prefer SampleUrl (~1500px web preview, 300KB-800KB) over huge 40MB raw file for fast lightbox preview
+            string targetHighResUrl = !string.IsNullOrEmpty(_previewItem?.SampleUrl)
+                ? _previewItem.SampleUrl
+                : (_previewItem?.BestImageUrl ?? "");
+
+            try
+            {
+                string highResPath = await ImageCacheService.Instance.GetCachedImagePathAsync(targetHighResUrl);
+                if (_previewItem?.Id != targetId) return;
+
+                if (File.Exists(highResPath))
+                {
+                    var highResBi = await Task.Run(() =>
+                    {
+                        var bi = new System.Windows.Media.Imaging.BitmapImage();
+                        bi.BeginInit();
+                        bi.UriSource = new Uri(highResPath, UriKind.Absolute);
+                        bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                        bi.DecodePixelWidth = 1920; // Crisp full-HD preview, fast decode & lightweight memory
+                        bi.EndInit();
+                        bi.Freeze();
+                        return bi;
+                    });
+
+                    if (_previewItem?.Id == targetId)
+                    {
+                        PreviewMainImage.Source = highResBi;
+                    }
+                }
+            }
+            catch { }
+            finally
+            {
+                if (_previewItem?.Id == targetId)
+                {
+                    PreviewLoadingIndicator.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void ClosePreview_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            ClosePreview_Click(sender, e);
+        }
+
+        private void ClosePreview_Click(object sender, RoutedEventArgs e)
+        {
+            PreviewModal.Visibility = Visibility.Collapsed;
+            PreviewMainImage.Source = null;
+            _previewItem = null;
+        }
+
+        private async void PreviewApply_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewItem == null) return;
+            try
+            {
+                if (PreviewApplyText != null) PreviewApplyText.Text = "Applying…";
+                if (PreviewApplyBtn != null) PreviewApplyBtn.IsEnabled = false;
+
+                ShowToast("⏳", "Applying wallpaper…");
+                await WallpaperManager.Instance.ApplyWallpaperAsync(_previewItem);
+
+                if (PreviewApplyText != null) PreviewApplyText.Text = "Applied ✓";
+                ShowToast("✓", "Wallpaper applied to desktop!");
+            }
+            catch (Exception ex)
+            {
+                if (PreviewApplyText != null) PreviewApplyText.Text = "Apply";
+                ShowToast("⚠", $"Failed: {ex.Message}");
+            }
+            finally
+            {
+                if (PreviewApplyBtn != null) PreviewApplyBtn.IsEnabled = true;
+            }
+        }
+
+        private async void PreviewLockScreen_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewItem == null) return;
+            try
+            {
+                ShowToast("⏳", "Setting Windows lock screen…");
+                bool ok = await WallpaperManager.Instance.SetLockScreenAsync(_previewItem.BestImageUrl);
+                if (ok) ShowToast("✓", "Lock Screen updated!");
+                else ShowToast("⚠", "Could not set lock screen");
+            }
+            catch (Exception ex)
+            {
+                ShowToast("⚠", $"Failed: {ex.Message}");
+            }
+        }
+
+        private async void PreviewDownload_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewItem == null) return;
+            try
+            {
+                if (PreviewDownloadText != null) PreviewDownloadText.Text = "Downloading…";
+                if (PreviewDownloadBtn != null) PreviewDownloadBtn.IsEnabled = false;
+
+                ShowToast("⏳", "Downloading full-resolution image…");
+                await DownloadsManager.Instance.DownloadPostAsync(_previewItem, null, CancellationToken.None);
+                UpdatePreviewDownloadState();
+                ShowToast("✓", "Saved to Downloaded Wallpapers!");
+            }
+            catch (Exception ex)
+            {
+                if (PreviewDownloadText != null) PreviewDownloadText.Text = "Download";
+                ShowToast("⚠", $"Download failed: {ex.Message}");
+            }
+            finally
+            {
+                if (PreviewDownloadBtn != null) PreviewDownloadBtn.IsEnabled = true;
+            }
+        }
+
+        private void PreviewFavorite_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewItem == null) return;
+            FavoritesManager.Instance.ToggleFavorite(_previewItem);
+            UpdatePreviewFavState();
+            if (_previewItem.IsFavorite) ShowToast("♥", "Added to Favorites");
+            else ShowToast("✕", "Removed from Favorites");
+
+            if (_currentSection == ActiveSection.Favorites)
+                DisplayCurrentSection();
+        }
+
+        private void PreviewWeb_Click(object sender, RoutedEventArgs e)
+        {
+            if (_previewItem == null || string.IsNullOrEmpty(_previewItem.SourceUrl)) return;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = _previewItem.SourceUrl,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+
+        private void UpdatePreviewFavState()
+        {
+            if (_previewItem == null || PreviewFavIcon == null) return;
+            if (_previewItem.IsFavorite)
+            {
+                PreviewFavIcon.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF4, 0x3F, 0x5E));
+                PreviewFavBtn.ToolTip = "Remove from Favorites";
+            }
+            else
+            {
+                PreviewFavIcon.Fill = (System.Windows.Media.Brush)FindResource("SubtextBrush");
+                PreviewFavBtn.ToolTip = "Add to Favorites";
+            }
+        }
+
+        private void UpdatePreviewDownloadState()
+        {
+            if (_previewItem == null || PreviewDownloadIcon == null || PreviewDownloadText == null) return;
+            if (_previewItem.IsDownloaded)
+            {
+                if (TryFindResource("IconCheckGeo") is System.Windows.Media.Geometry checkGeo)
+                    PreviewDownloadIcon.Data = checkGeo;
+                if (TryFindResource("EmeraldBrush") is System.Windows.Media.Brush emerald)
+                    PreviewDownloadIcon.Fill = emerald;
+                PreviewDownloadText.Text = "Downloaded";
+            }
+            else
+            {
+                if (TryFindResource("IconDownloadGeo") is System.Windows.Media.Geometry dlGeo)
+                    PreviewDownloadIcon.Data = dlGeo;
+                PreviewDownloadIcon.Fill = (System.Windows.Media.Brush)FindResource("SubtextBrush");
+                PreviewDownloadText.Text = "Download";
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Panic Button & Safe Wallpaper
+        // ═════════════════════════════════════════════════════════════════
+
+        private void Panic_Click(object sender, RoutedEventArgs e)
+        {
+            WallpaperManager.Instance.ApplySafeWallpaper();
+        }
+
+        private void OnSafeWallpaperTriggered()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                ShowToast("🛡", "Safe Wallpaper Restored!");
+                if (StatusText != null) StatusText.Text = "Default safe wallpaper applied.";
+            });
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Window Chrome & Utility
+        // ═════════════════════════════════════════════════════════════════
+
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+                DragMove();
+        }
+
+        private void Refresh_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentSection == ActiveSection.Home)
+                _ = LoadHomeDataAsync();
+            else if (_currentSection == ActiveSection.Explore)
+                _ = DoExploreSearch(append: false);
+            else
+                DisplayCurrentSection();
+        }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            var sw = new SettingsWindow { Owner = this };
+            sw.ShowDialog();
+            UpdatePanicButtonLabel();
+        }
+
+        private void Hide_Click(object sender, RoutedEventArgs e)
+        {
+            AppSuspensionManager.EnterBackgroundMode(this);
+        }
+
+        private void OpenDownloadsFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string folder = DownloadsManager.Instance.DownloadFolder;
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = folder,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                ShowToast("⚠", $"Cannot open folder: {ex.Message}");
+            }
+        }
+
+        private void SetLoading(bool loading, string? text = null)
+        {
+            LoadingOverlay.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+            if (text != null) LoadingText.Text = text;
+        }
+
+        private async void ShowToast(string icon, string message)
+        {
+            // Cancel any previous toast that is still showing
+            _toastCts.Cancel();
+            _toastCts = new CancellationTokenSource();
+            var ct = _toastCts.Token;
+
+            if (ToastStatusIcon != null)
+            {
+                if (icon == "✓" || icon == "📥")
+                {
+                    if (TryFindResource("IconCheckGeo") is System.Windows.Media.Geometry checkGeo)
+                        ToastStatusIcon.Data = checkGeo;
+                    ToastBanner.Background = (System.Windows.Media.Brush)FindResource("AccentBrush");
+                }
+                else if (icon == "⚠" || icon == "✕")
+                {
+                    if (TryFindResource("IconAlertGeo") is System.Windows.Media.Geometry alertGeo)
+                        ToastStatusIcon.Data = alertGeo;
+                    ToastBanner.Background = (System.Windows.Media.Brush)FindResource("DangerBrush");
+                }
+                else if (icon == "🛡")
+                {
+                    if (TryFindResource("IconShieldGeo") is System.Windows.Media.Geometry shieldGeo)
+                        ToastStatusIcon.Data = shieldGeo;
+                    ToastBanner.Background = (System.Windows.Media.Brush)FindResource("EmeraldBrush");
+                }
+                else if (icon == "🔞")
+                {
+                    if (TryFindResource("IconFireGeo") is System.Windows.Media.Geometry fireGeo)
+                        ToastStatusIcon.Data = fireGeo;
+                    ToastBanner.Background = (System.Windows.Media.Brush)FindResource("DangerBrush");
+                }
+            }
+
+            ToastIcon.Text = icon;
+            ToastMessage.Text = message;
+            ToastBanner.Visibility = Visibility.Visible;
+
+            try
+            {
+                await Task.Delay(2500, ct);
+                ToastBanner.Visibility = Visibility.Collapsed;
+            }
+            catch (OperationCanceledException) { /* replaced by newer toast — leave visible */ }
+        }
+
+        // ═════════════════════════════════════════════════════════════════
+        // Home Page Dashboard Methods
+        // ═════════════════════════════════════════════════════════════════
+
+        private async Task LoadHomeDataAsync()
+        {
+            try
+            {
+                // Fetch top trending wallpapers for hero spotlight & trending row
+                string homeSource = Settings.Instance.SfwOnlyMode ? "konasfw" : "yande";
+                var posts = await _api.FetchPostsAsync(homeSource, "order:score rating:s", 1, 12, CancellationToken.None);
+                _trendingPosts = posts;
+
+                // Priority: Show user's saved favorite artwork if available
+                var favs = FavoritesManager.Instance.GetAllFavorites();
+                if (favs.Count > 0)
+                {
+                    _showingFavoriteInHero = true;
+                    _favoriteHeroIndex = 0;
+                    _heroPost = favs[0];
+                    PopulateHeroCard(_heroPost);
+                }
+                else if (posts.Count > 0)
+                {
+                    _showingFavoriteInHero = false;
+                    _heroPost = posts[0];
+                    PopulateHeroCard(_heroPost);
+                }
+
+                if (posts.Count > 0)
+                {
+                    var trendingSubset = posts.Skip(_showingFavoriteInHero ? 0 : 1).Take(4).ToList();
+                    TrendingCard0.DataContext = trendingSubset.Count > 0 ? trendingSubset[0] : null;
+                    TrendingCard1.DataContext = trendingSubset.Count > 1 ? trendingSubset[1] : null;
+                    TrendingCard2.DataContext = trendingSubset.Count > 2 ? trendingSubset[2] : null;
+                    TrendingCard3.DataContext = trendingSubset.Count > 3 ? trendingSubset[3] : null;
+                }
+
+                if (HomePanicKeyText != null)
+                    HomePanicKeyText.Text = Settings.Instance.GetHotkeyDisplayName();
+
+                UpdateSlideshowQuickToggleState();
+
+                int screenW = (int)SystemParameters.PrimaryScreenWidth;
+                int screenH = (int)SystemParameters.PrimaryScreenHeight;
+                if (HomeDisplayInfoText != null)
+                    HomeDisplayInfoText.Text = $"{screenW} × {screenH}";
+
+                UpdateQuickShelf();
+            }
+            catch { }
+        }
+
+        private void PopulateHeroCard(PostItem item)
+        {
+            if (HeroTitleText == null || HeroTagsText == null || HeroResText == null || HeroRatingText == null || HeroImage == null) return;
+
+            if (_showingFavoriteInHero)
+            {
+                HeroTitleText.Text = $"Your Favorite #{item.Id}";
+                if (HeroSpotlightText != null) HeroSpotlightText.Text = "FAVORITE SPOTLIGHT";
+                if (HeroSpotlightBadge != null)
+                    HeroSpotlightBadge.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF4, 0x3F, 0x5E));
+                if (HeroSpotlightIcon != null)
+                    HeroSpotlightIcon.Data = (System.Windows.Media.Geometry)FindResource("IconHeartGeo");
+                if (HeroSourceToggleText != null) HeroSourceToggleText.Text = "Show Trending";
+                if (HeroSourceToggleIcon != null)
+                {
+                    HeroSourceToggleIcon.Data = (System.Windows.Media.Geometry)FindResource("IconFireGeo");
+                    HeroSourceToggleIcon.Fill = (System.Windows.Media.Brush)FindResource("DangerBrush");
+                }
+            }
+            else
+            {
+                HeroTitleText.Text = $"Spotlight Artwork #{item.Id}";
+                if (HeroSpotlightText != null) HeroSpotlightText.Text = "SPOTLIGHT OF THE DAY";
+                if (HeroSpotlightBadge != null)
+                    HeroSpotlightBadge.Background = (System.Windows.Media.Brush)FindResource("AccentBrush");
+                if (HeroSpotlightIcon != null)
+                    HeroSpotlightIcon.Data = (System.Windows.Media.Geometry)FindResource("IconSparkleGeo");
+                if (HeroSourceToggleText != null) HeroSourceToggleText.Text = "Show Favorite";
+                if (HeroSourceToggleIcon != null)
+                {
+                    HeroSourceToggleIcon.Data = (System.Windows.Media.Geometry)FindResource("IconHeartGeo");
+                    HeroSourceToggleIcon.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF4, 0x3F, 0x5E));
+                }
+            }
+
+            HeroTagsText.Text = string.IsNullOrWhiteSpace(item.Tags) ? "anime art, high resolution wallpaper" : item.Tags.Replace(" ", " • ");
+            HeroResText.Text = $"{item.ResolutionText} • {item.AspectRatioText}";
+            HeroRatingText.Text = item.RatingDisplay;
+
+            try
+            {
+                HeroRatingBadge.Background = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(item.RatingBadgeBackground));
+            }
+            catch { }
+
+            UpdateHeroFavState();
+
+            try
+            {
+                var bi = new System.Windows.Media.Imaging.BitmapImage();
+                bi.BeginInit();
+                bi.UriSource = new Uri(item.BestImageUrl, UriKind.RelativeOrAbsolute);
+                bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bi.DecodePixelWidth = 1280;
+                bi.EndInit();
+                HeroImage.Source = bi;
+            }
+            catch { }
+        }
+
+        private void HeroSourceToggle_Click(object sender, RoutedEventArgs e)
+        {
+            var favs = FavoritesManager.Instance.GetAllFavorites();
+            if (!_showingFavoriteInHero)
+            {
+                if (favs.Count > 0)
+                {
+                    _showingFavoriteInHero = true;
+                    _favoriteHeroIndex = 0;
+                    _heroPost = favs[0];
+                    PopulateHeroCard(_heroPost);
+                    ShowToast("♥", "Displaying your saved favorite!");
+                }
+                else
+                {
+                    ShowToast("♥", "No favorites yet — click ♥ on any wallpaper!");
+                }
+            }
+            else
+            {
+                if (favs.Count > 1 && _favoriteHeroIndex + 1 < favs.Count)
+                {
+                    _favoriteHeroIndex++;
+                    _heroPost = favs[_favoriteHeroIndex];
+                    PopulateHeroCard(_heroPost);
+                    ShowToast("♥", $"Favorite {_favoriteHeroIndex + 1} of {favs.Count}");
+                }
+                else if (_trendingPosts.Count > 0)
+                {
+                    _showingFavoriteInHero = false;
+                    _heroPost = _trendingPosts[0];
+                    PopulateHeroCard(_heroPost);
+                    ShowToast("⚡", "Displaying trending community spotlight!");
+                }
+            }
+        }
+
+        private void UpdateHeroFavState()
+        {
+            if (_heroPost == null || HeroFavIcon == null) return;
+            if (_heroPost.IsFavorite)
+            {
+                HeroFavIcon.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF4, 0x3F, 0x5E));
+            }
+            else
+            {
+                HeroFavIcon.Fill = System.Windows.Media.Brushes.White;
+            }
+        }
+
+        private void UpdateQuickShelf()
+        {
+            if (QuickShelfGrid == null || QuickShelfEmpty == null) return;
+
+            var shelfItems = FavoritesManager.Instance.GetAllFavorites();
+            if (shelfItems.Count == 0)
+            {
+                shelfItems = DownloadsManager.Instance.GetAllDownloads();
+            }
+
+            if (shelfItems.Count == 0)
+            {
+                QuickShelfEmpty.Visibility = Visibility.Visible;
+                QuickShelfGrid.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                QuickShelfEmpty.Visibility = Visibility.Collapsed;
+                QuickShelfGrid.Visibility = Visibility.Visible;
+
+                ShelfCard0.Visibility = shelfItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                ShelfCard0.DataContext = shelfItems.Count > 0 ? shelfItems[0] : null;
+
+                ShelfCard1.Visibility = shelfItems.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+                ShelfCard1.DataContext = shelfItems.Count > 1 ? shelfItems[1] : null;
+
+                ShelfCard2.Visibility = shelfItems.Count > 2 ? Visibility.Visible : Visibility.Collapsed;
+                ShelfCard2.DataContext = shelfItems.Count > 2 ? shelfItems[2] : null;
+
+                ShelfCard3.Visibility = shelfItems.Count > 3 ? Visibility.Visible : Visibility.Collapsed;
+                ShelfCard3.DataContext = shelfItems.Count > 3 ? shelfItems[3] : null;
+            }
+        }
+
+        private async void HeroApply_Click(object sender, RoutedEventArgs e)
+        {
+            if (_heroPost == null) return;
+            try
+            {
+                ShowToast("⏳", "Applying wallpaper…");
+                await WallpaperManager.Instance.ApplyWallpaperAsync(_heroPost);
+                ShowToast("✓", "Wallpaper applied to desktop!");
+            }
+            catch (Exception ex)
+            {
+                ShowToast("⚠", $"Failed: {ex.Message}");
+            }
+        }
+
+        private void HeroPreview_Click(object sender, RoutedEventArgs e)
+        {
+            if (_heroPost != null)
+                WallpaperGrid_PreviewRequested(this, _heroPost);
+        }
+
+        private void HeroFav_Click(object sender, RoutedEventArgs e)
+        {
+            if (_heroPost == null) return;
+            FavoritesManager.Instance.ToggleFavorite(_heroPost);
+            UpdateHeroFavState();
+            UpdateQuickShelf();
+            ShowToast(_heroPost.IsFavorite ? "♥" : "✕", _heroPost.IsFavorite ? "Added to Favorites" : "Removed from Favorites");
+        }
+
+        private void UniversePill_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is string tag)
+            {
+                NavExplore.IsChecked = true;
+                TagSearchBox.Text = tag;
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        private void ExploreMoreTrending_Click(object sender, RoutedEventArgs e)
+        {
+            NavExplore.IsChecked = true;
+            TagSearchBox.Text = "order:score";
+            _ = DoExploreSearch(append: false);
+        }
+
+        private void ViewFavorites_Click(object sender, RoutedEventArgs e)
+        {
+            NavFavorites.IsChecked = true;
+        }
+
+        private void QuickFilter4K_Click(object sender, RoutedEventArgs e)
+        {
+            NavExplore.IsChecked = true;
+            if (ResolutionBox != null) ResolutionBox.SelectedIndex = 3; // 4K UHD (3840+)
+            _ = DoExploreSearch(append: false);
+        }
+
+        private void QuickFilterUltrawide_Click(object sender, RoutedEventArgs e)
+        {
+            NavExplore.IsChecked = true;
+            if (AspectBox != null) AspectBox.SelectedIndex = 2; // Ultrawide (21:9+)
+            _ = DoExploreSearch(append: false);
+        }
+
+        private void QuickFilterAll_Click(object sender, RoutedEventArgs e)
+        {
+            NavExplore.IsChecked = true;
+            if (ResolutionBox != null) ResolutionBox.SelectedIndex = 0;
+            if (AspectBox != null) AspectBox.SelectedIndex = 0;
+            _ = DoExploreSearch(append: false);
+        }
+    }
+}

@@ -1,0 +1,72 @@
+<UserControl x:Class="WallSafe.WallpaperGrid"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WallSafe"
+             Loaded="UserControl_Loaded"
+             SizeChanged="UserControl_SizeChanged">
+    <ScrollViewer x:Name="MainScroll"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  ScrollChanged="ScrollViewer_ScrollChanged">
+        <StackPanel Margin="4,2,4,12">
+            <ItemsControl x:Name="PostsPanel">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"
+                                   HorizontalAlignment="Center"
+                                   ItemWidth="{Binding CardWidth, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:WallpaperGrid}}}"
+                                   ItemHeight="{Binding CardHeight, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:WallpaperGrid}}}"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <local:WallpaperCard DataContext="{Binding}"
+                                             WallpaperApplied="Card_WallpaperApplied"
+                                             FavoriteToggled="Card_FavoriteToggled"
+                                             DownloadCompleted="Card_DownloadCompleted"
+                                             PreviewRequested="Card_PreviewRequested"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Pixiv-style Infinite Scroll Bottom Loader & Feedback -->
+            <Grid x:Name="BottomLoadingContainer" Margin="0,16,0,24" HorizontalAlignment="Center">
+                <!-- 1. Active Infinite-Scroll Loading State (Pixiv-style sleek rotating spinner + label) -->
+                <StackPanel x:Name="BottomLoadingSpinner" Orientation="Horizontal" Visibility="Collapsed" HorizontalAlignment="Center">
+                    <Path x:Name="BottomSpinnerIcon" Data="{StaticResource IconRefreshGeo}"
+                          Fill="{DynamicResource AccentBrush}"
+                          Width="15" Height="15" Stretch="Uniform" Margin="0,0,8,0"
+                          RenderTransformOrigin="0.5,0.5">
+                        <Path.RenderTransform>
+                            <RotateTransform x:Name="BottomSpinnerRotation" Angle="0"/>
+                        </Path.RenderTransform>
+                    </Path>
+                    <TextBlock Text="Loading more wallpapers…"
+                               Foreground="{DynamicResource SubtextBrush}"
+                               FontFamily="Segoe UI Semibold" FontSize="11.5"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- 2. Fallback / Manual Trigger Button -->
+                <Button x:Name="LoadMoreBtn"
+                        Style="{StaticResource TabButton}"
+                        HorizontalAlignment="Center"
+                        Height="32" Padding="16,0"
+                        Visibility="Collapsed"
+                        Click="LoadMore_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <Path Data="{StaticResource IconDownloadGeo}" Fill="{StaticResource SubtextBrush}"
+                              Width="11" Height="11" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Load More Wallpapers" FontSize="11.5" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- 3. End of Results subtle text -->
+                <TextBlock x:Name="EndOfResultsText" Text="• All wallpapers loaded •"
+                           Foreground="{DynamicResource MutedBrush}"
+                           FontFamily="Segoe UI" FontSize="11"
+                           Visibility="Collapsed" HorizontalAlignment="Center"/>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

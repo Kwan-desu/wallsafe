@@ -1,0 +1,1068 @@
+<Window x:Class="WallSafe.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WallSafe"
+        Title="WallSafe"
+        Width="1080" Height="740"
+        MinWidth="780" MinHeight="560"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResize"
+        ShowInTaskbar="True"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- Outer Container with Clean Windows 11 Fluent Shadow -->
+    <Border Background="{DynamicResource BgBrush}"
+            CornerRadius="12"
+            BorderThickness="1"
+            BorderBrush="{DynamicResource BorderBrush}"
+            x:Name="RootBorder"
+            Margin="8"
+            SizeChanged="RootBorder_SizeChanged">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="4" Opacity="0.35"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="50"/>  <!-- Top Navigation & Title Bar -->
+                <RowDefinition Height="Auto"/> <!-- Minimalist Search & Filter Row -->
+                <RowDefinition Height="Auto"/> <!-- Expandable Filter & Topic Drawer -->
+                <RowDefinition Height="*"/>    <!-- Main Wallpaper Gallery -->
+            </Grid.RowDefinitions>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 0: Top Title Bar & Main Nav Tabs
+                 ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}"
+                    CornerRadius="12,12,0,0"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseDown" Cursor="SizeAll">
+                <Grid Margin="12,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- App Logo & Brand -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Border Width="24" Height="24" CornerRadius="6" Background="{DynamicResource AccentBrush}"
+                                Margin="0,0,7,0">
+                            <Path Data="{StaticResource IconShieldGeo}" Fill="White" Width="12" Height="12"
+                                  Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="WallSafe" Foreground="{DynamicResource TextBrush}"
+                                   FontFamily="Segoe UI Semibold" FontSize="14" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Navigation Tabs -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <RadioButton x:Name="NavHome" Style="{StaticResource NavTabStyle}" IsChecked="True"
+                                     Padding="9,5" Checked="NavTab_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconHomeGeo}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Home" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="NavExplore" Style="{StaticResource NavTabStyle}" Margin="4,0,0,0"
+                                     Padding="9,5" Checked="NavTab_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconExploreGeo}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Explore" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="NavFavorites" Style="{StaticResource NavTabStyle}" Margin="4,0,0,0"
+                                     Padding="9,5" Checked="NavTab_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconHeartGeo}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Favorites" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="NavDownloads" Style="{StaticResource NavTabStyle}" Margin="4,0,0,0"
+                                     Padding="9,5" Checked="NavTab_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconDownloadGeo}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Downloads" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Subtle Divider -->
+                        <Border Width="1" Height="16" Background="{DynamicResource BorderBrush}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+
+                        <!-- SFW / NSFW Mode Quick Toggle Pill -->
+                        <Button x:Name="SfwToggleBtn"
+                                Style="{StaticResource TabButton}"
+                                Height="28" Padding="9,0"
+                                Click="SfwToggle_Click"
+                                ToolTip="Toggle between Safe (SFW Only) and Unrestricted (Include NSFW)"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path x:Name="SfwToggleIcon" Data="{StaticResource IconShieldGeo}"
+                                      Fill="{DynamicResource EmeraldBrush}"
+                                      Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="SfwToggleText" Text="SFW Only"
+                                           Foreground="{DynamicResource EmeraldBrush}"
+                                           FontFamily="Segoe UI Semibold" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Window Action Icons -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Theme Toggle (Dark / Light Mode) -->
+                        <Button x:Name="ThemeToggleBtn" Style="{StaticResource ToolButton}"
+                                ToolTip="Toggle Dark / Light Mode"
+                                Click="ThemeToggle_Click" Padding="6,4">
+                            <Path x:Name="ThemeIconPath" Data="{StaticResource IconSunGeo}"
+                                  Fill="{DynamicResource SubtextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Slideshow Quick Toggle -->
+                        <Button x:Name="SlideshowQuickToggle" Style="{StaticResource ToolButton}"
+                                ToolTip="Toggle Automated Wallpaper Slideshow"
+                                Click="SlideshowQuickToggle_Click" Padding="6,4" Margin="2,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path x:Name="SlideshowIconPath" Data="{StaticResource IconTimerGeo}"
+                                      Fill="{DynamicResource SubtextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                <Ellipse x:Name="SlideshowActiveDot" Width="5" Height="5"
+                                         Fill="{DynamicResource EmeraldBrush}"
+                                         Margin="3,0,0,0" VerticalAlignment="Center"
+                                         Visibility="Collapsed"
+                                         ToolTip="Slideshow is Active"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Refresh -->
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Refresh (F5)"
+                                Click="Refresh_Click" Padding="6,4" Margin="2,0,0,0">
+                            <Path Data="{StaticResource IconRefreshGeo}" Fill="{DynamicResource SubtextBrush}"
+                                  Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Settings -->
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Settings &amp; Hotkeys"
+                                Click="Settings_Click" Padding="6,4" Margin="2,0,0,0">
+                            <Path Data="{StaticResource IconSettingsGeo}" Fill="{DynamicResource SubtextBrush}"
+                                  Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Hide to Tray -->
+                        <Button Style="{StaticResource ToolButton}" ToolTip="Hide to System Tray"
+                                Click="Hide_Click" Padding="6,4" Margin="2,0,0,0">
+                            <Path Data="{StaticResource IconCloseGeo}" Fill="{DynamicResource SubtextBrush}"
+                                  Width="11" Height="11" Stretch="Uniform"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 1: Minimalist Search Bar & Filter Drawer Toggle
+                 ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="1" x:Name="ExploreToolbar" Visibility="Collapsed" Background="{DynamicResource BgBrush}"
+                    Padding="12,8,12,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Clean Search Box Container -->
+                    <Border x:Name="SearchBarContainer" Grid.Column="0" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Height="36">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Leading Search Icon -->
+                            <Path Grid.Column="0" Data="{StaticResource IconSearchGeo}"
+                                  Fill="{DynamicResource MutedBrush}"
+                                  Width="12" Height="12" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  IsHitTestVisible="False"/>
+
+                            <!-- Text Input and Placeholder aligned on the left -->
+                            <Grid Grid.Column="1" VerticalAlignment="Center">
+                                <TextBox x:Name="TagSearchBox"
+                                         Background="Transparent" BorderThickness="0"
+                                         Foreground="{DynamicResource TextBrush}"
+                                         CaretBrush="{DynamicResource TextBrush}"
+                                         FontFamily="Segoe UI" FontSize="12"
+                                         Padding="0,0,6,0"
+                                         VerticalContentAlignment="Center"
+                                         TextChanged="TagSearch_TextChanged"
+                                         KeyDown="TagSearch_KeyDown"
+                                         GotFocus="TagSearch_GotFocus"/>
+
+                                <TextBlock x:Name="TagPlaceholder"
+                                           Text="Search wallpapers, tags, series, characters…"
+                                           Foreground="{DynamicResource MutedBrush}"
+                                           FontFamily="Segoe UI" FontSize="12"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"/>
+                            </Grid>
+
+                            <!-- Inline Clear (✕) Button -->
+                            <Button Grid.Column="2" x:Name="ClearSearchBtn" Style="{StaticResource ToolButton}"
+                                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                                    Margin="0,0,4,0" Padding="5,3"
+                                    Visibility="Collapsed"
+                                    Click="ClearSearch_Click"
+                                    ToolTip="Clear search">
+                                <Path Data="{StaticResource IconCloseGeo}" Fill="{DynamicResource SubtextBrush}"
+                                      Width="8" Height="8" Stretch="Uniform"/>
+                            </Button>
+
+                            <!-- Predictive Autocomplete & Recent Searches Popup (Cleanly below search container with 4px gap) -->
+                            <Popup x:Name="AutocompletePopup"
+                                   PlacementTarget="{Binding ElementName=SearchBarContainer}"
+                                   Placement="Bottom"
+                                   VerticalOffset="4"
+                                   StaysOpen="False"
+                                   AllowsTransparency="True">
+                                <Border Background="{DynamicResource SurfaceBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1" CornerRadius="8"
+                                        Width="{Binding ActualWidth, ElementName=SearchBarContainer}"
+                                        MaxHeight="260">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="4" Opacity="0.35"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <!-- Autocomplete Tag Suggestions -->
+                                        <ListBox x:Name="AutocompleteList"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                 PreviewKeyDown="AutocompleteList_PreviewKeyDown"
+                                                 SelectionChanged="Autocomplete_Selected"
+                                                 PreviewMouseLeftButtonUp="AutocompleteList_PreviewMouseUp">
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Padding" Value="0"/>
+                                                    <Setter Property="Margin" Value="2,1"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="itemBorder" Background="{TemplateBinding Background}"
+                                                                        CornerRadius="6" Padding="4,2">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Padding="10,6" CornerRadius="4" Background="Transparent"
+                                                            Cursor="Hand">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Category Pill -->
+                                                            <Border Grid.Column="0" Background="{Binding CategoryColor}"
+                                                                    CornerRadius="4" Padding="5,1" Margin="0,0,8,0">
+                                                                <TextBlock Text="{Binding CategoryName}" FontSize="9"
+                                                                           FontFamily="Segoe UI Bold" Foreground="White"/>
+                                                            </Border>
+
+                                                            <!-- Tag Name -->
+                                                            <TextBlock Grid.Column="1" Text="{Binding DisplayText}"
+                                                                       Foreground="{DynamicResource TextBrush}"
+                                                                       FontFamily="Segoe UI" FontSize="12"
+                                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                                            <!-- Count -->
+                                                            <TextBlock Grid.Column="2" Text="{Binding CountDisplay}"
+                                                                       Foreground="{DynamicResource MutedBrush}"
+                                                                       FontFamily="Segoe UI" FontSize="10"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <!-- Recent Searches Panel -->
+                                        <StackPanel x:Name="RecentSearchesPanel" Visibility="Collapsed" Margin="8,6">
+                                            <Grid Margin="4,2,4,6">
+                                                <TextBlock Text="Recent Searches" Foreground="{DynamicResource MutedBrush}"
+                                                           FontSize="10" FontFamily="Segoe UI Semibold"/>
+                                                <Button Content="Clear" HorizontalAlignment="Right"
+                                                        Style="{StaticResource ToolButton}" Padding="4,1" FontSize="9"
+                                                        Click="ClearRecentSearches_Click"/>
+                                            </Grid>
+                                            <ListBox x:Name="RecentSearchesList"
+                                                     Background="Transparent" BorderThickness="0"
+                                                     SelectionChanged="RecentSearch_Selected">
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="ListBoxItem">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Setter Property="BorderThickness" Value="0"/>
+                                                        <Setter Property="Padding" Value="0"/>
+                                                        <Setter Property="Margin" Value="2,1"/>
+                                                        <Setter Property="Cursor" Value="Hand"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListBoxItem">
+                                                                    <Border x:Name="itemBorder" Background="{TemplateBinding Background}"
+                                                                            CornerRadius="6" Padding="4,2">
+                                                                        <ContentPresenter/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter TargetName="itemBorder" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Padding="8,4" CornerRadius="4" Cursor="Hand">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Path Data="{StaticResource IconTimerGeo}" Fill="{DynamicResource MutedBrush}"
+                                                                      Width="10" Height="10" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding}" Foreground="{DynamicResource TextBrush}"
+                                                                           FontSize="11" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
+
+                    <!-- Filter Drawer Toggle Button -->
+                    <ToggleButton Grid.Column="1" x:Name="FilterDrawerToggle"
+                                  Style="{StaticResource TabButton}"
+                                  Click="FilterDrawer_Click"
+                                  Margin="8,0,0,0" Height="36" Padding="10,0"
+                                  VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconSettingsGeo}" Fill="{DynamicResource SubtextBrush}"
+                                  Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Filters" VerticalAlignment="Center" FontSize="12"/>
+                            <Border x:Name="FilterCountBadge" Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="6" Padding="4,1" Margin="6,0,0,0"
+                                    Visibility="Collapsed">
+                                <TextBlock x:Name="FilterCountText" Text="0" FontSize="9"
+                                           Foreground="White" FontWeight="Bold"/>
+                            </Border>
+                        </StackPanel>
+                    </ToggleButton>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 2: Expandable Filter Drawer (Sources, Categories, Filters)
+                 ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="2" x:Name="FilterDrawer" Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,1"
+                    Padding="14,12" Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Section 1: Image Source Boards -->
+                    <TextBlock Text="IMAGE SOURCES" Foreground="{DynamicResource MutedBrush}"
+                               FontSize="10" FontFamily="Segoe UI Bold" Margin="0,0,0,6"/>
+                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,12" x:Name="SourcePillsPanel">
+                        <RadioButton x:Name="SourceAll" Content="All Sources"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceKonaSfw" Content="konachan.net (SFW)"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceYande" Content="yande.re"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceKonaNsfw" Content="konachan.com (18+)"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                    </WrapPanel>
+
+                    <!-- Section 2: Content Rating & Sort Order -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="CONTENT RATING" Foreground="{DynamicResource MutedBrush}"
+                                       FontSize="10" FontFamily="Segoe UI Bold" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="RatingBox"
+                                      Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="Safe Only (SFW)" Tag="rating:s" IsSelected="True"/>
+                                <ComboBoxItem Content="Questionable" Tag="rating:q"/>
+                                <ComboBoxItem Content="Explicit (NSFW)" Tag="rating:e"/>
+                                <ComboBoxItem Content="All Ratings" Tag=""/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock Text="SORT ORDER" Foreground="{DynamicResource MutedBrush}"
+                                       FontSize="10" FontFamily="Segoe UI Bold" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="SortBox"
+                                      Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="Top Score" Tag="order:score" IsSelected="True"/>
+                                <ComboBoxItem Content="Newest Date" Tag="order:date"/>
+                                <ComboBoxItem Content="Random Shuffle" Tag="order:random"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Section 4: Resolution & Aspect Ratio -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                            <TextBlock Text="MIN RESOLUTION" Foreground="{DynamicResource MutedBrush}"
+                                       FontSize="10" FontFamily="Segoe UI Bold" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="ResolutionBox"
+                                      Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="Any Resolution" Tag="0" IsSelected="True"/>
+                                <ComboBoxItem Content="1080p Full HD (1920+)" Tag="1920"/>
+                                <ComboBoxItem Content="2K QHD (2560+)" Tag="2560"/>
+                                <ComboBoxItem Content="4K Ultra HD (3840+)" Tag="3840"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                            <TextBlock Text="ASPECT RATIO" Foreground="{DynamicResource MutedBrush}"
+                                       FontSize="10" FontFamily="Segoe UI Bold" Margin="0,0,0,5"/>
+                            <ComboBox x:Name="AspectBox"
+                                      Background="{DynamicResource CardBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      SelectionChanged="Filter_Changed">
+                                <ComboBoxItem Content="All Orientations" Tag="all" IsSelected="True"/>
+                                <ComboBoxItem Content="Landscape (16:9 / 16:10)" Tag="landscape"/>
+                                <ComboBoxItem Content="Ultrawide (21:9+)" Tag="ultrawide"/>
+                                <ComboBoxItem Content="Portrait / Mobile" Tag="portrait"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 3: Main Wallpaper Grid & Overlays
+                 ═══════════════════════════════════════════════════════════ -->
+            <Grid Grid.Row="3">
+                <!-- ═══════════════════════════════════════════════════════════
+                     Home Page Dashboard View
+                     ═══════════════════════════════════════════════════════════ -->
+                <ScrollViewer x:Name="HomeView"
+                              Visibility="Visible"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Padding="14,12">
+                    <StackPanel>
+                        <!-- 1. Hero Spotlight Wallpaper -->
+                        <Border x:Name="HeroSpotlightCard"
+                                Height="220"
+                                CornerRadius="12"
+                                Margin="0,0,0,16"
+                                ClipToBounds="True"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="4" Opacity="0.35"/>
+                            </Border.Effect>
+                            <Grid>
+                                <!-- Hero Image Background -->
+                                <Image x:Name="HeroImage" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                <!-- Gradient Overlay for Text Readability -->
+                                <Border>
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#F00A0D14" Offset="0"/>
+                                            <GradientStop Color="#C00A0D14" Offset="0.45"/>
+                                            <GradientStop Color="#400A0D14" Offset="0.8"/>
+                                            <GradientStop Color="#100A0D14" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+
+                                <!-- Bottom Dark Gradient for extra depth -->
+                                <Border VerticalAlignment="Bottom" Height="90">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#000A0D14" Offset="0"/>
+                                            <GradientStop Color="#E60A0D14" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+
+                                <!-- Hero Content -->
+                                <Grid Margin="20,18">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/> <!-- Badges -->
+                                        <RowDefinition Height="*"/>    <!-- Title & Info -->
+                                        <RowDefinition Height="Auto"/> <!-- Action Buttons -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Top Badges & Source Toggle -->
+                                    <Grid Grid.Row="0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border x:Name="HeroSpotlightBadge" Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Path x:Name="HeroSpotlightIcon" Data="{StaticResource IconSparkleGeo}" Fill="White" Width="10" Height="10" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                    <TextBlock x:Name="HeroSpotlightText" Text="SPOTLIGHT OF THE DAY" Foreground="White" FontFamily="Segoe UI Bold" FontSize="9.5" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border CornerRadius="4" Padding="6,2" x:Name="HeroRatingBadge" Background="#10B981" Margin="0,0,8,0">
+                                                <TextBlock x:Name="HeroRatingText" Text="SFW" FontSize="9.5" FontFamily="Segoe UI Bold" Foreground="White"/>
+                                            </Border>
+                                            <Border Background="#30FFFFFF" CornerRadius="4" Padding="6,2">
+                                                <TextBlock x:Name="HeroResText" Text="3840 × 2160 • 4K UHD" FontSize="9.5" FontFamily="Segoe UI Semibold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Switch Hero source (Favorites vs Trending) -->
+                                        <Button x:Name="HeroSourceToggleBtn" HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
+                                                Click="HeroSourceToggle_Click" Padding="8,3" Background="#80000000"
+                                                ToolTip="Switch Spotlight between Your Saved Favorites and Trending Artworks">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path x:Name="HeroSourceToggleIcon" Data="{StaticResource IconHeartGeo}" Fill="#F43F5E" Width="10" Height="10" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="HeroSourceToggleText" Text="Show Favorite" FontSize="10.5" Foreground="White" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Middle Title & Tags -->
+                                    <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,8,0,8">
+                                        <TextBlock x:Name="HeroTitleText" Text="Featured Desktop Artwork"
+                                                   Foreground="White" FontFamily="Segoe UI Bold" FontSize="18"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock x:Name="HeroTagsText" Text="anime, landscape, scenic, aesthetic, ultra-detailed"
+                                                   Foreground="#CBD5E1" FontFamily="Segoe UI" FontSize="11.5" Margin="0,4,0,0"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="500" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+
+                                    <!-- Bottom Actions -->
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                        <Button x:Name="HeroApplyBtn" Style="{StaticResource PrimaryButton}"
+                                                Click="HeroApply_Click" Margin="0,0,8,0" Padding="14,7">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource IconBoltGeo}" Fill="White" Width="11" Height="11" Stretch="Uniform" Margin="0,0,6,0"/>
+                                                <TextBlock Text="Apply Desktop Wallpaper" FontFamily="Segoe UI Semibold" FontSize="11.5"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <Button x:Name="HeroPreviewBtn" Style="{StaticResource TabButton}"
+                                                Click="HeroPreview_Click" Margin="0,0,8,0" Padding="12,7"
+                                                Background="#E61A1C29">
+                                            <TextBlock Text="Preview Details" FontFamily="Segoe UI" FontSize="11.5" Foreground="White"/>
+                                        </Button>
+
+                                        <Button x:Name="HeroFavBtn" Style="{StaticResource TabButton}"
+                                                Click="HeroFav_Click" Padding="9,7"
+                                                Background="#E61A1C29" ToolTip="Add to Favorites">
+                                            <Path x:Name="HeroFavIcon" Data="{StaticResource IconHeartGeo}" Fill="White" Width="12" Height="12" Stretch="Uniform"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- 2. System Status & Quick Controls Strip -->
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Widget 1: Panic Protection -->
+                            <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" Padding="12,10" Margin="0,0,6,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="#1A10B981" CornerRadius="6" Padding="6" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource IconShieldGeo}" Fill="{DynamicResource EmeraldBrush}"
+                                                  Width="12" Height="12" Stretch="Uniform"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Panic Protection" Foreground="{DynamicResource TextBrush}"
+                                                       FontFamily="Segoe UI Semibold" FontSize="11"/>
+                                            <TextBlock Text="Global Boss-Key Armed" Foreground="{DynamicResource SubtextBrush}"
+                                                       FontSize="9.5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                        <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                            <TextBlock x:Name="HomePanicKeyText" Text="Ctrl+Shift+W"
+                                                       Foreground="{DynamicResource TextBrush}" FontFamily="Segoe UI Bold" FontSize="10"/>
+                                        </Border>
+                                        <Button Style="{StaticResource ToolButton}" Content="Test Panic" FontSize="10"
+                                                Padding="6,2" Click="Panic_Click"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Widget 2: Slideshow Engine -->
+                            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" Padding="12,10" Margin="3,0,3,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="#1A6366F1" CornerRadius="6" Padding="6" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource IconTimerGeo}" Fill="{DynamicResource AccentHoverBrush}"
+                                                  Width="12" Height="12" Stretch="Uniform"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Slideshow Engine" Foreground="{DynamicResource TextBrush}"
+                                                       FontFamily="Segoe UI Semibold" FontSize="11"/>
+                                            <TextBlock x:Name="HomeSlideshowStatusText" Text="Paused (15m interval)"
+                                                       Foreground="{DynamicResource SubtextBrush}" FontSize="9.5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                        <Button x:Name="HomeSlideshowToggleBtn" Style="{StaticResource ToolButton}"
+                                                Click="SlideshowQuickToggle_Click" Padding="6,2">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path x:Name="HomeSlideshowBtnIcon" Data="{StaticResource IconPlayGeo}"
+                                                      Fill="{DynamicResource AccentHoverBrush}" Width="8" Height="8" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                <TextBlock x:Name="HomeSlideshowBtnText" Text="Toggle" FontSize="10"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Widget 3: Display Intelligence -->
+                            <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" Padding="12,10" Margin="6,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="#1AF59E0B" CornerRadius="6" Padding="6" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource IconMonitorGeo}" Fill="{DynamicResource AmberBrush}"
+                                                  Width="12" Height="12" Stretch="Uniform"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Display Resolution" Foreground="{DynamicResource TextBrush}"
+                                                       FontFamily="Segoe UI Semibold" FontSize="11"/>
+                                            <TextBlock x:Name="HomeDisplayInfoText" Text="1920 × 1080 • 16:9"
+                                                       Foreground="{DynamicResource SubtextBrush}" FontSize="9.5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource ToolButton}" Content="4K UHD" FontSize="9.5"
+                                                Padding="5,2" Margin="0,0,3,0" Click="QuickFilter4K_Click"/>
+                                        <Button Style="{StaticResource ToolButton}" Content="Ultrawide" FontSize="9.5"
+                                                Padding="5,2" Margin="0,0,3,0" Click="QuickFilterUltrawide_Click"/>
+                                        <Button Style="{StaticResource ToolButton}" Content="All" FontSize="9.5"
+                                                Padding="5,2" Click="QuickFilterAll_Click"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- 3. Trending This Week -->
+                        <Grid Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconFireGeo}" Fill="{DynamicResource DangerBrush}"
+                                      Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="TRENDING THIS WEEK" Foreground="{DynamicResource TextBrush}"
+                                           FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
+                                    Padding="6,2" Click="ExploreMoreTrending_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Explore All" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
+                                    <TextBlock Text=" →" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- Trending Cards Grid (4 widescreen cards) -->
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <local:WallpaperCard x:Name="TrendingCard0" Grid.Column="0" Margin="0,0,4,0"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="TrendingCard1" Grid.Column="1" Margin="2,0,2,0"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="TrendingCard2" Grid.Column="2" Margin="2,0,2,0"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="TrendingCard3" Grid.Column="3" Margin="4,0,0,0"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                        </Grid>
+
+
+
+                        <!-- 5. Quick Shelf: Recent Favorites / Downloads -->
+                        <Grid Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconHeartGeo}" Fill="{DynamicResource AccentBrush}"
+                                      Width="11" Height="11" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="YOUR QUICK SHELF" Foreground="{DynamicResource TextBrush}"
+                                           FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
+                                    Padding="6,2" Click="ViewFavorites_Click">
+                                <TextBlock Text="All Favorites →" FontSize="11" Foreground="{DynamicResource SubtextBrush}"/>
+                            </Button>
+                        </Grid>
+
+                        <Border x:Name="QuickShelfEmpty" Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="8" Padding="14,18" Margin="0,0,0,14" Visibility="Collapsed">
+                            <TextBlock Text="No saved wallpapers yet • Click the ♥ heart on any wallpaper to add it here."
+                                       Foreground="{DynamicResource SubtextBrush}" FontSize="11" HorizontalAlignment="Center"/>
+                        </Border>
+
+                        <WrapPanel x:Name="QuickShelfGrid" Margin="0,0,0,14" Orientation="Horizontal">
+                            <local:WallpaperCard x:Name="ShelfCard0" Width="236" Margin="0,0,8,8"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="ShelfCard1" Width="236" Margin="0,0,8,8"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="ShelfCard2" Width="236" Margin="0,0,8,8"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            <local:WallpaperCard x:Name="ShelfCard3" Width="236" Margin="0,0,8,8"
+                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Wallpaper Scrollable Grid Control -->
+                <local:WallpaperGrid x:Name="WallpaperGridControl"
+                                     Visibility="Collapsed"
+                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"
+                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                     LoadMoreRequested="WallpaperGrid_LoadMoreRequested"/>
+
+                <!-- Empty State Message -->
+                <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                    <Path Data="{StaticResource IconExploreGeo}" Fill="{DynamicResource MutedBrush}"
+                          Width="36" Height="36" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="EmptyTitleText" Text="No wallpapers found"
+                               Foreground="{DynamicResource TextBrush}"
+                               FontFamily="Segoe UI Semibold" FontSize="14" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="EmptySubtitleText" Text="Try adjusting tags or relaxing content filters."
+                               Foreground="{DynamicResource SubtextBrush}"
+                               FontFamily="Segoe UI" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Loading State Overlay -->
+                <Border x:Name="LoadingOverlay" Background="{DynamicResource BgBrush}"
+                        Opacity="0.85" Visibility="Collapsed" Panel.ZIndex="20">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconRefreshGeo}" Fill="{DynamicResource AccentBrush}"
+                              Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="LoadingText" Text="Fetching high-res wallpapers…"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   FontFamily="Segoe UI Semibold" FontSize="12"
+                                   HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 0-3 SPAN: Interactive Lightbox Preview Modal
+                 ═══════════════════════════════════════════════════════════ -->
+            <Grid x:Name="PreviewModal"
+                  Grid.RowSpan="4"
+                  Visibility="Collapsed"
+                  Background="#D9000000"
+                  Panel.ZIndex="100">
+
+                <!-- Click backdrop to dismiss -->
+                <Border Background="Transparent" MouseLeftButtonDown="ClosePreview_MouseDown"/>
+
+                <!-- Centered Preview Card -->
+                <Border HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Margin="32,20"
+                        MinWidth="500"
+                        MaxWidth="640"
+                        Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        ClipToBounds="True">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" BlurRadius="28" ShadowDepth="8" Opacity="0.6"/>
+                    </Border.Effect>
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="44"/>  <!-- Top Header Bar -->
+                            <RowDefinition Height="Auto"/> <!-- Main Preview Image -->
+                            <RowDefinition Height="Auto"/> <!-- Tags & Info Strip -->
+                            <RowDefinition Height="Auto"/> <!-- Action Bar -->
+                        </Grid.RowDefinitions>
+
+                        <!-- 1. Header Bar -->
+                        <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                Padding="14,0">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border CornerRadius="4" Padding="6,2" Margin="0,0,8,0"
+                                            x:Name="PreviewRatingBadge" Background="#10B981">
+                                        <TextBlock x:Name="PreviewRatingText" Text="SFW" FontSize="9.5"
+                                                   FontFamily="Segoe UI Bold" Foreground="White"/>
+                                    </Border>
+                                    <TextBlock x:Name="PreviewTitleText" Text="Wallpaper Preview"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               FontFamily="Segoe UI Semibold" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="PreviewResText" Text=" • 2560 × 1440"
+                                               Foreground="{DynamicResource SubtextBrush}"
+                                               FontFamily="Segoe UI" FontSize="11"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Close Button -->
+                                <Button Grid.Column="1" HorizontalAlignment="Right"
+                                        Style="{StaticResource ToolButton}"
+                                        Padding="6,4"
+                                        Click="ClosePreview_Click"
+                                        ToolTip="Close Preview (Esc)">
+                                    <Path Data="{StaticResource IconCloseGeo}" Fill="{DynamicResource SubtextBrush}"
+                                          Width="10" Height="10" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- 2. Main Large Image Display -->
+                        <Grid Grid.Row="1" Background="#05060A" MinHeight="240" MaxHeight="440">
+                            <!-- Loading indicator -->
+                            <Border x:Name="PreviewLoadingIndicator" Visibility="Visible">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconRefreshGeo}" Fill="{DynamicResource MutedBrush}"
+                                          Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Opacity="0.5"/>
+                                    <TextBlock Text="Loading high-resolution wallpaper…" Foreground="{DynamicResource SubtextBrush}"
+                                               FontSize="11" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Full Preview Image -->
+                            <Image x:Name="PreviewMainImage"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Margin="4"/>
+                        </Grid>
+
+                        <!-- 3. Tags & Metadata Bar -->
+                        <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                                Padding="14,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="TAGS:" Foreground="{DynamicResource MutedBrush}"
+                                               FontFamily="Segoe UI Bold" FontSize="9.5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="PreviewTagsText" Text="wallpaper tags"
+                                               Foreground="{DynamicResource SubtextBrush}"
+                                               FontFamily="Segoe UI" FontSize="11"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" x:Name="PreviewScoreText" Text="★ 0"
+                                           Foreground="#F59E0B" FontFamily="Segoe UI Semibold" FontSize="11"
+                                           VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- 4. Action Button Bar -->
+                        <Border Grid.Row="3" Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                                Padding="12,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left: Primary Apply & Lock Screen Buttons -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="PreviewApplyBtn"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Click="PreviewApply_Click"
+                                            Margin="0,0,6,0"
+                                            Padding="11,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path x:Name="PreviewApplyIcon" Data="{StaticResource IconBoltGeo}" Fill="White" Width="10" Height="10" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="PreviewApplyText" Text="Apply" FontFamily="Segoe UI Semibold" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button x:Name="PreviewLockScreenBtn"
+                                            Style="{StaticResource TabButton}"
+                                            Click="PreviewLockScreen_Click"
+                                            Margin="0,0,6,0"
+                                            Padding="9,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource IconShieldGeo}" Fill="{DynamicResource SubtextBrush}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Lock Screen" FontFamily="Segoe UI" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button x:Name="PreviewDownloadBtn"
+                                            Style="{StaticResource TabButton}"
+                                            Click="PreviewDownload_Click"
+                                            Margin="0,0,6,0"
+                                            Padding="9,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path x:Name="PreviewDownloadIcon" Data="{StaticResource IconDownloadGeo}" Fill="{DynamicResource SubtextBrush}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="PreviewDownloadText" Text="Download" FontFamily="Segoe UI" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Right: Favorite & Web Source Buttons -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <Button x:Name="PreviewFavBtn"
+                                            Style="{StaticResource TabButton}"
+                                            Click="PreviewFavorite_Click"
+                                            Margin="0,0,6,0" Padding="9,7"
+                                            ToolTip="Toggle Favorite">
+                                        <Path x:Name="PreviewFavIcon" Data="{StaticResource IconHeartGeo}" Fill="{DynamicResource SubtextBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                                    </Button>
+
+                                    <Button x:Name="PreviewWebBtn"
+                                            Style="{StaticResource TabButton}"
+                                            Click="PreviewWeb_Click"
+                                            Margin="0,0,8,0" Padding="9,7"
+                                            ToolTip="Open Web Source">
+                                        <Path Data="{StaticResource IconExternalGeo}" Fill="{DynamicResource SubtextBrush}" Width="11" Height="11" Stretch="Uniform"/>
+                                    </Button>
+
+                                    <Button Style="{StaticResource ToolButton}"
+                                            Click="ClosePreview_Click"
+                                            Padding="12,7" Content="Close"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 Global Toast Notification (Elevated above all views & modals)
+                 ═══════════════════════════════════════════════════════════ -->
+            <Border x:Name="ToastBanner" Background="{DynamicResource AccentBrush}" CornerRadius="8"
+                    Grid.RowSpan="4"
+                    VerticalAlignment="Top" HorizontalAlignment="Center"
+                    Margin="0,60,0,0" Padding="14,8" Visibility="Collapsed"
+                    Panel.ZIndex="300">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="4" Opacity="0.45"/>
+                </Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <Path x:Name="ToastStatusIcon" Data="{StaticResource IconCheckGeo}" Fill="White" Width="12" Height="12"
+                          Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="ToastIcon" Text="" Visibility="Collapsed"/>
+                    <TextBlock x:Name="ToastMessage" Text="Action completed"
+                               Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

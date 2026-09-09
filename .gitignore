@@ -1,0 +1,30 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+dist/
+
+# Visual Studio / IDE cache
+.vs/
+.idea/
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+
+# Temporary files & caches
+*.tmp
+*.log
+*.cache
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
