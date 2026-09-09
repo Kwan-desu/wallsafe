@@ -519,7 +519,7 @@
                             <Border.Effect>
                                 <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="4" Opacity="0.35"/>
                             </Border.Effect>
-                            <Grid>
+                            <Grid SizeChanged="HeroSpotlightGrid_SizeChanged">
                                 <!-- Hero Image Background -->
                                 <Image x:Name="HeroImage" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
 
@@ -1108,7 +1108,7 @@
                         <DropShadowEffect Color="#000000" BlurRadius="28" ShadowDepth="8" Opacity="0.6"/>
                     </Border.Effect>
 
-                    <Grid>
+                    <Grid x:Name="PreviewCardGrid" SizeChanged="PreviewCardGrid_SizeChanged">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="44"/>  <!-- Top Header Bar -->
                             <RowDefinition Height="Auto"/> <!-- Main Preview Image -->
@@ -1119,6 +1119,7 @@
                         <!-- 1. Header Bar -->
                         <Border Grid.Row="0" Background="{DynamicResource CardBgBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                CornerRadius="12,12,0,0"
                                 Padding="14,0">
                             <Grid VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
@@ -1198,6 +1199,7 @@
                         <!-- 4. Action Button Bar -->
                         <Border Grid.Row="3" Background="{DynamicResource CardBgBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                                CornerRadius="0,0,12,12"
                                 Padding="12,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>

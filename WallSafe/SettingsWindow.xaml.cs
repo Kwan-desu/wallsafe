@@ -33,6 +33,15 @@ namespace WallSafe
                 DragMove();
         }
 
+        private void SettingsRootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is UIElement elem && e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                elem.Clip = new System.Windows.Media.RectangleGeometry(
+                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 10, 10);
+            }
+        }
+
         private void NavSec_Checked(object sender, RoutedEventArgs e)
         {
             if (_isInitializing) return;

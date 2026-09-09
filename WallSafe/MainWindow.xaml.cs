@@ -2146,5 +2146,23 @@ namespace WallSafe
             if (AspectBox != null) AspectBox.SelectedIndex = 0;
             _ = DoExploreSearch(append: false);
         }
+
+        private void HeroSpotlightGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is UIElement elem && e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                elem.Clip = new System.Windows.Media.RectangleGeometry(
+                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
+            }
+        }
+
+        private void PreviewCardGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is UIElement elem && e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                elem.Clip = new System.Windows.Media.RectangleGeometry(
+                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
+            }
+        }
     }
 }

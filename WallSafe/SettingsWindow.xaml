@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WallSafe Settings"
         FontFamily="Segoe UI"
-        Width="730" Height="540"
+        Width="760" Height="570"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -46,12 +46,13 @@
     <Border Background="{DynamicResource BgBrush}"
             CornerRadius="14"
             BorderThickness="1"
-            BorderBrush="{DynamicResource BorderBrush}">
+            BorderBrush="{DynamicResource BorderBrush}"
+            Margin="15">
         <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="8" Opacity="0.5"/>
+            <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="4" Opacity="0.35"/>
         </Border.Effect>
 
-        <Grid Margin="18">
+        <Grid x:Name="SettingsRootGrid" Margin="18" SizeChanged="SettingsRootGrid_SizeChanged">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/> <!-- Title Bar -->
                 <RowDefinition Height="*"/>    <!-- Categorized 2-Column Content -->
