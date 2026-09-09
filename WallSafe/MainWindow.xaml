@@ -618,7 +618,7 @@
                         </Border>
 
                         <!-- 2. System Status & Quick Controls Strip -->
-                        <Grid Margin="0,0,0,18">
+                        <Grid x:Name="HomeQuickControlsSection" Margin="0,0,0,18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -726,55 +726,57 @@
                         </Grid>
 
                         <!-- 3. Trending This Week -->
-                        <Grid Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="{StaticResource IconFireGeo}" Fill="{DynamicResource DangerBrush}"
-                                      Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="TRENDING THIS WEEK" Foreground="{DynamicResource TextBrush}"
-                                           FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
-                                    Padding="6,2" Click="ExploreMoreTrending_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Explore All" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
-                                    <TextBlock Text=" →" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
+                        <StackPanel x:Name="HomeTrendingSection" Margin="0,0,0,20">
+                            <Grid Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconFireGeo}" Fill="{DynamicResource DangerBrush}"
+                                          Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="TRENDING THIS WEEK" Foreground="{DynamicResource TextBrush}"
+                                               FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
                                 </StackPanel>
-                            </Button>
-                        </Grid>
+                                <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
+                                        Padding="6,2" Click="ExploreMoreTrending_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Explore All" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
+                                        <TextBlock Text=" →" FontSize="11" Foreground="{DynamicResource AccentHoverBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
 
-                        <!-- Trending Cards Grid (4 widescreen cards) -->
-                        <Grid Margin="0,0,0,20">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                            <!-- Trending Cards Grid (4 widescreen cards) -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                            <local:WallpaperCard x:Name="TrendingCard0" Grid.Column="0" Margin="0,0,4,0"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="TrendingCard1" Grid.Column="1" Margin="2,0,2,0"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="TrendingCard2" Grid.Column="2" Margin="2,0,2,0"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="TrendingCard3" Grid.Column="3" Margin="4,0,0,0"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                        </Grid>
+                                <local:WallpaperCard x:Name="TrendingCard0" Grid.Column="0" Margin="0,0,4,0"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="TrendingCard1" Grid.Column="1" Margin="2,0,2,0"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="TrendingCard2" Grid.Column="2" Margin="2,0,2,0"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="TrendingCard3" Grid.Column="3" Margin="4,0,0,0"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            </Grid>
+                        </StackPanel>
 
                         <!-- 4. Explore by Universe & Series Section -->
-                        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        <Border x:Name="HomeFranchisesSection" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                 CornerRadius="10" Padding="16,14" Margin="0,0,0,20">
                             <StackPanel>
                                  <!-- Header & Controls Row -->
@@ -971,48 +973,74 @@
                         </Border>
 
                         <!-- 5. Quick Shelf: Recent Favorites / Downloads -->
-                        <Grid Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="{StaticResource IconHeartGeo}" Fill="{DynamicResource AccentBrush}"
-                                      Width="11" Height="11" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="YOUR QUICK SHELF" Foreground="{DynamicResource TextBrush}"
-                                           FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="HomeQuickShelfSection" Margin="0,0,0,14">
+                            <Grid Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconHeartGeo}" Fill="{DynamicResource AccentBrush}"
+                                          Width="11" Height="11" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="YOUR QUICK SHELF" Foreground="{DynamicResource TextBrush}"
+                                               FontFamily="Segoe UI Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
+                                        Padding="6,2" Click="ViewFavorites_Click">
+                                    <TextBlock Text="All Favorites →" FontSize="11" Foreground="{DynamicResource SubtextBrush}"/>
+                                </Button>
+                            </Grid>
+
+                            <Border x:Name="QuickShelfEmpty" Background="{DynamicResource SurfaceBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="8" Padding="14,18" Margin="0,0,0,14" Visibility="Collapsed">
+                                <TextBlock Text="No saved wallpapers yet • Click the ♥ heart on any wallpaper to add it here."
+                                           Foreground="{DynamicResource SubtextBrush}" FontSize="11" HorizontalAlignment="Center"/>
+                            </Border>
+
+                            <WrapPanel x:Name="QuickShelfGrid" Margin="0,0,0,0" Orientation="Horizontal">
+                                <local:WallpaperCard x:Name="ShelfCard0" Width="236" Margin="0,0,8,8"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="ShelfCard1" Width="236" Margin="0,0,8,8"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="ShelfCard2" Width="236" Margin="0,0,8,8"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                                <local:WallpaperCard x:Name="ShelfCard3" Width="236" Margin="0,0,8,8"
+                                                     PreviewRequested="WallpaperGrid_PreviewRequested"
+                                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
+                            </WrapPanel>
+                        </StackPanel>
+
+                        <!-- Notice when all home sections are hidden -->
+                        <Border x:Name="HomeAllSectionsHiddenNotice"
+                                Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="28,36"
+                                Margin="0,40,0,0"
+                                Visibility="Collapsed"
+                                HorizontalAlignment="Center">
+                            <StackPanel HorizontalAlignment="Center">
+                                <Path Data="{StaticResource IconSettingsGeo}" Fill="{DynamicResource MutedBrush}"
+                                      Width="32" Height="32" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                <TextBlock Text="All Home Dashboard Sections are Hidden"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           FontFamily="Segoe UI Semibold" FontSize="14" HorizontalAlignment="Center"/>
+                                <TextBlock Text="You can selectively customize and re-enable sections anytime in Settings."
+                                           Foreground="{DynamicResource SubtextBrush}"
+                                           FontFamily="Segoe UI" FontSize="11" Margin="0,4,0,16" HorizontalAlignment="Center"/>
+                                <Button Style="{StaticResource PrimaryButton}" Content="Open Settings"
+                                        Padding="16,6" HorizontalAlignment="Center" Click="Settings_Click"/>
                             </StackPanel>
-                            <Button HorizontalAlignment="Right" Style="{StaticResource ToolButton}"
-                                    Padding="6,2" Click="ViewFavorites_Click">
-                                <TextBlock Text="All Favorites →" FontSize="11" Foreground="{DynamicResource SubtextBrush}"/>
-                            </Button>
-                        </Grid>
-
-                        <Border x:Name="QuickShelfEmpty" Background="{DynamicResource SurfaceBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                CornerRadius="8" Padding="14,18" Margin="0,0,0,14" Visibility="Collapsed">
-                            <TextBlock Text="No saved wallpapers yet • Click the ♥ heart on any wallpaper to add it here."
-                                       Foreground="{DynamicResource SubtextBrush}" FontSize="11" HorizontalAlignment="Center"/>
                         </Border>
-
-                        <WrapPanel x:Name="QuickShelfGrid" Margin="0,0,0,14" Orientation="Horizontal">
-                            <local:WallpaperCard x:Name="ShelfCard0" Width="236" Margin="0,0,8,8"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="ShelfCard1" Width="236" Margin="0,0,8,8"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="ShelfCard2" Width="236" Margin="0,0,8,8"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                            <local:WallpaperCard x:Name="ShelfCard3" Width="236" Margin="0,0,8,8"
-                                                 PreviewRequested="WallpaperGrid_PreviewRequested"
-                                                 WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                                 FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                                 DownloadCompleted="WallpaperGrid_DownloadCompleted"/>
-                        </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>
 

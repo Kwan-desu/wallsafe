@@ -83,6 +83,7 @@ namespace WallSafe
             UpdateThemeIcon();
             UpdateSfwToggleVisuals();
             ApplySfwModeToFilters();
+            ApplyHomeSectionsVisibility();
 
             Loaded += async (_, _) =>
             {
@@ -1427,6 +1428,44 @@ namespace WallSafe
             var sw = new SettingsWindow { Owner = this };
             sw.ShowDialog();
             UpdatePanicButtonLabel();
+            ApplyHomeSectionsVisibility();
+        }
+
+        public void ApplyHomeSectionsVisibility()
+        {
+            var s = Settings.Instance;
+            bool anyVisible = false;
+
+            if (HeroSpotlightCard != null)
+            {
+                HeroSpotlightCard.Visibility = s.ShowHomeHero ? Visibility.Visible : Visibility.Collapsed;
+                if (s.ShowHomeHero) anyVisible = true;
+            }
+            if (HomeQuickControlsSection != null)
+            {
+                HomeQuickControlsSection.Visibility = s.ShowHomeQuickControls ? Visibility.Visible : Visibility.Collapsed;
+                if (s.ShowHomeQuickControls) anyVisible = true;
+            }
+            if (HomeTrendingSection != null)
+            {
+                HomeTrendingSection.Visibility = s.ShowHomeTrending ? Visibility.Visible : Visibility.Collapsed;
+                if (s.ShowHomeTrending) anyVisible = true;
+            }
+            if (HomeFranchisesSection != null)
+            {
+                HomeFranchisesSection.Visibility = s.ShowHomeFranchises ? Visibility.Visible : Visibility.Collapsed;
+                if (s.ShowHomeFranchises) anyVisible = true;
+            }
+            if (HomeQuickShelfSection != null)
+            {
+                HomeQuickShelfSection.Visibility = s.ShowHomeQuickShelf ? Visibility.Visible : Visibility.Collapsed;
+                if (s.ShowHomeQuickShelf) anyVisible = true;
+            }
+
+            if (HomeAllSectionsHiddenNotice != null)
+            {
+                HomeAllSectionsHiddenNotice.Visibility = anyVisible ? Visibility.Collapsed : Visibility.Visible;
+            }
         }
 
         private void Hide_Click(object sender, RoutedEventArgs e)

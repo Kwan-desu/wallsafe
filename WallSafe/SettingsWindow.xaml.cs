@@ -33,6 +33,67 @@ namespace WallSafe
                 DragMove();
         }
 
+        private void NavSec_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            // Hide all panels
+            if (SecPanelHome != null) SecPanelHome.Visibility = Visibility.Collapsed;
+            if (SecPanelPanic != null) SecPanelPanic.Visibility = Visibility.Collapsed;
+            if (SecPanelSlideshow != null) SecPanelSlideshow.Visibility = Visibility.Collapsed;
+            if (SecPanelSources != null) SecPanelSources.Visibility = Visibility.Collapsed;
+            if (SecPanelGeneral != null) SecPanelGeneral.Visibility = Visibility.Collapsed;
+
+            if (NavSecHome?.IsChecked == true)
+            {
+                if (SecPanelHome != null) SecPanelHome.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "HOME DASHBOARD";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Customize which sections and widgets appear on your Home page.";
+            }
+            else if (NavSecPanic?.IsChecked == true)
+            {
+                if (SecPanelPanic != null) SecPanelPanic.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "PANIC & STEALTH SUITE";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Configure neutral safe wallpapers, 3-key global shortcuts, and concealment actions.";
+            }
+            else if (NavSecSlideshow?.IsChecked == true)
+            {
+                if (SecPanelSlideshow != null) SecPanelSlideshow.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "AUTOMATED SLIDESHOW ENGINE";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Set rotation intervals, source pools, and display monitor targets.";
+            }
+            else if (NavSecSources?.IsChecked == true)
+            {
+                if (SecPanelSources != null) SecPanelSources.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "IMAGE SOURCES & CONTENT SAFETY";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Manage SFW/NSFW booru ratings, custom board endpoints, and tag blacklists.";
+            }
+            else if (NavSecGeneral?.IsChecked == true)
+            {
+                if (SecPanelGeneral != null) SecPanelGeneral.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "GENERAL & SYSTEM STORAGE";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Configure theme mode, Windows startup behavior, and local wallpaper cache.";
+            }
+        }
+
+        private void ShowAllHomeSections_Click(object sender, RoutedEventArgs e)
+        {
+            if (ChkShowHomeHero != null) ChkShowHomeHero.IsChecked = true;
+            if (ChkShowHomeQuickControls != null) ChkShowHomeQuickControls.IsChecked = true;
+            if (ChkShowHomeTrending != null) ChkShowHomeTrending.IsChecked = true;
+            if (ChkShowHomeFranchises != null) ChkShowHomeFranchises.IsChecked = true;
+            if (ChkShowHomeQuickShelf != null) ChkShowHomeQuickShelf.IsChecked = true;
+        }
+
+        private void HideAllHomeSections_Click(object sender, RoutedEventArgs e)
+        {
+            if (ChkShowHomeHero != null) ChkShowHomeHero.IsChecked = false;
+            if (ChkShowHomeQuickControls != null) ChkShowHomeQuickControls.IsChecked = false;
+            if (ChkShowHomeTrending != null) ChkShowHomeTrending.IsChecked = false;
+            if (ChkShowHomeFranchises != null) ChkShowHomeFranchises.IsChecked = false;
+            if (ChkShowHomeQuickShelf != null) ChkShowHomeQuickShelf.IsChecked = false;
+        }
+
         private void PopulateCombos()
         {
             // Slideshow intervals
@@ -62,6 +123,13 @@ namespace WallSafe
             _recordedModifiers = s.HotkeyModifiers;
             _recordedKey = s.HotkeyKey;
             UpdateHotkeyDisplay();
+
+            // Home Dashboard Section Visibility
+            ChkShowHomeHero.IsChecked = s.ShowHomeHero;
+            ChkShowHomeQuickControls.IsChecked = s.ShowHomeQuickControls;
+            ChkShowHomeTrending.IsChecked = s.ShowHomeTrending;
+            ChkShowHomeFranchises.IsChecked = s.ShowHomeFranchises;
+            ChkShowHomeQuickShelf.IsChecked = s.ShowHomeQuickShelf;
 
             // Startup & Background
             ChkAutoStart.IsChecked = s.AutoStartWithWindows || StartupManager.IsStartupEnabled();
@@ -495,6 +563,13 @@ namespace WallSafe
             s.HotkeyModifiers = _recordedModifiers;
             s.HotkeyKey = _recordedKey;
 
+            // Home Dashboard Section Visibility
+            s.ShowHomeHero = ChkShowHomeHero.IsChecked == true;
+            s.ShowHomeQuickControls = ChkShowHomeQuickControls.IsChecked == true;
+            s.ShowHomeTrending = ChkShowHomeTrending.IsChecked == true;
+            s.ShowHomeFranchises = ChkShowHomeFranchises.IsChecked == true;
+            s.ShowHomeQuickShelf = ChkShowHomeQuickShelf.IsChecked == true;
+
             // Startup & Background
             s.AutoStartWithWindows = ChkAutoStart.IsChecked == true;
             s.StartMinimized = ChkStartMinimized.IsChecked == true;
@@ -540,6 +615,7 @@ namespace WallSafe
                 mw.UpdatePanicButtonLabel();
                 mw.UpdateSfwToggleVisuals();
                 mw.ApplySfwModeToFilters();
+                mw.ApplyHomeSectionsVisibility();
             }
 
             Close();

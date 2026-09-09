@@ -12,7 +12,7 @@
     <RootNamespace>WallSafe</RootNamespace>
     <AssemblyTitle>WallSafe</AssemblyTitle>
     <Description>Modern anime desktop wallpaper manager with instant panic hotkey protection.</Description>
-    <Version>2.3.1</Version>
+    <Version>2.4.0</Version>
     <Authors>WallSafe Team</Authors>
   </PropertyGroup>
 

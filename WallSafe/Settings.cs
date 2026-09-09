@@ -27,6 +27,13 @@ namespace WallSafe
         public string AspectRatioFilter { get; set; } = "all"; // all, landscape, ultrawide, portrait
         public string Theme { get; set; } = "Dark"; // "Dark" or "Light"
 
+        // Home Dashboard Section Visibility
+        public bool ShowHomeHero { get; set; } = true;
+        public bool ShowHomeQuickControls { get; set; } = true;
+        public bool ShowHomeTrending { get; set; } = true;
+        public bool ShowHomeFranchises { get; set; } = true;
+        public bool ShowHomeQuickShelf { get; set; } = true;
+
         // Next-Gen Stealth & Panic Suite
         public bool PanicHideApp { get; set; } = true;
         public bool PanicMinimizeAllWindows { get; set; } = true;
