@@ -190,10 +190,12 @@ namespace WallSafe
             BlacklistBox.Text = s.TagBlacklist;
 
             // Sources & Rating Mode
-            if (RatingModeCombo != null)
-                RatingModeCombo.SelectedIndex = Math.Clamp((int)s.RatingMode, 0, 2);
             if (ChkCustomFilterProfile != null)
                 ChkCustomFilterProfile.IsChecked = s.CustomFilterProfileEnabled;
+            if (ComboItemCustom != null)
+                ComboItemCustom.Visibility = s.CustomFilterProfileEnabled ? Visibility.Visible : Visibility.Collapsed;
+            if (RatingModeCombo != null)
+                RatingModeCombo.SelectedIndex = Math.Clamp((int)s.RatingMode, 0, s.CustomFilterProfileEnabled ? 3 : 2);
             ChkAllowAllSources.IsChecked = s.AllowAllSources;
             RefreshCustomSourcesList();
 
@@ -568,6 +570,19 @@ namespace WallSafe
             }
         }
 
+        private void ChkCustomFilterProfile_Changed(object sender, RoutedEventArgs e)
+        {
+            if (ComboItemCustom != null)
+            {
+                bool enabled = ChkCustomFilterProfile?.IsChecked == true;
+                ComboItemCustom.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+                if (!enabled && RatingModeCombo?.SelectedIndex == 3)
+                {
+                    RatingModeCombo.SelectedIndex = 0;
+                }
+            }
+        }
+
         private void Save_Click(object sender, RoutedEventArgs e)
         {
             var s = Settings.Instance;
@@ -612,11 +627,15 @@ namespace WallSafe
 
             if (RatingModeCombo?.SelectedItem is ComboBoxItem rmItem && int.TryParse(rmItem.Tag as string, out int rmVal))
             {
-                s.RatingMode = (ContentRatingMode)Math.Clamp(rmVal, 0, 2);
+                s.RatingMode = (ContentRatingMode)Math.Clamp(rmVal, 0, 3);
             }
             if (ChkCustomFilterProfile != null)
             {
                 s.CustomFilterProfileEnabled = ChkCustomFilterProfile.IsChecked == true;
+                if (!s.CustomFilterProfileEnabled && s.RatingMode == ContentRatingMode.Custom)
+                {
+                    s.RatingMode = ContentRatingMode.SfwOnly;
+                }
             }
             s.AllowAllSources = ChkAllowAllSources.IsChecked == true;
 

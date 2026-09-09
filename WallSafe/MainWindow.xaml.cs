@@ -482,15 +482,17 @@ namespace WallSafe
 
         public void SfwToggle_Click(object sender, RoutedEventArgs e)
         {
+            bool allowCustom = Settings.Instance.CustomFilterProfileEnabled;
+
             var nextMode = Settings.Instance.RatingMode switch
             {
                 ContentRatingMode.SfwOnly => ContentRatingMode.Questionable,
                 ContentRatingMode.Questionable => ContentRatingMode.Explicit,
-                ContentRatingMode.Explicit => ContentRatingMode.Custom,
+                ContentRatingMode.Explicit => allowCustom ? ContentRatingMode.Custom : ContentRatingMode.SfwOnly,
+                ContentRatingMode.Custom => ContentRatingMode.SfwOnly,
                 _ => ContentRatingMode.SfwOnly
             };
             Settings.Instance.RatingMode = nextMode;
-            Settings.Instance.CustomFilterProfileEnabled = (nextMode == ContentRatingMode.Custom);
             Settings.Instance.Save();
 
             UpdateSfwToggleVisuals();
@@ -570,7 +572,9 @@ namespace WallSafe
                         SfwToggleIcon.Fill = danger;
                         SfwToggleText.Foreground = danger;
                     }
-                    SfwToggleBtn.ToolTip = "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Custom Profile Mode.";
+                    SfwToggleBtn.ToolTip = Settings.Instance.CustomFilterProfileEnabled
+                        ? "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Custom Profile Mode."
+                        : "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Safe Mode (SFW Only).";
                     break;
 
                 case ContentRatingMode.Custom:
@@ -590,6 +594,12 @@ namespace WallSafe
         public void ApplySfwModeToFilters()
         {
             if (SourceKonaNsfw == null || SourceYande == null || SourceKonaSfw == null) return;
+
+            if (!Settings.Instance.CustomFilterProfileEnabled && Settings.Instance.RatingMode == ContentRatingMode.Custom)
+            {
+                Settings.Instance.RatingMode = ContentRatingMode.SfwOnly;
+                Settings.Instance.Save();
+            }
 
             _isUpdatingFilters = true;
             try
@@ -1691,6 +1701,8 @@ namespace WallSafe
             sw.ShowDialog();
             UpdatePanicButtonLabel();
             ApplyHomeSectionsVisibility();
+            UpdateSfwToggleVisuals();
+            ApplySfwModeToFilters();
         }
 
         public void ApplyHomeSectionsVisibility()

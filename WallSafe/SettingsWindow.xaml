@@ -495,11 +495,13 @@
                                              <ComboBoxItem Content="Safe Only (SFW) — konachan.net &amp; safe sources" Tag="0"/>
                                              <ComboBoxItem Content="Questionable — Mild / Suggestive / Ecchi" Tag="1"/>
                                              <ComboBoxItem Content="Explicit (NSFW) — Unrestricted 18+ content" Tag="2"/>
+                                             <ComboBoxItem x:Name="ComboItemCustom" Content="Custom — Free filter configuration &amp; saved profile" Tag="3"/>
                                          </ComboBox>
 
-                                         <CheckBox x:Name="ChkCustomFilterProfile" Content="Enable Custom Filter Profiles &amp; Rating Override"
-                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"/>
-                                         <TextBlock Text="Unlocks the Content Rating dropdown across all modes and saves your customized filter selections (Rating, Sort, Resolution, Aspect Ratio) as your persistent profile."
+                                         <CheckBox x:Name="ChkCustomFilterProfile" Content="Enable 'Custom' Mode in Content Rating Toggle"
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"
+                                                   Checked="ChkCustomFilterProfile_Changed" Unchecked="ChkCustomFilterProfile_Changed"/>
+                                         <TextBlock Text="When enabled, clicking the SFW toggle button cycles through all 4 modes (SFW Only ➔ Questionable ➔ Explicit ➔ Custom). When disabled, the toggle stays focused on the 3 core rating tiers."
                                                     Foreground="{DynamicResource MutedBrush}" FontSize="9.5" TextWrapping="Wrap" Margin="22,0,0,10"/>
 
                                          <CheckBox x:Name="ChkAllowAllSources" Content="Enable 'All Sources' multi-engine aggregation"
