@@ -10,7 +10,8 @@ namespace WallSafe
     {
         SfwOnly = 0,
         Questionable = 1,
-        Explicit = 2
+        Explicit = 2,
+        Custom = 3
     }
 
     public class FilterProfile

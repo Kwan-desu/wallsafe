@@ -29,6 +29,7 @@ namespace WallSafe
         private string _currentSource = "yande";
         private int _currentPage = 1;
         private int _isLoading = 0; // 0=false, 1=true — use Interlocked for thread safety
+        private int _pendingSearch = 0; // 0=none, 1=replace/new, 2=append
         private List<PostItem> _cachedExplorePosts = new();
         private CancellationTokenSource _toastCts = new();
         private string[]? _cachedBlacklist;
@@ -410,8 +411,12 @@ namespace WallSafe
         // Source & Filters
         // ═════════════════════════════════════════════════════════════════
 
+        private bool _isUpdatingFilters = false;
+        private bool _isApplyingFilterProfile = false;
+
         private void Source_Changed(object sender, RoutedEventArgs e)
         {
+            if (_isUpdatingFilters) return;
             if (SourceAll == null || SourceKonaSfw == null || SourceYande == null || SourceKonaNsfw == null) return;
 
             if (SourceAll.IsChecked == true) _currentSource = "all";
@@ -432,17 +437,17 @@ namespace WallSafe
             }
         }
 
-        private bool _isApplyingFilterProfile = false;
-
         public void SfwToggle_Click(object sender, RoutedEventArgs e)
         {
             var nextMode = Settings.Instance.RatingMode switch
             {
                 ContentRatingMode.SfwOnly => ContentRatingMode.Questionable,
                 ContentRatingMode.Questionable => ContentRatingMode.Explicit,
+                ContentRatingMode.Explicit => ContentRatingMode.Custom,
                 _ => ContentRatingMode.SfwOnly
             };
             Settings.Instance.RatingMode = nextMode;
+            Settings.Instance.CustomFilterProfileEnabled = (nextMode == ContentRatingMode.Custom);
             Settings.Instance.Save();
 
             UpdateSfwToggleVisuals();
@@ -452,13 +457,15 @@ namespace WallSafe
             {
                 ContentRatingMode.SfwOnly => "🛡",
                 ContentRatingMode.Questionable => "⚠️",
-                _ => "🔞"
+                ContentRatingMode.Explicit => "🔞",
+                _ => "⚙️"
             };
             string toastMsg = nextMode switch
             {
                 ContentRatingMode.SfwOnly => "Safe Mode: SFW Content Only (konachan.net)",
                 ContentRatingMode.Questionable => "Questionable Mode: Mild / Suggestive / Ecchi Content",
-                _ => "Explicit Mode: Unrestricted 18+ NSFW Content Included"
+                ContentRatingMode.Explicit => "Explicit Mode: Unrestricted 18+ NSFW Content Included",
+                _ => "Custom Profile Mode: All filters unlocked & automatically saved"
             };
             ShowToast(toastIcon, toastMsg);
 
@@ -520,7 +527,19 @@ namespace WallSafe
                         SfwToggleIcon.Fill = danger;
                         SfwToggleText.Foreground = danger;
                     }
-                    SfwToggleBtn.ToolTip = "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Safe Mode (SFW Only).";
+                    SfwToggleBtn.ToolTip = "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Custom Profile Mode.";
+                    break;
+
+                case ContentRatingMode.Custom:
+                    SfwToggleText.Text = "Custom";
+                    if (TryFindResource("IconSettingsGeo") is System.Windows.Media.Geometry settingsGeo)
+                        SfwToggleIcon.Data = settingsGeo;
+                    if (TryFindResource("AccentHoverBrush") is System.Windows.Media.Brush accent)
+                    {
+                        SfwToggleIcon.Fill = accent;
+                        SfwToggleText.Foreground = accent;
+                    }
+                    SfwToggleBtn.ToolTip = "Custom Profile Active: All filters unlocked and persistent. Click to switch to Safe Mode (SFW Only).";
                     break;
             }
         }
@@ -529,68 +548,80 @@ namespace WallSafe
         {
             if (SourceKonaNsfw == null || SourceYande == null || SourceKonaSfw == null) return;
 
-            var mode = Settings.Instance.RatingMode;
-            bool isSfw = mode == ContentRatingMode.SfwOnly;
-
-            if (isSfw)
+            _isUpdatingFilters = true;
+            try
             {
-                SourceKonaNsfw.Visibility = Visibility.Collapsed;
-                SourceYande.Visibility = Visibility.Collapsed;
+                var mode = Settings.Instance.RatingMode;
 
-                SourceKonaSfw.IsChecked = true;
-                _currentSource = "konasfw";
-            }
-            else
-            {
-                SourceKonaNsfw.Visibility = Visibility.Visible;
-                SourceYande.Visibility = Visibility.Visible;
-
-                if (_currentSource == "konasfw")
+                if (mode == ContentRatingMode.SfwOnly)
                 {
+                    SourceKonaNsfw.Visibility = Visibility.Collapsed;
+                    SourceYande.Visibility = Visibility.Collapsed;
+
+                    if (RatingBox != null)
+                    {
+                        RatingBox.SelectedIndex = 0; // Safe Only (SFW)
+                        RatingBox.IsEnabled = false;
+                        RatingBox.ToolTip = "Rating restricted strictly to SFW. (Switch to Custom mode to override).";
+                    }
+
+                    SourceKonaSfw.IsChecked = true;
+                    _currentSource = "konasfw";
+                }
+                else if (mode == ContentRatingMode.Questionable)
+                {
+                    SourceKonaNsfw.Visibility = Visibility.Visible;
+                    SourceYande.Visibility = Visibility.Visible;
+
+                    if (RatingBox != null)
+                    {
+                        RatingBox.SelectedIndex = 1; // Questionable
+                        RatingBox.IsEnabled = false;
+                        RatingBox.ToolTip = "Rating locked to Questionable. (Switch to Custom mode to override).";
+                    }
+
                     SourceYande.IsChecked = true;
                     _currentSource = "yande";
                 }
-            }
-
-            if (RatingBox != null)
-            {
-                if (Settings.Instance.CustomFilterProfileEnabled)
+                else if (mode == ContentRatingMode.Explicit)
                 {
-                    RatingBox.IsEnabled = true;
-                    RatingBox.ToolTip = "Custom Filter Profile Active: Content Rating is freely customizable and persists across sessions.";
+                    SourceKonaNsfw.Visibility = Visibility.Visible;
+                    SourceYande.Visibility = Visibility.Visible;
+
+                    if (RatingBox != null)
+                    {
+                        RatingBox.SelectedIndex = 2; // Explicit (NSFW)
+                        RatingBox.IsEnabled = false;
+                        RatingBox.ToolTip = "Rating locked to Explicit (NSFW). (Switch to Custom mode to override).";
+                    }
+
+                    SourceYande.IsChecked = true;
+                    _currentSource = "yande";
+                }
+                else // ContentRatingMode.Custom
+                {
+                    SourceKonaNsfw.Visibility = Visibility.Visible;
+                    SourceYande.Visibility = Visibility.Visible;
+
+                    if (RatingBox != null)
+                    {
+                        RatingBox.IsEnabled = true;
+                        RatingBox.ToolTip = "Custom Profile Active: Content Rating is freely customizable and persists across sessions.";
+                    }
+
                     ApplySavedFilterProfileToUi();
                 }
-                else
-                {
-                    switch (mode)
-                    {
-                        case ContentRatingMode.SfwOnly:
-                            RatingBox.SelectedIndex = 0; // Safe Only (SFW)
-                            RatingBox.IsEnabled = false;
-                            RatingBox.ToolTip = "Rating restricted strictly to SFW. (Enable Custom Filter Profiles in Settings to override).";
-                            break;
 
-                        case ContentRatingMode.Questionable:
-                            RatingBox.SelectedIndex = 1; // Questionable
-                            RatingBox.IsEnabled = false;
-                            RatingBox.ToolTip = "Rating locked to Questionable. (Enable Custom Filter Profiles in Settings to override).";
-                            break;
-
-                        case ContentRatingMode.Explicit:
-                            RatingBox.SelectedIndex = 2; // Explicit (NSFW)
-                            RatingBox.IsEnabled = false;
-                            RatingBox.ToolTip = "Rating locked to Explicit (NSFW). (Enable Custom Filter Profiles in Settings to override).";
-                            break;
-                    }
-                }
+                RebuildCustomSourcePills();
             }
-
-            RebuildCustomSourcePills();
+            finally
+            {
+                _isUpdatingFilters = false;
+            }
         }
 
         public void ApplySavedFilterProfileToUi()
         {
-            if (!Settings.Instance.CustomFilterProfileEnabled) return;
             var prof = Settings.Instance.SavedFilterProfile;
             if (prof == null) return;
 
@@ -627,6 +658,14 @@ namespace WallSafe
                 {
                     AspectBox.SelectedIndex = prof.AspectIndex;
                 }
+
+                if (!string.IsNullOrEmpty(prof.Source))
+                {
+                    if (prof.Source == "all" && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
+                    else if (prof.Source == "konasfw" && SourceKonaSfw != null) { SourceKonaSfw.IsChecked = true; _currentSource = "konasfw"; }
+                    else if (prof.Source == "yande" && SourceYande != null) { SourceYande.IsChecked = true; _currentSource = "yande"; }
+                    else if (prof.Source == "konansfw" && SourceKonaNsfw != null) { SourceKonaNsfw.IsChecked = true; _currentSource = "konansfw"; }
+                }
             }
             finally
             {
@@ -636,7 +675,7 @@ namespace WallSafe
 
         public void SaveCurrentFilterProfile()
         {
-            if (_isApplyingFilterProfile || !Settings.Instance.CustomFilterProfileEnabled) return;
+            if (_isUpdatingFilters || _isApplyingFilterProfile || Settings.Instance.RatingMode != ContentRatingMode.Custom) return;
 
             var prof = Settings.Instance.SavedFilterProfile ??= new FilterProfile();
             prof.RatingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string ?? "rating:s";
@@ -684,6 +723,7 @@ namespace WallSafe
 
         private void Filter_Changed(object sender, SelectionChangedEventArgs e)
         {
+            if (_isUpdatingFilters) return;
             SaveCurrentFilterProfile();
             UpdateFilterBadge();
             if (_currentSection == ActiveSection.Explore && IsLoaded)
@@ -1094,74 +1134,102 @@ namespace WallSafe
 
         private async Task DoExploreSearch(bool append)
         {
-            // Atomic compare-exchange: only enter if _isLoading was 0 (false), sets to 1 (true)
-            if (Interlocked.CompareExchange(ref _isLoading, 1, 0) != 0) return;
-
-            _searchCts.Cancel();
-            _searchCts = new CancellationTokenSource();
-            var ct = _searchCts.Token;
-
-            if (!append)
+            if (Interlocked.CompareExchange(ref _isLoading, 1, 0) != 0)
             {
-                _currentPage = 1;
-                _cachedExplorePosts.Clear();
-                WallpaperGridControl.Clear();
-                SetLoading(true, "Searching anime wallpapers…");
-            }
-            else
-            {
-                WallpaperGridControl.SetLoadingMore(true);
+                if (!append || _pendingSearch != 1)
+                {
+                    Interlocked.Exchange(ref _pendingSearch, append ? 2 : 1);
+                }
+                _searchCts.Cancel();
+                return;
             }
 
             try
             {
-                string tagQuery = BuildTagQuery();
-                int limit = 24;
-
-                var rawPosts = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
-
-                // Apply client-side resolution, blacklist and aspect ratio filters
-                var filtered = FilterPosts(rawPosts);
-
-                // Batch Accumulator: if filtering aggressively reduced cards, fetch next page automatically
-                int attempts = 0;
-                while (filtered.Count < 10 && rawPosts.Count >= limit && attempts < 2)
+                bool currentAppend = append;
+                while (true)
                 {
-                    attempts++;
-                    _currentPage++;
-                    var extra = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
-                    if (extra.Count == 0) break;
-                    rawPosts.AddRange(extra);
-                    filtered.AddRange(FilterPosts(extra));
-                }
+                    _searchCts.Cancel();
+                    _searchCts = new CancellationTokenSource();
+                    var ct = _searchCts.Token;
 
-                if (!append)
-                {
-                    _cachedExplorePosts = filtered;
-                    WallpaperGridControl.SetPosts(_cachedExplorePosts, canLoadMore: rawPosts.Count >= limit);
-                }
-                else
-                {
-                    _cachedExplorePosts.AddRange(filtered);
-                    WallpaperGridControl.AddPosts(filtered, canLoadMore: rawPosts.Count >= limit);
-                }
+                    if (!currentAppend)
+                    {
+                        _currentPage = 1;
+                        _cachedExplorePosts.Clear();
+                        WallpaperGridControl.Clear();
+                        SetLoading(true, "Searching anime wallpapers…");
+                    }
+                    else
+                    {
+                        WallpaperGridControl.SetLoadingMore(true);
+                    }
 
-                // Background pre-fetch thumbnails to disk cache for buttery smooth scrolling
-                ImageCacheService.Instance.PreloadThumbnails(filtered.Select(p => p.PreviewUrl));
+                    try
+                    {
+                        string tagQuery = BuildTagQuery();
+                        int limit = 24;
 
-                CheckEmptyState(_cachedExplorePosts.Count, "No wallpapers found", "Try removing some tags or relaxing filters.");
-                if (StatusText != null) StatusText.Text = $"{_cachedExplorePosts.Count} wallpapers loaded  •  Page {_currentPage}";
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                if (StatusText != null) StatusText.Text = $"Error: {ex.Message}";
+                        var rawPosts = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
+                        ct.ThrowIfCancellationRequested();
+
+                        // Apply client-side resolution, blacklist and aspect ratio filters
+                        var filtered = FilterPosts(rawPosts);
+
+                        // Batch Accumulator: if filtering aggressively reduced cards, fetch next page automatically
+                        int attempts = 0;
+                        while (filtered.Count < 10 && rawPosts.Count >= limit && attempts < 2)
+                        {
+                            attempts++;
+                            _currentPage++;
+                            var extra = await _api.FetchPostsAsync(_currentSource, tagQuery, _currentPage, limit, ct);
+                            if (extra.Count == 0) break;
+                            rawPosts.AddRange(extra);
+                            filtered.AddRange(FilterPosts(extra));
+                        }
+
+                        ct.ThrowIfCancellationRequested();
+
+                        if (!currentAppend)
+                        {
+                            _cachedExplorePosts = filtered;
+                            WallpaperGridControl.SetPosts(_cachedExplorePosts, canLoadMore: rawPosts.Count >= limit);
+                        }
+                        else
+                        {
+                            _cachedExplorePosts.AddRange(filtered);
+                            WallpaperGridControl.AddPosts(filtered, canLoadMore: rawPosts.Count >= limit);
+                        }
+
+                        // Background pre-fetch thumbnails to disk cache for buttery smooth scrolling
+                        ImageCacheService.Instance.PreloadThumbnails(filtered.Select(p => p.PreviewUrl));
+
+                        CheckEmptyState(_cachedExplorePosts.Count, "No wallpapers found", "Try removing some tags or relaxing filters.");
+                        if (StatusText != null) StatusText.Text = $"{_cachedExplorePosts.Count} wallpapers loaded  •  Page {_currentPage}";
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex)
+                    {
+                        if (StatusText != null) StatusText.Text = $"Error: {ex.Message}";
+                    }
+
+                    int pending = Interlocked.Exchange(ref _pendingSearch, 0);
+                    if (pending == 0)
+                    {
+                        break;
+                    }
+                    currentAppend = (pending == 2);
+                }
             }
             finally
             {
                 WallpaperGridControl.SetLoadingMore(false);
                 SetLoading(false);
                 Interlocked.Exchange(ref _isLoading, 0); // Release lock
+                if (Interlocked.Exchange(ref _pendingSearch, 0) != 0)
+                {
+                    _ = DoExploreSearch(append: false);
+                }
             }
         }
 

@@ -9,7 +9,10 @@ namespace WallSafe
 {
     public class ApiClient : IDisposable
     {
-        private readonly HttpClient _http = new()
+        private readonly HttpClient _http = new(new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.All
+        })
         {
             Timeout = TimeSpan.FromSeconds(20),
             DefaultRequestHeaders = {
@@ -131,7 +134,14 @@ namespace WallSafe
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Referrer = new Uri(baseUrl + "/");
                 using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
-                if (!resp.IsSuccessStatusCode) return new List<PostItem>();
+                if (!resp.IsSuccessStatusCode)
+                {
+                    if (source == "konansfw")
+                    {
+                        return await FetchSingleSourcePostsAsync("yande", tags, page, limit, ct);
+                    }
+                    return new List<PostItem>();
+                }
 
                 var json = await resp.Content.ReadAsStringAsync(ct);
                 var arr = JArray.Parse(json);
@@ -189,6 +199,10 @@ namespace WallSafe
             }
             catch
             {
+                if (source == "konansfw")
+                {
+                    try { return await FetchSingleSourcePostsAsync("yande", tags, page, limit, ct); } catch { }
+                }
                 return new List<PostItem>();
             }
         }
