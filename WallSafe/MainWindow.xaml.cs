@@ -585,6 +585,7 @@ namespace WallSafe
         // ═════════════════════════════════════════════════════════════════
 
         private readonly List<string> _recentSearches = new();
+        private bool _suppressAutocomplete = false;
 
         private void TagSearch_GotFocus(object sender, RoutedEventArgs e)
         {
@@ -594,12 +595,26 @@ namespace WallSafe
             }
         }
 
+        private void TagSearch_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            // Close popup when focus leaves both search box and popup elements
+            if (!TagSearchBox.IsKeyboardFocusWithin && !AutocompletePopup.IsKeyboardFocusWithin)
+            {
+                AutocompletePopup.IsOpen = false;
+            }
+        }
+
         private async void TagSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             var text = TagSearchBox.Text;
             var trimmed = text.Trim();
             TagPlaceholder.Visibility = string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
             ClearSearchBtn.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+
+            if (_suppressAutocomplete)
+            {
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(trimmed))
             {
@@ -634,7 +649,7 @@ namespace WallSafe
                 // Fast 80ms debounce for network query
                 await Task.Delay(80, ct);
                 var suggestions = await _api.FetchTagSuggestionsAsync(_currentSource, trimmed, ct);
-                if (ct.IsCancellationRequested) return;
+                if (ct.IsCancellationRequested || _suppressAutocomplete) return;
 
                 if (suggestions.Count > 0)
                 {
@@ -650,37 +665,129 @@ namespace WallSafe
             catch { }
         }
 
-        private void TagSearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void TagSearch_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (e.Key == Key.Down)
             {
-                if (AutocompletePopup.IsOpen && AutocompleteList.SelectedItem is TagSuggestion selected)
+                if (AutocompletePopup.IsOpen)
                 {
-                    SelectAutocompleteTag(selected.Name);
+                    if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.Items.Count > 0)
+                    {
+                        int next = AutocompleteList.SelectedIndex + 1;
+                        if (next >= AutocompleteList.Items.Count) next = AutocompleteList.Items.Count - 1;
+                        AutocompleteList.SelectedIndex = next;
+                        AutocompleteList.ScrollIntoView(AutocompleteList.SelectedItem);
+                        e.Handled = true;
+                    }
+                    else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.Items.Count > 0)
+                    {
+                        int next = RecentSearchesList.SelectedIndex + 1;
+                        if (next >= RecentSearchesList.Items.Count) next = RecentSearchesList.Items.Count - 1;
+                        RecentSearchesList.SelectedIndex = next;
+                        RecentSearchesList.ScrollIntoView(RecentSearchesList.SelectedItem);
+                        e.Handled = true;
+                    }
                 }
-                else
+            }
+            else if (e.Key == Key.Up)
+            {
+                if (AutocompletePopup.IsOpen)
                 {
-                    ExecuteSearch();
+                    if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.Items.Count > 0)
+                    {
+                        if (AutocompleteList.SelectedIndex > 0)
+                        {
+                            AutocompleteList.SelectedIndex--;
+                            AutocompleteList.ScrollIntoView(AutocompleteList.SelectedItem);
+                        }
+                        else
+                        {
+                            AutocompleteList.SelectedIndex = -1;
+                        }
+                        e.Handled = true;
+                    }
+                    else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.Items.Count > 0)
+                    {
+                        if (RecentSearchesList.SelectedIndex > 0)
+                        {
+                            RecentSearchesList.SelectedIndex--;
+                            RecentSearchesList.ScrollIntoView(RecentSearchesList.SelectedItem);
+                        }
+                        else
+                        {
+                            RecentSearchesList.SelectedIndex = -1;
+                        }
+                        e.Handled = true;
+                    }
                 }
+            }
+            else if (e.Key == Key.Tab)
+            {
+                if (AutocompletePopup.IsOpen)
+                {
+                    if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.Items.Count > 0)
+                    {
+                        var target = AutocompleteList.SelectedItem as TagSuggestion ?? AutocompleteList.Items[0] as TagSuggestion;
+                        if (target != null)
+                        {
+                            _suppressAutocomplete = true;
+                            try
+                            {
+                                TagSearchBox.Text = target.Name;
+                                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                                AutocompletePopup.IsOpen = false;
+                            }
+                            finally
+                            {
+                                _suppressAutocomplete = false;
+                            }
+                            e.Handled = true;
+                        }
+                    }
+                    else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.Items.Count > 0)
+                    {
+                        var target = RecentSearchesList.SelectedItem as string ?? RecentSearchesList.Items[0] as string;
+                        if (!string.IsNullOrEmpty(target))
+                        {
+                            _suppressAutocomplete = true;
+                            try
+                            {
+                                TagSearchBox.Text = target;
+                                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                                AutocompletePopup.IsOpen = false;
+                            }
+                            finally
+                            {
+                                _suppressAutocomplete = false;
+                            }
+                            e.Handled = true;
+                        }
+                    }
+                }
+            }
+            else if (e.Key == Key.Enter)
+            {
+                if (AutocompletePopup.IsOpen)
+                {
+                    if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.SelectedItem is TagSuggestion selected)
+                    {
+                        SelectAutocompleteTag(selected.Name);
+                        e.Handled = true;
+                        return;
+                    }
+                    else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.SelectedItem is string recent)
+                    {
+                        SelectAutocompleteTag(recent);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+                ExecuteSearch();
                 e.Handled = true;
             }
             else if (e.Key == Key.Escape)
             {
                 AutocompletePopup.IsOpen = false;
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Down && AutocompletePopup.IsOpen)
-            {
-                if (AutocompleteList.Visibility == Visibility.Visible && AutocompleteList.Items.Count > 0)
-                {
-                    AutocompleteList.Focus();
-                    AutocompleteList.SelectedIndex = 0;
-                }
-                else if (RecentSearchesPanel.Visibility == Visibility.Visible && RecentSearchesList.Items.Count > 0)
-                {
-                    RecentSearchesList.Focus();
-                    RecentSearchesList.SelectedIndex = 0;
-                }
                 e.Handled = true;
             }
         }
@@ -692,6 +799,26 @@ namespace WallSafe
                 SelectAutocompleteTag(tag.Name);
                 e.Handled = true;
             }
+            else if (e.Key == Key.Tab)
+            {
+                var target = AutocompleteList.SelectedItem as TagSuggestion ?? (AutocompleteList.Items.Count > 0 ? AutocompleteList.Items[0] as TagSuggestion : null);
+                if (target != null)
+                {
+                    _suppressAutocomplete = true;
+                    try
+                    {
+                        TagSearchBox.Text = target.Name;
+                        TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                        AutocompletePopup.IsOpen = false;
+                    }
+                    finally
+                    {
+                        _suppressAutocomplete = false;
+                    }
+                    TagSearchBox.Focus();
+                    e.Handled = true;
+                }
+            }
             else if (e.Key == Key.Escape)
             {
                 AutocompletePopup.IsOpen = false;
@@ -700,6 +827,7 @@ namespace WallSafe
             }
             else if (e.Key == Key.Up && AutocompleteList.SelectedIndex == 0)
             {
+                AutocompleteList.SelectedIndex = -1;
                 TagSearchBox.Focus();
                 TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
                 e.Handled = true;
@@ -709,7 +837,6 @@ namespace WallSafe
         private void Autocomplete_Selected(object sender, SelectionChangedEventArgs e)
         {
             // Only act on mouse-driven selection (not keyboard navigation which also fires SelectionChanged)
-            // Mouse single-click selection is handled by PreviewMouseLeftButtonUp on the ListBox items
         }
 
         private void AutocompleteList_PreviewMouseUp(object sender, MouseButtonEventArgs e)
@@ -722,9 +849,18 @@ namespace WallSafe
 
         private void SelectAutocompleteTag(string tagName)
         {
-            TagSearchBox.Text = tagName;
-            TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
-            AutocompletePopup.IsOpen = false;
+            _suppressAutocomplete = true;
+            try
+            {
+                _autocompleteCts.Cancel();
+                TagSearchBox.Text = tagName;
+                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                AutocompletePopup.IsOpen = false;
+            }
+            finally
+            {
+                _suppressAutocomplete = false;
+            }
             ExecuteSearch();
         }
 
@@ -748,9 +884,18 @@ namespace WallSafe
         {
             if (RecentSearchesList.SelectedItem is string query)
             {
-                TagSearchBox.Text = query;
-                TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
-                AutocompletePopup.IsOpen = false;
+                _suppressAutocomplete = true;
+                try
+                {
+                    _autocompleteCts.Cancel();
+                    TagSearchBox.Text = query;
+                    TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+                    AutocompletePopup.IsOpen = false;
+                }
+                finally
+                {
+                    _suppressAutocomplete = false;
+                }
                 ExecuteSearch();
             }
         }
@@ -763,7 +908,17 @@ namespace WallSafe
 
         private void ClearSearch_Click(object sender, RoutedEventArgs e)
         {
-            TagSearchBox.Text = "";
+            _suppressAutocomplete = true;
+            try
+            {
+                _autocompleteCts.Cancel();
+                TagSearchBox.Text = "";
+                AutocompletePopup.IsOpen = false;
+            }
+            finally
+            {
+                _suppressAutocomplete = false;
+            }
             TagSearchBox.Focus();
             ExecuteSearch();
         }
@@ -775,8 +930,9 @@ namespace WallSafe
 
         private void ExecuteSearch()
         {
-            var text = TagSearchBox.Text.Trim();
+            _autocompleteCts.Cancel();
             AutocompletePopup.IsOpen = false;
+            var text = TagSearchBox.Text.Trim();
 
             if (!string.IsNullOrEmpty(text))
             {
@@ -1599,13 +1755,52 @@ namespace WallSafe
             InitializeCategories();
         }
 
+        private void CategoryCardGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (sender is UIElement elem && e.NewSize.Width > 0 && e.NewSize.Height > 0)
+            {
+                elem.Clip = new System.Windows.Media.RectangleGeometry(
+                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 8, 8);
+            }
+        }
+
         private void CategoryPill_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is FrameworkElement elem && elem.DataContext is SeriesCategoryItem item)
             {
                 NavExplore.IsChecked = true;
-                TagSearchBox.Text = item.Tag;
+                _suppressAutocomplete = true;
+                try
+                {
+                    _autocompleteCts.Cancel();
+                    AutocompletePopup.IsOpen = false;
+                    TagSearchBox.Text = item.Tag;
+                }
+                finally
+                {
+                    _suppressAutocomplete = false;
+                }
                 _ = DoExploreSearch(append: false);
+            }
+        }
+
+        private void NewCategoryNameBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (NewCategoryNamePlaceholder != null && NewCategoryNameBox != null)
+            {
+                NewCategoryNamePlaceholder.Visibility = string.IsNullOrEmpty(NewCategoryNameBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        private void NewCategoryTagBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (NewCategoryTagPlaceholder != null && NewCategoryTagBox != null)
+            {
+                NewCategoryTagPlaceholder.Visibility = string.IsNullOrEmpty(NewCategoryTagBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
         }
 

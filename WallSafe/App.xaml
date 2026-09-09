@@ -394,7 +394,8 @@
                 <Setter Property="CaretBrush" Value="{DynamicResource TextBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-                <Setter Property="Padding" Value="10,6"/>
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Padding" Value="10,0"/>
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="12"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -405,7 +406,7 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     Padding="{TemplateBinding Padding}"
-                                    CornerRadius="8">
+                                    CornerRadius="6">
                                 <ScrollViewer x:Name="PART_ContentHost"
                                               VerticalAlignment="Center"
                                               Focusable="False"

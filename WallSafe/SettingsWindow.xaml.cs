@@ -180,6 +180,26 @@ namespace WallSafe
             if (NewSourceIsSfwChk != null) NewSourceIsSfwChk.IsChecked = false;
         }
 
+        private void NewSourceNameBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (NewSourceNamePlaceholder != null && NewSourceNameBox != null)
+            {
+                NewSourceNamePlaceholder.Visibility = string.IsNullOrEmpty(NewSourceNameBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        private void NewSourceUrlBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (NewSourceUrlPlaceholder != null && NewSourceUrlBox != null)
+            {
+                NewSourceUrlPlaceholder.Visibility = string.IsNullOrEmpty(NewSourceUrlBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
         private void RemoveCustomSource_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement btn && btn.Tag is string id)

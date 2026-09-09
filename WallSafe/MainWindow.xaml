@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WallSafe"
         Title="WallSafe"
+        FontFamily="Segoe UI"
         Width="1080" Height="740"
         MinWidth="780" MinHeight="560"
         WindowStyle="None"
@@ -206,8 +207,9 @@
                                          Padding="0,0,6,0"
                                          VerticalContentAlignment="Center"
                                          TextChanged="TagSearch_TextChanged"
-                                         KeyDown="TagSearch_KeyDown"
-                                         GotFocus="TagSearch_GotFocus"/>
+                                         PreviewKeyDown="TagSearch_PreviewKeyDown"
+                                         GotFocus="TagSearch_GotFocus"
+                                         LostKeyboardFocus="TagSearch_LostKeyboardFocus"/>
 
                                 <TextBlock x:Name="TagPlaceholder"
                                            Text="Search wallpapers, tags, series, characters…"
@@ -812,7 +814,7 @@
                                 <!-- Add Custom Category Inline Expandable Form (Collapsed by default) -->
                                 <Border x:Name="AddCategoryFormBorder" Background="{DynamicResource CardBgBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                        CornerRadius="8" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                                        CornerRadius="8" Padding="14,12" Margin="0,0,0,14" Visibility="Collapsed">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -825,31 +827,51 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Name input -->
-                                        <TextBox Grid.Column="0" x:Name="NewCategoryNameBox" Style="{StaticResource ModernSearchBox}"
-                                                 Margin="0,0,6,0" Tag="Series Name" ToolTip="Display Name (e.g. Azur Lane)"/>
-                                        <!-- Tag input -->
-                                        <TextBox Grid.Column="1" x:Name="NewCategoryTagBox" Style="{StaticResource ModernSearchBox}"
-                                                 Margin="0,0,6,0" Tag="Booru Tag" ToolTip="Booru Tag (e.g. azur_lane)"/>
+                                        <!-- Name input with placeholder watermark -->
+                                        <Grid Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBox x:Name="NewCategoryNameBox" Style="{StaticResource ModernSearchBox}"
+                                                     Height="32" Padding="10,0" VerticalContentAlignment="Center"
+                                                     TextChanged="NewCategoryNameBox_TextChanged"/>
+                                            <TextBlock x:Name="NewCategoryNamePlaceholder"
+                                                       Text="Series Name (e.g. Bocchi the Rock!)"
+                                                       Foreground="{DynamicResource MutedBrush}"
+                                                       FontSize="11.5" FontFamily="Segoe UI"
+                                                       VerticalAlignment="Center" Margin="10,0,0,0"
+                                                       IsHitTestVisible="False"/>
+                                        </Grid>
+
+                                        <!-- Tag input with placeholder watermark -->
+                                        <Grid Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBox x:Name="NewCategoryTagBox" Style="{StaticResource ModernSearchBox}"
+                                                     Height="32" Padding="10,0" VerticalContentAlignment="Center"
+                                                     TextChanged="NewCategoryTagBox_TextChanged"/>
+                                            <TextBlock x:Name="NewCategoryTagPlaceholder"
+                                                       Text="Booru Search Tag (e.g. bocchi_the_rock!)"
+                                                       Foreground="{DynamicResource MutedBrush}"
+                                                       FontSize="11.5" FontFamily="Segoe UI"
+                                                       VerticalAlignment="Center" Margin="10,0,0,0"
+                                                       IsHitTestVisible="False"/>
+                                        </Grid>
 
                                         <!-- Type combo -->
-                                        <ComboBox Grid.Column="2" x:Name="NewCategoryTypeCombo" Width="100" Margin="0,0,6,0" VerticalAlignment="Center">
+                                        <ComboBox Grid.Column="2" x:Name="NewCategoryTypeCombo" Width="105" Height="32"
+                                                  Margin="0,0,8,0" VerticalAlignment="Center">
                                             <ComboBoxItem Content="Anime" Tag="Anime"/>
                                             <ComboBoxItem Content="Game" Tag="Game"/>
                                             <ComboBoxItem Content="Custom" Tag="Custom" IsSelected="True"/>
                                         </ComboBox>
 
-                                        <!-- Action Buttons -->
+                                        <!-- Action Buttons: exact 32px height match -->
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Style="{StaticResource PrimaryButton}" Content="Save" Padding="12,5"
-                                                    Click="SaveCustomCategory_Click" Margin="0,0,4,0"/>
-                                            <Button Style="{StaticResource ToolButton}" Content="✕" Padding="6,4"
-                                                    Click="CancelCustomCategory_Click"/>
+                                            <Button Style="{StaticResource PrimaryButton}" Content="Save" Height="32" Padding="16,0"
+                                                    VerticalAlignment="Center" Click="SaveCustomCategory_Click" Margin="0,0,4,0"/>
+                                            <Button Style="{StaticResource ToolButton}" Content="✕" Height="32" Width="32" Padding="0"
+                                                    VerticalAlignment="Center" Click="CancelCustomCategory_Click" ToolTip="Cancel"/>
                                         </StackPanel>
 
-                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Margin="2,6,0,0"
-                                                   Text="Enter the display name and booru search tag (e.g. 'azur_lane', 'overwatch'). Category will be verified and saved."
-                                                   Foreground="{DynamicResource SubtextBrush}" FontSize="9.5"/>
+                                        <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Margin="2,8,0,0"
+                                                   Text="Enter the display name and booru search tag (e.g. 'azur_lane', 'overwatch'). Representative artwork will be auto-fetched."
+                                                   Foreground="{DynamicResource SubtextBrush}" FontSize="10"/>
                                     </Grid>
                                 </Border>
 
@@ -877,7 +899,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Grid>
+                                                <Grid SizeChanged="CategoryCardGrid_SizeChanged">
                                                     <!-- Artwork Background Image -->
                                                     <Image Source="{Binding PreviewImageUrl}"
                                                            Stretch="UniformToFill"

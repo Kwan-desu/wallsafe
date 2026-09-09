@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WallSafe Settings"
+        FontFamily="Segoe UI"
         Width="460" Height="580"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -359,7 +360,7 @@
                             </ItemsControl>
 
                             <!-- Add New Custom Source Form -->
-                            <Grid Margin="0,4,0,0">
+                            <Grid Margin="0,6,0,0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
@@ -368,14 +369,32 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox Grid.Row="0" Grid.Column="0" x:Name="NewSourceNameBox" Style="{StaticResource ModernSearchBox}"
-                                         Margin="0,0,4,4"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="NewSourceUrlBox" Style="{StaticResource ModernSearchBox}"
-                                         Margin="4,0,0,4"/>
+                                <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,4,6" VerticalAlignment="Center">
+                                    <TextBox x:Name="NewSourceNameBox" Style="{StaticResource ModernSearchBox}"
+                                             Height="32" Padding="10,0" VerticalContentAlignment="Center"
+                                             TextChanged="NewSourceNameBox_TextChanged"/>
+                                    <TextBlock x:Name="NewSourceNamePlaceholder"
+                                               Text="Source Name (e.g. Safebooru)"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               FontSize="11" FontFamily="Segoe UI"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"
+                                               IsHitTestVisible="False"/>
+                                </Grid>
+                                <Grid Grid.Row="0" Grid.Column="1" Margin="4,0,0,6" VerticalAlignment="Center">
+                                    <TextBox x:Name="NewSourceUrlBox" Style="{StaticResource ModernSearchBox}"
+                                             Height="32" Padding="10,0" VerticalContentAlignment="Center"
+                                             TextChanged="NewSourceUrlBox_TextChanged"/>
+                                    <TextBlock x:Name="NewSourceUrlPlaceholder"
+                                               Text="Base URL (e.g. safebooru.donmai.us)"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               FontSize="11" FontFamily="Segoe UI"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"
+                                               IsHitTestVisible="False"/>
+                                </Grid>
                                 <CheckBox Grid.Row="1" Grid.Column="0" x:Name="NewSourceIsSfwChk" Content="Safe for Work (SFW)"
-                                          Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                                          Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" Margin="0,2,0,0"/>
                                 <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource TabButton}" Content="+ Add Custom Source"
-                                        Margin="4,4,0,0" Padding="8,4" Click="AddCustomSource_Click"/>
+                                        Height="32" Margin="4,2,0,0" VerticalAlignment="Center" Click="AddCustomSource_Click"/>
                             </Grid>
                         </StackPanel>
                     </Border>
