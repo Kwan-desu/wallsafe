@@ -407,9 +407,9 @@ namespace WallSafe
         {
             string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
                 ? (Settings.Instance.SfwOnlyMode ? "konasfw" : "yande")
-                : sourceKey;
+                : (Settings.Instance.SfwOnlyMode && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 
-            string cacheKey = targetSource;
+            string cacheKey = $"{targetSource}:{(Settings.Instance.SfwOnlyMode ? "sfw" : "any")}";
             if (_sourceSeriesCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow < cached.ExpireAt)
             {
                 return cached.Tags;
@@ -455,21 +455,24 @@ namespace WallSafe
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;
 
+            bool sfw = Settings.Instance.SfwOnlyMode;
             string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
-                ? (Settings.Instance.SfwOnlyMode ? "konasfw" : "yande")
-                : sourceKey;
+                ? (sfw ? "konasfw" : "yande")
+                : (sfw && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 
-            string cacheKey = $"{targetSource}:{tag.Trim().ToLowerInvariant()}";
+            string cacheKey = $"{targetSource}:{(sfw ? "sfw" : "any")}:{tag.Trim().ToLowerInvariant()}";
             if (_sourcePreviewCache.TryGetValue(cacheKey, out var cachedUrl))
             {
                 return cachedUrl;
             }
 
+            string ratingFilter = sfw ? "+rating:s" : "";
+
             try
             {
                 string encoded = Uri.EscapeDataString(tag.Trim());
                 string baseUrl = ResolveBaseUrl(targetSource).TrimEnd('/');
-                string url = $"{baseUrl}/post.json?limit=1&tags={encoded}+order:score";
+                string url = $"{baseUrl}/post.json?limit=1&tags={encoded}{ratingFilter}+order:score";
                 var resp = await _http.GetStringAsync(url, ct);
                 var array = JArray.Parse(resp);
                 if (array.Count > 0)
@@ -485,7 +488,7 @@ namespace WallSafe
             }
             catch { }
 
-            // Fallback to generic preview
+            // Fallback to generic preview with rating filter
             var generic = await GetCategoryPreviewUrlAsync(tag, ct);
             if (!string.IsNullOrEmpty(generic))
             {
@@ -498,10 +501,13 @@ namespace WallSafe
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;
 
+            bool sfw = Settings.Instance.SfwOnlyMode;
+            string ratingFilter = sfw ? "+rating:s" : "";
+
             try
             {
                 string encoded = Uri.EscapeDataString(tag.Trim());
-                string url = $"https://konachan.net/post.json?limit=1&tags={encoded}+order:score";
+                string url = $"https://konachan.net/post.json?limit=1&tags={encoded}{ratingFilter}+order:score";
                 var resp = await _http.GetStringAsync(url, ct);
                 var array = JArray.Parse(resp);
                 if (array.Count > 0)
@@ -516,7 +522,7 @@ namespace WallSafe
             {
                 // Fallback to yande.re
                 string encoded = Uri.EscapeDataString(tag.Trim());
-                string url = $"https://yande.re/post.json?limit=1&tags={encoded}+order:score";
+                string url = $"https://yande.re/post.json?limit=1&tags={encoded}{ratingFilter}+order:score";
                 var resp = await _http.GetStringAsync(url, ct);
                 var array = JArray.Parse(resp);
                 if (array.Count > 0)

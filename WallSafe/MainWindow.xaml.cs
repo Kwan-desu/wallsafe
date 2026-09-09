@@ -499,11 +499,8 @@ namespace WallSafe
                 SourceKonaNsfw.Visibility = Visibility.Collapsed;
                 SourceYande.Visibility = Visibility.Collapsed;
 
-                if (SourceKonaNsfw.IsChecked == true || SourceYande.IsChecked == true)
-                {
-                    SourceKonaSfw.IsChecked = true;
-                    _currentSource = "konasfw";
-                }
+                SourceKonaSfw.IsChecked = true;
+                _currentSource = "konasfw";
 
                 if (RatingBox != null)
                 {
@@ -515,6 +512,13 @@ namespace WallSafe
             {
                 SourceKonaNsfw.Visibility = Visibility.Visible;
                 SourceYande.Visibility = Visibility.Visible;
+
+                // When switching to unrestricted/NSFW, auto-switch to Yande if on konasfw
+                if (_currentSource == "konasfw")
+                {
+                    SourceYande.IsChecked = true;
+                    _currentSource = "yande";
+                }
 
                 if (RatingBox != null)
                 {
@@ -1813,13 +1817,14 @@ namespace WallSafe
             var ct = _categoryRefreshCts.Token;
 
             string sourceKey = _currentSource;
+            bool sfw = Settings.Instance.SfwOnlyMode;
             string sourceDisplayName = sourceKey switch
             {
-                "konasfw" => "konachan.net",
-                "konansfw" => "konachan.com",
-                "yande" => "yande.re",
-                "all" => Settings.Instance.SfwOnlyMode ? "konachan.net (SFW)" : "All Sources",
-                _ => sourceKey
+                "konasfw" => "konachan.net (SFW)",
+                "konansfw" => "konachan.com (Unrestricted)",
+                "yande" => sfw ? "yande.re (SFW)" : "yande.re (Unrestricted)",
+                "all" => sfw ? "konachan.net (SFW)" : "All Sources (Unrestricted)",
+                _ => sfw ? $"{sourceKey} (SFW)" : sourceKey
             };
 
             if (CategorySourceSubtitle != null)
@@ -1840,6 +1845,7 @@ namespace WallSafe
                         string name = FormatSeriesTitle(tag);
                         string type = FormatSeriesType(tag);
 
+                        // If SFW mode, only use curated Konachan preview if it matches, otherwise let background fetcher get SFW image
                         var existingCurated = _curatedCategories.FirstOrDefault(c => c.Tag.Equals(tag, StringComparison.OrdinalIgnoreCase));
                         string previewUrl = existingCurated?.PreviewImageUrl ?? "";
 
@@ -1859,7 +1865,7 @@ namespace WallSafe
                     _currentSourceCategories.AddRange(dynamicList);
                     InitializeCategories();
 
-                    // Background thumbnail enrichment for cards without preloaded artwork
+                    // Background thumbnail enrichment: sync artwork directly to active source and SFW/NSFW rating
                     _ = Task.Run(async () =>
                     {
                         foreach (var item in dynamicList)
@@ -1867,13 +1873,10 @@ namespace WallSafe
                             if (ct.IsCancellationRequested) break;
                             try
                             {
-                                if (string.IsNullOrEmpty(item.PreviewImageUrl))
+                                var preview = await _api.GetSourceCategoryPreviewUrlAsync(sourceKey, item.Tag, ct);
+                                if (!string.IsNullOrEmpty(preview) && preview != item.PreviewImageUrl)
                                 {
-                                    var preview = await _api.GetSourceCategoryPreviewUrlAsync(sourceKey, item.Tag, ct);
-                                    if (!string.IsNullOrEmpty(preview) && preview != item.PreviewImageUrl)
-                                    {
-                                        Dispatcher.Invoke(() => item.PreviewImageUrl = preview);
-                                    }
+                                    Dispatcher.Invoke(() => item.PreviewImageUrl = preview);
                                 }
                             }
                             catch { }
