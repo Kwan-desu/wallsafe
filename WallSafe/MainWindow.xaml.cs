@@ -421,6 +421,7 @@ namespace WallSafe
             else if (sender is RadioButton rb && rb.Tag is string customId) _currentSource = customId;
 
             _currentPage = 1;
+            SaveCurrentFilterProfile();
             if (IsLoaded)
             {
                 _ = RefreshCategoriesForCurrentSourceAsync();
@@ -431,16 +432,35 @@ namespace WallSafe
             }
         }
 
+        private bool _isApplyingFilterProfile = false;
+
         public void SfwToggle_Click(object sender, RoutedEventArgs e)
         {
-            Settings.Instance.SfwOnlyMode = !Settings.Instance.SfwOnlyMode;
+            var nextMode = Settings.Instance.RatingMode switch
+            {
+                ContentRatingMode.SfwOnly => ContentRatingMode.Questionable,
+                ContentRatingMode.Questionable => ContentRatingMode.Explicit,
+                _ => ContentRatingMode.SfwOnly
+            };
+            Settings.Instance.RatingMode = nextMode;
             Settings.Instance.Save();
 
             UpdateSfwToggleVisuals();
             ApplySfwModeToFilters();
 
-            ShowToast(Settings.Instance.SfwOnlyMode ? "🛡" : "🔞",
-                Settings.Instance.SfwOnlyMode ? "Safe Mode: SFW Content Only (konachan.net)" : "Unrestricted: NSFW Content Included (all sources)");
+            string toastIcon = nextMode switch
+            {
+                ContentRatingMode.SfwOnly => "🛡",
+                ContentRatingMode.Questionable => "⚠️",
+                _ => "🔞"
+            };
+            string toastMsg = nextMode switch
+            {
+                ContentRatingMode.SfwOnly => "Safe Mode: SFW Content Only (konachan.net)",
+                ContentRatingMode.Questionable => "Questionable Mode: Mild / Suggestive / Ecchi Content",
+                _ => "Explicit Mode: Unrestricted 18+ NSFW Content Included"
+            };
+            ShowToast(toastIcon, toastMsg);
 
             if (IsLoaded)
             {
@@ -462,31 +482,46 @@ namespace WallSafe
         {
             if (SfwToggleBtn == null || SfwToggleText == null || SfwToggleIcon == null) return;
 
-            bool sfw = Settings.Instance.SfwOnlyMode;
-            if (sfw)
+            var mode = Settings.Instance.RatingMode;
+            switch (mode)
             {
-                SfwToggleText.Text = "SFW Only";
-                if (TryFindResource("IconShieldGeo") is System.Windows.Media.Geometry shieldGeo)
-                    SfwToggleIcon.Data = shieldGeo;
-                if (TryFindResource("EmeraldBrush") is System.Windows.Media.Brush emerald)
-                {
-                    SfwToggleIcon.Fill = emerald;
-                    SfwToggleText.Foreground = emerald;
-                }
-                SfwToggleBtn.ToolTip = "Safe Mode Active: Restricted strictly to konachan.net & safe sources. Click to switch to Unrestricted (Include NSFW).";
-            }
-            else
-            {
-                SfwToggleText.Text = "Include NSFW";
-                if (TryFindResource("IconFireGeo") is System.Windows.Media.Geometry fireGeo)
-                    SfwToggleIcon.Data = fireGeo;
+                case ContentRatingMode.SfwOnly:
+                    SfwToggleText.Text = "SFW Only";
+                    if (TryFindResource("IconShieldGeo") is System.Windows.Media.Geometry shieldGeo)
+                        SfwToggleIcon.Data = shieldGeo;
+                    if (TryFindResource("EmeraldBrush") is System.Windows.Media.Brush emerald)
+                    {
+                        SfwToggleIcon.Fill = emerald;
+                        SfwToggleText.Foreground = emerald;
+                    }
+                    SfwToggleBtn.ToolTip = "Safe Mode Active: Restricted strictly to konachan.net & safe sources. Click to switch to Questionable (Mild/Ecchi).";
+                    break;
 
-                if (TryFindResource("DangerBrush") is System.Windows.Media.Brush danger)
-                {
-                    SfwToggleIcon.Fill = danger;
-                    SfwToggleText.Foreground = danger;
-                }
-                SfwToggleBtn.ToolTip = "Unrestricted Mode: Includes yande.re, konachan.com & all sources. Click to switch to Safe Mode (SFW Only).";
+                case ContentRatingMode.Questionable:
+                    SfwToggleText.Text = "Questionable";
+                    if (TryFindResource("IconEyeGeo") is System.Windows.Media.Geometry eyeGeo)
+                        SfwToggleIcon.Data = eyeGeo;
+                    else if (TryFindResource("IconSparkleGeo") is System.Windows.Media.Geometry sparkleGeo)
+                        SfwToggleIcon.Data = sparkleGeo;
+                    if (TryFindResource("AmberBrush") is System.Windows.Media.Brush amber)
+                    {
+                        SfwToggleIcon.Fill = amber;
+                        SfwToggleText.Foreground = amber;
+                    }
+                    SfwToggleBtn.ToolTip = "Questionable Mode Active: Mild suggestive & ecchi content. Click to switch to Explicit (NSFW).";
+                    break;
+
+                case ContentRatingMode.Explicit:
+                    SfwToggleText.Text = "Explicit (NSFW)";
+                    if (TryFindResource("IconFireGeo") is System.Windows.Media.Geometry fireGeo)
+                        SfwToggleIcon.Data = fireGeo;
+                    if (TryFindResource("DangerBrush") is System.Windows.Media.Brush danger)
+                    {
+                        SfwToggleIcon.Fill = danger;
+                        SfwToggleText.Foreground = danger;
+                    }
+                    SfwToggleBtn.ToolTip = "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Safe Mode (SFW Only).";
+                    break;
             }
         }
 
@@ -494,40 +529,123 @@ namespace WallSafe
         {
             if (SourceKonaNsfw == null || SourceYande == null || SourceKonaSfw == null) return;
 
-            bool sfw = Settings.Instance.SfwOnlyMode;
-            if (sfw)
+            var mode = Settings.Instance.RatingMode;
+            bool isSfw = mode == ContentRatingMode.SfwOnly;
+
+            if (isSfw)
             {
                 SourceKonaNsfw.Visibility = Visibility.Collapsed;
                 SourceYande.Visibility = Visibility.Collapsed;
 
                 SourceKonaSfw.IsChecked = true;
                 _currentSource = "konasfw";
-
-                if (RatingBox != null)
-                {
-                    RatingBox.SelectedIndex = 0; // Safe Only (SFW)
-                    RatingBox.IsEnabled = false;
-                }
             }
             else
             {
                 SourceKonaNsfw.Visibility = Visibility.Visible;
                 SourceYande.Visibility = Visibility.Visible;
 
-                // When switching to unrestricted/NSFW, auto-switch to Yande if on konasfw
                 if (_currentSource == "konasfw")
                 {
                     SourceYande.IsChecked = true;
                     _currentSource = "yande";
                 }
+            }
 
-                if (RatingBox != null)
+            if (RatingBox != null)
+            {
+                if (Settings.Instance.CustomFilterProfileEnabled)
                 {
                     RatingBox.IsEnabled = true;
+                    RatingBox.ToolTip = "Custom Filter Profile Active: Content Rating is freely customizable and persists across sessions.";
+                    ApplySavedFilterProfileToUi();
+                }
+                else
+                {
+                    switch (mode)
+                    {
+                        case ContentRatingMode.SfwOnly:
+                            RatingBox.SelectedIndex = 0; // Safe Only (SFW)
+                            RatingBox.IsEnabled = false;
+                            RatingBox.ToolTip = "Rating restricted strictly to SFW. (Enable Custom Filter Profiles in Settings to override).";
+                            break;
+
+                        case ContentRatingMode.Questionable:
+                            RatingBox.SelectedIndex = 1; // Questionable
+                            RatingBox.IsEnabled = false;
+                            RatingBox.ToolTip = "Rating locked to Questionable. (Enable Custom Filter Profiles in Settings to override).";
+                            break;
+
+                        case ContentRatingMode.Explicit:
+                            RatingBox.SelectedIndex = 2; // Explicit (NSFW)
+                            RatingBox.IsEnabled = false;
+                            RatingBox.ToolTip = "Rating locked to Explicit (NSFW). (Enable Custom Filter Profiles in Settings to override).";
+                            break;
+                    }
                 }
             }
 
             RebuildCustomSourcePills();
+        }
+
+        public void ApplySavedFilterProfileToUi()
+        {
+            if (!Settings.Instance.CustomFilterProfileEnabled) return;
+            var prof = Settings.Instance.SavedFilterProfile;
+            if (prof == null) return;
+
+            _isApplyingFilterProfile = true;
+            try
+            {
+                if (RatingBox != null && !string.IsNullOrEmpty(prof.RatingTag))
+                {
+                    for (int i = 0; i < RatingBox.Items.Count; i++)
+                    {
+                        if (RatingBox.Items[i] is ComboBoxItem cbi && (cbi.Tag as string) == prof.RatingTag)
+                        {
+                            RatingBox.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+                if (SortBox != null && !string.IsNullOrEmpty(prof.SortTag))
+                {
+                    for (int i = 0; i < SortBox.Items.Count; i++)
+                    {
+                        if (SortBox.Items[i] is ComboBoxItem cbi && (cbi.Tag as string) == prof.SortTag)
+                        {
+                            SortBox.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+                if (ResolutionBox != null && prof.ResolutionIndex >= 0 && prof.ResolutionIndex < ResolutionBox.Items.Count)
+                {
+                    ResolutionBox.SelectedIndex = prof.ResolutionIndex;
+                }
+                if (AspectBox != null && prof.AspectIndex >= 0 && prof.AspectIndex < AspectBox.Items.Count)
+                {
+                    AspectBox.SelectedIndex = prof.AspectIndex;
+                }
+            }
+            finally
+            {
+                _isApplyingFilterProfile = false;
+            }
+        }
+
+        public void SaveCurrentFilterProfile()
+        {
+            if (_isApplyingFilterProfile || !Settings.Instance.CustomFilterProfileEnabled) return;
+
+            var prof = Settings.Instance.SavedFilterProfile ??= new FilterProfile();
+            prof.RatingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string ?? "rating:s";
+            prof.SortTag = ((ComboBoxItem?)SortBox?.SelectedItem)?.Tag as string ?? "order:score";
+            prof.ResolutionIndex = ResolutionBox?.SelectedIndex ?? 0;
+            prof.AspectIndex = AspectBox?.SelectedIndex ?? 0;
+            prof.Source = _currentSource;
+
+            Settings.Instance.Save();
         }
 
         public void RebuildCustomSourcePills()
@@ -566,6 +684,7 @@ namespace WallSafe
 
         private void Filter_Changed(object sender, SelectionChangedEventArgs e)
         {
+            SaveCurrentFilterProfile();
             UpdateFilterBadge();
             if (_currentSection == ActiveSection.Explore && IsLoaded)
             {
@@ -1554,7 +1673,14 @@ namespace WallSafe
             {
                 // Fetch top trending wallpapers for hero spotlight & trending row
                 string homeSource = Settings.Instance.SfwOnlyMode ? "konasfw" : "yande";
-                var posts = await _api.FetchPostsAsync(homeSource, "order:score rating:s", 1, 12, CancellationToken.None);
+                string homeRating = Settings.Instance.RatingMode switch
+                {
+                    ContentRatingMode.SfwOnly => "rating:s",
+                    ContentRatingMode.Questionable => "rating:q",
+                    _ => ""
+                };
+                string homeQuery = string.IsNullOrEmpty(homeRating) ? "order:score" : $"order:score {homeRating}";
+                var posts = await _api.FetchPostsAsync(homeSource, homeQuery, 1, 12, CancellationToken.None);
                 _trendingPosts = posts;
 
                 // Priority: Show user's saved favorite artwork if available

@@ -487,10 +487,23 @@
                                         <TextBlock Text="Configure Danbooru/Moebooru safety levels and search engine aggregation."
                                                    Foreground="{DynamicResource SubtextBrush}" FontSize="10" Margin="0,0,0,10"/>
 
-                                        <CheckBox x:Name="ChkSfwOnly" Content="Strict Safe-Only Mode (konachan.net + SFW sources)"
-                                                  Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
-                                        <CheckBox x:Name="ChkAllowAllSources" Content="Enable 'All Sources' multi-engine aggregation"
-                                                  Foreground="{DynamicResource TextBrush}"/>
+                                         <TextBlock Text="DEFAULT CONTENT RATING MODE" Foreground="{DynamicResource MutedBrush}"
+                                                    FontFamily="Segoe UI Bold" FontSize="9.5" Margin="0,0,0,5"/>
+                                         <ComboBox x:Name="RatingModeCombo" Background="{DynamicResource CardBgBrush}"
+                                                   Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                                   Margin="0,0,0,10">
+                                             <ComboBoxItem Content="Safe Only (SFW) — konachan.net &amp; safe sources" Tag="0"/>
+                                             <ComboBoxItem Content="Questionable — Mild / Suggestive / Ecchi" Tag="1"/>
+                                             <ComboBoxItem Content="Explicit (NSFW) — Unrestricted 18+ content" Tag="2"/>
+                                         </ComboBox>
+
+                                         <CheckBox x:Name="ChkCustomFilterProfile" Content="Enable Custom Filter Profiles &amp; Rating Override"
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,3"/>
+                                         <TextBlock Text="Unlocks the Content Rating dropdown across all modes and saves your customized filter selections (Rating, Sort, Resolution, Aspect Ratio) as your persistent profile."
+                                                    Foreground="{DynamicResource MutedBrush}" FontSize="9.5" TextWrapping="Wrap" Margin="22,0,0,10"/>
+
+                                         <CheckBox x:Name="ChkAllowAllSources" Content="Enable 'All Sources' multi-engine aggregation"
+                                                   Foreground="{DynamicResource TextBrush}"/>
                                     </StackPanel>
                                 </Border>
 

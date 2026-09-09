@@ -405,11 +405,13 @@ namespace WallSafe
 
         public async Task<List<(string Tag, int Count)>> GetPopularSeriesFromSourceAsync(string sourceKey, int limit = 25, CancellationToken ct = default)
         {
+            var ratingMode = Settings.Instance.RatingMode;
+            bool sfw = ratingMode == ContentRatingMode.SfwOnly;
             string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
-                ? (Settings.Instance.SfwOnlyMode ? "konasfw" : "yande")
-                : (Settings.Instance.SfwOnlyMode && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
+                ? (sfw ? "konasfw" : "yande")
+                : (sfw && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 
-            string cacheKey = $"{targetSource}:{(Settings.Instance.SfwOnlyMode ? "sfw" : "any")}";
+            string cacheKey = $"{targetSource}:{ratingMode}";
             if (_sourceSeriesCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow < cached.ExpireAt)
             {
                 return cached.Tags;
@@ -455,18 +457,24 @@ namespace WallSafe
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;
 
-            bool sfw = Settings.Instance.SfwOnlyMode;
+            var ratingMode = Settings.Instance.RatingMode;
+            bool sfw = ratingMode == ContentRatingMode.SfwOnly;
             string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
                 ? (sfw ? "konasfw" : "yande")
                 : (sfw && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 
-            string cacheKey = $"{targetSource}:{(sfw ? "sfw" : "any")}:{tag.Trim().ToLowerInvariant()}";
+            string cacheKey = $"{targetSource}:{ratingMode}:{tag.Trim().ToLowerInvariant()}";
             if (_sourcePreviewCache.TryGetValue(cacheKey, out var cachedUrl))
             {
                 return cachedUrl;
             }
 
-            string ratingFilter = sfw ? "+rating:s" : "";
+            string ratingFilter = ratingMode switch
+            {
+                ContentRatingMode.SfwOnly => "+rating:s",
+                ContentRatingMode.Questionable => "+rating:q",
+                _ => ""
+            };
 
             try
             {
@@ -501,8 +509,12 @@ namespace WallSafe
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;
 
-            bool sfw = Settings.Instance.SfwOnlyMode;
-            string ratingFilter = sfw ? "+rating:s" : "";
+            string ratingFilter = Settings.Instance.RatingMode switch
+            {
+                ContentRatingMode.SfwOnly => "+rating:s",
+                ContentRatingMode.Questionable => "+rating:q",
+                _ => ""
+            };
 
             try
             {

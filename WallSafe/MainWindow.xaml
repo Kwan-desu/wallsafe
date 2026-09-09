@@ -106,7 +106,7 @@
                                 Style="{StaticResource TabButton}"
                                 Height="28" Padding="9,0"
                                 Click="SfwToggle_Click"
-                                ToolTip="Toggle between Safe (SFW Only) and Unrestricted (Include NSFW)"
+                                ToolTip="Content Rating Mode: SFW Only | Questionable | Explicit (NSFW). Click to cycle mode."
                                 VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path x:Name="SfwToggleIcon" Data="{StaticResource IconShieldGeo}"

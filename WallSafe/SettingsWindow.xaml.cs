@@ -189,8 +189,11 @@ namespace WallSafe
             ChkDiscretion.IsChecked = s.DiscretionBlur;
             BlacklistBox.Text = s.TagBlacklist;
 
-            // Sources & SFW Mode
-            ChkSfwOnly.IsChecked = s.SfwOnlyMode;
+            // Sources & Rating Mode
+            if (RatingModeCombo != null)
+                RatingModeCombo.SelectedIndex = Math.Clamp((int)s.RatingMode, 0, 2);
+            if (ChkCustomFilterProfile != null)
+                ChkCustomFilterProfile.IsChecked = s.CustomFilterProfileEnabled;
             ChkAllowAllSources.IsChecked = s.AllowAllSources;
             RefreshCustomSourcesList();
 
@@ -607,7 +610,14 @@ namespace WallSafe
             s.DiscretionBlur = ChkDiscretion.IsChecked == true;
             s.TagBlacklist = BlacklistBox.Text.Trim();
 
-            s.SfwOnlyMode = ChkSfwOnly.IsChecked == true;
+            if (RatingModeCombo?.SelectedItem is ComboBoxItem rmItem && int.TryParse(rmItem.Tag as string, out int rmVal))
+            {
+                s.RatingMode = (ContentRatingMode)Math.Clamp(rmVal, 0, 2);
+            }
+            if (ChkCustomFilterProfile != null)
+            {
+                s.CustomFilterProfileEnabled = ChkCustomFilterProfile.IsChecked == true;
+            }
             s.AllowAllSources = ChkAllowAllSources.IsChecked == true;
 
             s.Save();

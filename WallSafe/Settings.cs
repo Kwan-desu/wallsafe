@@ -6,6 +6,22 @@ using Newtonsoft.Json;
 
 namespace WallSafe
 {
+    public enum ContentRatingMode
+    {
+        SfwOnly = 0,
+        Questionable = 1,
+        Explicit = 2
+    }
+
+    public class FilterProfile
+    {
+        public string RatingTag { get; set; } = "rating:s";
+        public string SortTag { get; set; } = "order:score";
+        public int ResolutionIndex { get; set; } = 0;
+        public int AspectIndex { get; set; } = 0;
+        public string Source { get; set; } = "konasfw";
+    }
+
     public class Settings
     {
         public static readonly Settings Instance = Load();
@@ -15,7 +31,32 @@ namespace WallSafe
         public string DefaultSource { get; set; } = "konasfw";
         public string DefaultRating { get; set; } = "rating:s";
         public string DefaultSort { get; set; } = "order:score";
-        public bool SfwOnlyMode { get; set; } = true; // SFW Only (default) vs Include NSFW
+
+        public ContentRatingMode RatingMode { get; set; } = ContentRatingMode.SfwOnly;
+
+        [JsonProperty("SfwOnlyMode")]
+        private bool? SfwOnlyModeSerializer
+        {
+            get => RatingMode == ContentRatingMode.SfwOnly;
+            set
+            {
+                if (value.HasValue && !value.Value && RatingMode == ContentRatingMode.SfwOnly)
+                {
+                    RatingMode = ContentRatingMode.Explicit;
+                }
+            }
+        }
+
+        [JsonIgnore]
+        public bool SfwOnlyMode
+        {
+            get => RatingMode == ContentRatingMode.SfwOnly;
+            set => RatingMode = value ? ContentRatingMode.SfwOnly : ContentRatingMode.Explicit;
+        }
+
+        public bool CustomFilterProfileEnabled { get; set; } = false;
+        public FilterProfile SavedFilterProfile { get; set; } = new();
+
         public bool AllowAllSources { get; set; } = true;
         public List<CustomSourceConfig> CustomSources { get; set; } = new();
         public List<SeriesCategoryItem> CustomCategories { get; set; } = new();
