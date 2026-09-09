@@ -13,6 +13,20 @@ dist/
 *.suo
 *.sln.docstates
 
+# Secrets & Environment variables
+.env
+.env.*
+*.secret
+*.token
+*.key
+*.pfx
+
+# Agent & Skill metadata
+.agents/
+.claude/
+agent/
+skills-lock.json
+
 # Temporary files & caches
 *.tmp
 *.log
@@ -20,11 +34,3 @@ dist/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-ENV/
