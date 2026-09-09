@@ -176,12 +176,34 @@ namespace WallSafe
     public class SeriesCategoryItem : INotifyPropertyChanged
     {
         private string _previewImageUrl = string.Empty;
+        private int _postCount = 0;
 
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; } = string.Empty;
         public string Tag { get; set; } = string.Empty;
         public string Type { get; set; } = "Anime"; // "Anime", "Game", "Custom"
         public bool IsCustom { get; set; } = false;
+
+        public int PostCount
+        {
+            get => _postCount;
+            set
+            {
+                if (_postCount != value)
+                {
+                    _postCount = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(PostCountDisplay));
+                    OnPropertyChanged(nameof(HasPostCount));
+                }
+            }
+        }
+
+        public string PostCountDisplay => PostCount >= 1000
+            ? $"{PostCount / 1000.0:0.#}k"
+            : (PostCount > 0 ? $"{PostCount}" : "");
+
+        public bool HasPostCount => PostCount > 0;
 
         public string PreviewImageUrl
         {

@@ -400,6 +400,100 @@ namespace WallSafe
             return result;
         }
 
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime ExpireAt, List<(string Tag, int Count)> Tags)> _sourceSeriesCache = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _sourcePreviewCache = new();
+
+        public async Task<List<(string Tag, int Count)>> GetPopularSeriesFromSourceAsync(string sourceKey, int limit = 25, CancellationToken ct = default)
+        {
+            string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? (Settings.Instance.SfwOnlyMode ? "konasfw" : "yande")
+                : sourceKey;
+
+            string cacheKey = targetSource;
+            if (_sourceSeriesCache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow < cached.ExpireAt)
+            {
+                return cached.Tags;
+            }
+
+            var results = new List<(string Tag, int Count)>();
+            var ignoredTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "original", "all_male", "comic", "translation_request", "spoiler", "sound_warning", "bad_id"
+            };
+
+            try
+            {
+                string baseUrl = ResolveBaseUrl(targetSource).TrimEnd('/');
+                string url = $"{baseUrl}/tag.json?order=count&type=3&limit={limit * 2}";
+
+                var resp = await _http.GetStringAsync(url, ct);
+                var array = JArray.Parse(resp);
+
+                foreach (var item in array)
+                {
+                    string name = item["name"]?.ToString() ?? "";
+                    int count = item["count"]?.ToObject<int>() ?? (item["post_count"]?.ToObject<int>() ?? 0);
+
+                    if (string.IsNullOrWhiteSpace(name) || ignoredTags.Contains(name) || count <= 0)
+                        continue;
+
+                    results.Add((name, count));
+                    if (results.Count >= limit) break;
+                }
+
+                if (results.Count > 0)
+                {
+                    _sourceSeriesCache[cacheKey] = (DateTime.UtcNow.AddMinutes(30), results);
+                }
+            }
+            catch { }
+
+            return results;
+        }
+
+        public async Task<string?> GetSourceCategoryPreviewUrlAsync(string sourceKey, string tag, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return null;
+
+            string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? (Settings.Instance.SfwOnlyMode ? "konasfw" : "yande")
+                : sourceKey;
+
+            string cacheKey = $"{targetSource}:{tag.Trim().ToLowerInvariant()}";
+            if (_sourcePreviewCache.TryGetValue(cacheKey, out var cachedUrl))
+            {
+                return cachedUrl;
+            }
+
+            try
+            {
+                string encoded = Uri.EscapeDataString(tag.Trim());
+                string baseUrl = ResolveBaseUrl(targetSource).TrimEnd('/');
+                string url = $"{baseUrl}/post.json?limit=1&tags={encoded}+order:score";
+                var resp = await _http.GetStringAsync(url, ct);
+                var array = JArray.Parse(resp);
+                if (array.Count > 0)
+                {
+                    var p = array[0];
+                    string? preview = p["sample_url"]?.ToString() ?? p["preview_url"]?.ToString() ?? p["file_url"]?.ToString();
+                    if (!string.IsNullOrEmpty(preview))
+                    {
+                        _sourcePreviewCache[cacheKey] = preview;
+                        return preview;
+                    }
+                }
+            }
+            catch { }
+
+            // Fallback to generic preview
+            var generic = await GetCategoryPreviewUrlAsync(tag, ct);
+            if (!string.IsNullOrEmpty(generic))
+            {
+                _sourcePreviewCache[cacheKey] = generic;
+            }
+            return generic;
+        }
+
         public async Task<string?> GetCategoryPreviewUrlAsync(string tag, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(tag)) return null;

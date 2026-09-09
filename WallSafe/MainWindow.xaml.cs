@@ -87,6 +87,7 @@ namespace WallSafe
             Loaded += async (_, _) =>
             {
                 InitializeCategories();
+                _ = RefreshCategoriesForCurrentSourceAsync();
                 await LoadHomeDataAsync();
                 _ = DoExploreSearch(append: false);
             };
@@ -419,6 +420,10 @@ namespace WallSafe
             else if (sender is RadioButton rb && rb.Tag is string customId) _currentSource = customId;
 
             _currentPage = 1;
+            if (IsLoaded)
+            {
+                _ = RefreshCategoriesForCurrentSourceAsync();
+            }
             if (_currentSection == ActiveSection.Explore && IsLoaded)
             {
                 _ = DoExploreSearch(append: false);
@@ -435,6 +440,11 @@ namespace WallSafe
 
             ShowToast(Settings.Instance.SfwOnlyMode ? "🛡" : "🔞",
                 Settings.Instance.SfwOnlyMode ? "Safe Mode: SFW Content Only (konachan.net)" : "Unrestricted: NSFW Content Included (all sources)");
+
+            if (IsLoaded)
+            {
+                _ = RefreshCategoriesForCurrentSourceAsync();
+            }
 
             if (_currentSection == ActiveSection.Explore && IsLoaded)
             {
@@ -1720,11 +1730,176 @@ namespace WallSafe
             ShowToast(_heroPost.IsFavorite ? "♥" : "✕", _heroPost.IsFavorite ? "Added to Favorites" : "Removed from Favorites");
         }
 
+        private static readonly Dictionary<string, (string Name, string Type)> FranchiseMetadata = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Anime
+            ["sousou_no_frieren"] = ("Frieren", "Anime"),
+            ["bocchi_the_rock!"] = ("Bocchi the Rock!", "Anime"),
+            ["chainsaw_man"] = ("Chainsaw Man", "Anime"),
+            ["fate/stay_night"] = ("Fate / Stay Night", "Anime"),
+            ["kimetsu_no_yaiba"] = ("Demon Slayer", "Anime"),
+            ["neon_genesis_evangelion"] = ("Evangelion", "Anime"),
+            ["sword_art_online"] = ("Sword Art Online", "Anime"),
+            ["cyberpunk:_edgerunners"] = ("Cyberpunk: Edgerunners", "Anime"),
+            ["spy_x_family"] = ("Spy × Family", "Anime"),
+            ["oshi_no_ko"] = ("Oshi no Ko", "Anime"),
+            ["vocaloid"] = ("Vocaloid", "Anime"),
+            ["jujutsu_kaisen"] = ("Jujutsu Kaisen", "Anime"),
+            ["shingeki_no_kyojin"] = ("Attack on Titan", "Anime"),
+            ["re:zero_kara_hajimeru_isekai_seikatsu"] = ("Re:Zero", "Anime"),
+            ["mahou_shoujo_madoka_magica"] = ("Madoka Magica", "Anime"),
+            ["lycoris_recoil"] = ("Lycoris Recoil", "Anime"),
+            ["dungeon_meshi"] = ("Delicious in Dungeon", "Anime"),
+            ["one_piece"] = ("One Piece", "Anime"),
+            ["bleach"] = ("Bleach", "Anime"),
+            ["naruto"] = ("Naruto", "Anime"),
+            ["dragon_ball"] = ("Dragon Ball", "Anime"),
+            ["k-on!"] = ("K-On!", "Anime"),
+            ["toaru_majutsu_no_index"] = ("A Certain Magical Index", "Anime"),
+            ["toaru_kagaku_no_railgun"] = ("A Certain Scientific Railgun", "Anime"),
+
+            // Games
+            ["genshin_impact"] = ("Genshin Impact", "Game"),
+            ["honkai:_star_rail"] = ("Honkai: Star Rail", "Game"),
+            ["blue_archive"] = ("Blue Archive", "Game"),
+            ["nier"] = ("NieR", "Game"),
+            ["nier:_automata"] = ("NieR: Automata", "Game"),
+            ["arknights"] = ("Arknights", "Game"),
+            ["fate/grand_order"] = ("Fate / Grand Order", "Game"),
+            ["elden_ring"] = ("Elden Ring", "Game"),
+            ["touhou"] = ("Touhou Project", "Game"),
+            ["hololive"] = ("Hololive", "Game"),
+            ["azur_lane"] = ("Azur Lane", "Game"),
+            ["kantai_collection"] = ("Kantai Collection", "Game"),
+            ["the_idolm@ster"] = ("The Idolmaster", "Game"),
+            ["idolmaster"] = ("The Idolmaster", "Game"),
+            ["zenless_zone_zero"] = ("Zenless Zone Zero", "Game"),
+            ["wuthering_waves"] = ("Wuthering Waves", "Game"),
+            ["persona_5"] = ("Persona 5", "Game"),
+            ["persona"] = ("Persona", "Game"),
+            ["granblue_fantasy"] = ("Granblue Fantasy", "Game"),
+            ["umamusume"] = ("Uma Musume", "Game"),
+            ["umamusume_pretty_derby"] = ("Uma Musume", "Game"),
+            ["goddess_of_victory:_nikke"] = ("Nikke", "Game"),
+            ["honkai_impact_3rd"] = ("Honkai Impact 3rd", "Game"),
+            ["pokemon"] = ("Pokémon", "Game"),
+            ["league_of_legends"] = ("League of Legends", "Game")
+        };
+
+        private static string FormatSeriesTitle(string tag)
+        {
+            if (FranchiseMetadata.TryGetValue(tag, out var meta))
+                return meta.Name;
+
+            string clean = tag.Replace('_', ' ').Replace(":", " ").Trim();
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(clean);
+        }
+
+        private static string FormatSeriesType(string tag)
+        {
+            if (FranchiseMetadata.TryGetValue(tag, out var meta))
+                return meta.Type;
+
+            return "Anime";
+        }
+
+        private CancellationTokenSource? _categoryRefreshCts;
+        private readonly List<SeriesCategoryItem> _currentSourceCategories = new();
+
+        private async Task RefreshCategoriesForCurrentSourceAsync()
+        {
+            _categoryRefreshCts?.Cancel();
+            _categoryRefreshCts = new CancellationTokenSource();
+            var ct = _categoryRefreshCts.Token;
+
+            string sourceKey = _currentSource;
+            string sourceDisplayName = sourceKey switch
+            {
+                "konasfw" => "konachan.net",
+                "konansfw" => "konachan.com",
+                "yande" => "yande.re",
+                "all" => Settings.Instance.SfwOnlyMode ? "konachan.net (SFW)" : "All Sources",
+                _ => sourceKey
+            };
+
+            if (CategorySourceSubtitle != null)
+            {
+                CategorySourceSubtitle.Text = $"Live Ranking • {sourceDisplayName}";
+            }
+
+            try
+            {
+                var rawTags = await _api.GetPopularSeriesFromSourceAsync(sourceKey, 24, ct);
+                if (ct.IsCancellationRequested) return;
+
+                if (rawTags != null && rawTags.Count > 0)
+                {
+                    var dynamicList = new List<SeriesCategoryItem>();
+                    foreach (var (tag, count) in rawTags)
+                    {
+                        string name = FormatSeriesTitle(tag);
+                        string type = FormatSeriesType(tag);
+
+                        var existingCurated = _curatedCategories.FirstOrDefault(c => c.Tag.Equals(tag, StringComparison.OrdinalIgnoreCase));
+                        string previewUrl = existingCurated?.PreviewImageUrl ?? "";
+
+                        var item = new SeriesCategoryItem
+                        {
+                            Name = name,
+                            Tag = tag,
+                            Type = type,
+                            PostCount = count,
+                            PreviewImageUrl = previewUrl,
+                            IsCustom = false
+                        };
+                        dynamicList.Add(item);
+                    }
+
+                    _currentSourceCategories.Clear();
+                    _currentSourceCategories.AddRange(dynamicList);
+                    InitializeCategories();
+
+                    // Background thumbnail enrichment for cards without preloaded artwork
+                    _ = Task.Run(async () =>
+                    {
+                        foreach (var item in dynamicList)
+                        {
+                            if (ct.IsCancellationRequested) break;
+                            try
+                            {
+                                if (string.IsNullOrEmpty(item.PreviewImageUrl))
+                                {
+                                    var preview = await _api.GetSourceCategoryPreviewUrlAsync(sourceKey, item.Tag, ct);
+                                    if (!string.IsNullOrEmpty(preview) && preview != item.PreviewImageUrl)
+                                    {
+                                        Dispatcher.Invoke(() => item.PreviewImageUrl = preview);
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+                    }, ct);
+
+                    return;
+                }
+            }
+            catch { }
+
+            // Graceful fallback to curated catalog
+            if (_currentSourceCategories.Count == 0)
+            {
+                _currentSourceCategories.Clear();
+                _currentSourceCategories.AddRange(_curatedCategories);
+            }
+            InitializeCategories();
+        }
+
         private void InitializeCategories()
         {
             if (CategoriesItemsControl == null) return;
 
-            var all = new List<SeriesCategoryItem>(_curatedCategories);
+            var sourceList = _currentSourceCategories.Count > 0 ? _currentSourceCategories : _curatedCategories;
+            var all = new List<SeriesCategoryItem>(sourceList);
             if (Settings.Instance.CustomCategories != null)
             {
                 all.AddRange(Settings.Instance.CustomCategories);

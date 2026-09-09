@@ -20,11 +20,11 @@ WallSafe is a sleek, modern Windows 11 desktop application crafted in WPF / .NET
     - 📥 **Download**: Download original high-resolution art to your pictures folder.
     - ↗️ **Source**: Open the original booru post in your browser.
 
-- **✨ Explore by Universe & Series with Visual Preview Cards**
-  - Rich 16:9 banner-style category cards with representative artwork backdrops, type badges (*Anime*, *Gaming*, *Custom*), and dark gradient title overlays.
-  - Curated discovery for top franchises (*Frieren, Bocchi the Rock!, Chainsaw Man, Demon Slayer, Fate, Evangelion, Genshin Impact, Honkai: Star Rail, Blue Archive, NieR, Arknights, Elden Ring, Touhou, Hololive*).
-  - Filter by All, Anime, Gaming, or My Custom categories.
-  - Create custom user-defined series categories with automatic booru representative thumbnail fetching and persistence.
+- **✨ Dynamic Source-Aware Universe & Series Discovery**
+  - **Live Board Ranking**: Popular franchises automatically rank based on real-time booru popularity and post counts on the currently active image board (e.g. Blue Archive #1 with 47k+ on Yande.re, Vocaloid #1 on Konachan).
+  - **Live Artwork Counts & Badges**: Each card displays live post counts (e.g. `47.6k Artworks`), genre badges (*Anime*, *Gaming*, *Custom*), and representative backdrop art directly from the active board.
+  - **Visual 16:9 Banner Cards**: Rounded cards (`CornerRadius="8"`) with dark gradient title overlays and subtle hover elevation.
+  - **Custom Series Manager**: Add your own custom series tags with auto-fetched representative booru thumbnails.
 
 - **♾️ Pixiv-Style Infinite Scroll & In-Memory Caching**
   - Smooth, non-blocking infinite scrolling with subtle bottom-loader indicators.
