@@ -43,27 +43,27 @@ namespace WallSafe
         private readonly List<SeriesCategoryItem> _curatedCategories = new()
         {
             // Anime
-            new SeriesCategoryItem { Name = "Frieren", Tag = "sousou_no_frieren", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Bocchi the Rock!", Tag = "bocchi_the_rock!", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Chainsaw Man", Tag = "chainsaw_man", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Fate / Stay Night", Tag = "fate/stay_night", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Demon Slayer", Tag = "kimetsu_no_yaiba", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Evangelion", Tag = "neon_genesis_evangelion", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Sword Art Online", Tag = "sword_art_online", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Cyberpunk: Edgerunners", Tag = "cyberpunk:_edgerunners", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Spy × Family", Tag = "spy_x_family", Type = "Anime" },
-            new SeriesCategoryItem { Name = "Oshi no Ko", Tag = "oshi_no_ko", Type = "Anime" },
+            new SeriesCategoryItem { Name = "Frieren", Tag = "sousou_no_frieren", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/7aae7fc502f39f432ef4b4747554cb75/Konachan.com%20-%20378150%20sample%20ass%20barefoot%20bunnygirl%20flat_chest%20frieren%20green_eyes%20leotard%20long_hair%20pointed_ears%20sydus%20tail%20thighhighs%20twintails%20white%20white_hair.jpg" },
+            new SeriesCategoryItem { Name = "Bocchi the Rock!", Tag = "bocchi_the_rock!", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/dc22b14a1a7105077fec088558b114e7/Konachan.com%20-%20351971%20sample%20bed%20blush%20bocchi_the_rock%21%20braids%20dress%20drink%20hiroi_kikuri%20hong_%28white_spider%29%20long_hair%20no_bra%20ponytail%20purple_eyes%20purple_hair%20sake.jpg" },
+            new SeriesCategoryItem { Name = "Chainsaw Man", Tag = "chainsaw_man", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/fae2a5580646c25404c1eabe13417267/Konachan.com%20-%20312859%20sample%20act-age%20barefoot%20bikini%20breasts%20cleavage%20dr._stone%20genderswap%20haze_rena%20izumo_fuuko%20mashle%20nami%20nanase_umi%20one_piece%20roboco%20swimsuit%20yonagi_kei.jpg" },
+            new SeriesCategoryItem { Name = "Fate / Stay Night", Tag = "fate/stay_night", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/ce16f10042f537e6c2fd2ffbfbd64476/Konachan.com%20-%20134733%20sample%20all_male%20armor%20fate_%28series%29%20fate_stay_night%20fate_zero%20lancelot_%28fate%29%20male%20maningusu%20moon%20sword%20weapon.jpg" },
+            new SeriesCategoryItem { Name = "Demon Slayer", Tag = "kimetsu_no_yaiba", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/7ddf38fca9b93c517aae5cdb48e2f679/Konachan.com%20-%20294270%20sample%20bed%20black_hair%20blush%20bra%20braids%20cropped%20fang%20green_eyes%20group%20long_hair%20navel%20panties%20ponytail%20purple_eyes%20purple_hair%20thighhighs%20twintails%20underwear.jpg" },
+            new SeriesCategoryItem { Name = "Evangelion", Tag = "neon_genesis_evangelion", Type = "Anime", PreviewImageUrl = "https://konachan.net/image/50cc6ca30e3b16cf7e5de024e8ddf170/Konachan.com%20-%2043209%20air%20bleach%20cc%20chii%20chobits%20clannad%20eclair%20inuyasha%20kanon%20lafiel%20lumiere%20maburaho%20mai-hime%20red_eyes%20red_hair%20saber%20shana%20suzuka%20triela%20vandread%20yin.jpg" },
+            new SeriesCategoryItem { Name = "Sword Art Online", Tag = "sword_art_online", Type = "Anime", PreviewImageUrl = "https://konachan.net/jpeg/8b53b89076d5bca8ab217354f7b465c7/Konachan.com%20-%20189932%20animal_ears%20aqua_eyes%20aqua_hair%20catgirl%20gun_gale_online%20haribote_%28tarao%29%20shinon_%28sao%29%20short_hair%20shorts%20sword_art_online%20tail%20thighhighs.jpg" },
+            new SeriesCategoryItem { Name = "Cyberpunk: Edgerunners", Tag = "cyberpunk:_edgerunners", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/d56c5960dfc5b4846d7507e912f57a88/Konachan.com%20-%20347721%20sample%20bed%20cyberpunk_2077%20cyberpunk%3A_edgerunners%20david_martinez%20drink%20echosdoodle%20lucy_%28cyberpunk%29%20scenic%20sky%20space%20stars.jpg" },
+            new SeriesCategoryItem { Name = "Spy × Family", Tag = "spy_x_family", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/fcc14b26ad8b0d6ce2eba1c66befe9ae/Konachan.com%20-%20343631%20sample%20animal_ears%20bed%20black_hair%20blood%20bunny_ears%20bunnygirl%20flowers%20gloves%20headband%20leotard%20red_eyes%20rose%20spy_x_family%20thighhighs%20watermark%20weapon%20yor_briar.jpg" },
+            new SeriesCategoryItem { Name = "Oshi no Ko", Tag = "oshi_no_ko", Type = "Anime", PreviewImageUrl = "https://konachan.net/sample/82e258119839cc879a0027ef0cf0a0c2/Konachan.com%20-%20362375%20sample%20blonde_hair%20blush%20close%20hoshino_ruby%20long_hair%20oshi_no_ko%20pink_eyes%20unnunal_%28unneonal%29.jpg" },
 
             // Games
-            new SeriesCategoryItem { Name = "Genshin Impact", Tag = "genshin_impact", Type = "Game" },
-            new SeriesCategoryItem { Name = "Honkai: Star Rail", Tag = "honkai:_star_rail", Type = "Game" },
-            new SeriesCategoryItem { Name = "Blue Archive", Tag = "blue_archive", Type = "Game" },
-            new SeriesCategoryItem { Name = "NieR", Tag = "nier", Type = "Game" },
-            new SeriesCategoryItem { Name = "Arknights", Tag = "arknights", Type = "Game" },
-            new SeriesCategoryItem { Name = "Fate / Grand Order", Tag = "fate/grand_order", Type = "Game" },
-            new SeriesCategoryItem { Name = "Elden Ring", Tag = "elden_ring", Type = "Game" },
-            new SeriesCategoryItem { Name = "Touhou Project", Tag = "touhou", Type = "Game" },
-            new SeriesCategoryItem { Name = "Hololive", Tag = "hololive", Type = "Game" }
+            new SeriesCategoryItem { Name = "Genshin Impact", Tag = "genshin_impact", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/9a25050c8424becfe96ca5e41ff0c011/Konachan.com%20-%20350272%20sample%20bed%20braids%20breasts%20cleavage%20elbow_gloves%20genshin_impact%20gloves%20long_hair%20no_bra%20ponytail%20purple_eyes%20purple_hair%20raiden_shogun%20thighhighs.jpg" },
+            new SeriesCategoryItem { Name = "Honkai: Star Rail", Tag = "honkai:_star_rail", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/357da1a0223398929c77a90aa0c2969c/Konachan.com%20-%20392134%20sample%20animal%20barefoot%20beach%20bikini%20blush%20bow%20breasts%20cake%20cherry%20cleavage%20crab%20drink%20food%20fruit%20garter%20headband%20ice_cream%20long_hair%20navel%20shade%20swimsuit.jpg" },
+            new SeriesCategoryItem { Name = "Blue Archive", Tag = "blue_archive", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/20e33fdd7b39b2a0f865ba9961320e05/Konachan.com%20-%20345572%20sample%202girls%20bikini%20black_hair%20blue_eyes%20breasts%20choney%20cleavage%20clouds%20dark_skin%20flowers%20halo%20navel%20ponytail%20sky%20swimsuit%20water%20watermark%20wet%20wristwear.jpg" },
+            new SeriesCategoryItem { Name = "NieR", Tag = "nier", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/e2213d976de343bd9f8daf381fdac4f9/Konachan.com%20-%20280312%20sample%20aqua_eyes%20long_hair%20nier%20nier%3A_automata%20sword%20weapon%20white_hair%20wlop%20yorha_unit_no._2_type_a.jpg" },
+            new SeriesCategoryItem { Name = "Arknights", Tag = "arknights", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/0edc3567801aee61a46fdb09874c5da7/Konachan.com%20-%20339228%20sample%20angelina_%28arknights%29%20animal_ears%20arknights%20bed%20brown_hair%20cameltoe%20foxgirl%20long_hair%20red_eyes%20snm_%28sunimi%29%20swimsuit%20tail%20wristwear.jpg" },
+            new SeriesCategoryItem { Name = "Fate / Grand Order", Tag = "fate/grand_order", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/940a16ce3036096f520d5f720138ab24/Konachan.com%20-%20292156%20sample%202girls%20ass%20barefoot%20beach%20bikini%20blonde_hair%20fate_grand_order%20fate_%28series%29%20purple_hair%20red_eyes%20ribbons%20sunglasses%20swimsuit%20yang-do%20yellow_eyes.jpg" },
+            new SeriesCategoryItem { Name = "Elden Ring", Tag = "elden_ring", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/8aeea62208846a994f15a495d412bbdf/Konachan.com%20-%20343821%20sample%20doll%20dress%20elden_ring%20hat%20liu_liaoliao%20ranni_the_witch%20witch%20witch_hat.jpg" },
+            new SeriesCategoryItem { Name = "Touhou Project", Tag = "touhou", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/f96fe01d6cd8d35b9f6c87b0829bb13f/Konachan.com%20-%20204334%20sample%20ass%20beach%20bikini%20blush%20breast_hold%20clouds%20ke-ta%20pink_hair%20saigyouji_yuyuko%20scan%20short_hair%20sky%20swimsuit%20touhou%20water.jpg" },
+            new SeriesCategoryItem { Name = "Hololive", Tag = "hololive", Type = "Game", PreviewImageUrl = "https://konachan.net/sample/8b8710694380612cf5653a861930f7d7/Konachan.com%20-%20299750%20sample%20bed%20breast_hold%20breasts%20cleavage%20hololive%20long_hair%20minato_aqua%20panties%20purple_eyes%20purple_hair%20scan%20thighhighs%20third-party_edit%20twintails%20underwear.jpg" }
         };
 
         public MainWindow()
@@ -1628,7 +1628,7 @@ namespace WallSafe
                 AddCategoryFormBorder.Visibility = Visibility.Collapsed;
         }
 
-        private void SaveCustomCategory_Click(object sender, RoutedEventArgs e)
+        private async void SaveCustomCategory_Click(object sender, RoutedEventArgs e)
         {
             string name = NewCategoryNameBox?.Text?.Trim() ?? "";
             string tag = NewCategoryTagBox?.Text?.Trim() ?? "";
@@ -1656,6 +1656,14 @@ namespace WallSafe
                 Type = type,
                 IsCustom = true
             };
+
+            try
+            {
+                var preview = await _api.GetCategoryPreviewUrlAsync(tag);
+                if (!string.IsNullOrEmpty(preview))
+                    customItem.PreviewImageUrl = preview;
+            }
+            catch { }
 
             Settings.Instance.CustomCategories.Add(customItem);
             Settings.Instance.Save();

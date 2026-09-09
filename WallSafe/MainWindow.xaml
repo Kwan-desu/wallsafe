@@ -853,7 +853,7 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Categories WrapPanel / ItemsControl -->
+                                <!-- Categories Visual Cards WrapPanel -->
                                 <ItemsControl x:Name="CategoriesItemsControl">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -862,38 +862,47 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{DynamicResource CardBgBrush}"
+                                            <Border Width="236" Height="132" Margin="0,0,8,8"
+                                                    Background="{DynamicResource CardBgBrush}"
                                                     BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1" CornerRadius="8"
-                                                    Padding="10,6" Margin="0,0,8,8"
-                                                    Cursor="Hand"
+                                                    ClipToBounds="True" Cursor="Hand"
                                                     MouseLeftButtonDown="CategoryPill_Click">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                                                             </Trigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <!-- Badge -->
-                                                    <Border Background="{Binding TypeBadgeColor}" CornerRadius="4" Padding="5,1.5" Margin="0,0,7,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Type}" Foreground="White" FontSize="9" FontFamily="Segoe UI Bold"/>
-                                                    </Border>
-                                                    <!-- Series Name -->
-                                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextBrush}"
-                                                               FontFamily="Segoe UI Semibold" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                <Grid>
+                                                    <!-- Artwork Background Image -->
+                                                    <Image Source="{Binding PreviewImageUrl}"
+                                                           Stretch="UniformToFill"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
 
-                                                    <!-- Delete button if custom -->
+                                                    <!-- Top Left: Category Type Badge (Anime / Game / Custom) -->
+                                                    <Border Background="{Binding TypeBadgeColor}"
+                                                            CornerRadius="4" Padding="6,2"
+                                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                            Margin="8,8,0,0">
+                                                        <TextBlock Text="{Binding Type}" Foreground="White"
+                                                                   FontSize="9" FontFamily="Segoe UI Bold"/>
+                                                    </Border>
+
+                                                    <!-- Top Right: Delete Button (if custom) -->
                                                     <Button Content="✕" FontSize="9"
-                                                            Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                            Padding="5,2" Margin="0,8,8,0"
+                                                            HorizontalAlignment="Right" VerticalAlignment="Top"
                                                             Tag="{Binding Id}" Click="DeleteCustomCategory_Click"
                                                             ToolTip="Delete category">
                                                         <Button.Style>
                                                             <Style TargetType="Button" BasedOn="{StaticResource ToolButton}">
+                                                                <Setter Property="Background" Value="#B3000000"/>
+                                                                <Setter Property="Foreground" Value="White"/>
                                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsCustom}" Value="True">
@@ -903,7 +912,26 @@
                                                             </Style>
                                                         </Button.Style>
                                                     </Button>
-                                                </StackPanel>
+
+                                                    <!-- Bottom Gradient Bar with Series Title -->
+                                                    <Border VerticalAlignment="Bottom" Height="52">
+                                                        <Border.Background>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                <GradientStop Color="#00090A0F" Offset="0.0"/>
+                                                                <GradientStop Color="#CC090A0F" Offset="0.45"/>
+                                                                <GradientStop Color="#F0090A0F" Offset="1.0"/>
+                                                            </LinearGradientBrush>
+                                                        </Border.Background>
+                                                        <StackPanel VerticalAlignment="Bottom" Margin="10,0,10,7">
+                                                            <TextBlock Text="{Binding Name}" Foreground="White"
+                                                                       FontFamily="Segoe UI Bold" FontSize="12.5"
+                                                                       TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Tag}" Foreground="#94A3B8"
+                                                                       FontFamily="Segoe UI" FontSize="9.5"
+                                                                       TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

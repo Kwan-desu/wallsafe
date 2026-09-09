@@ -400,6 +400,42 @@ namespace WallSafe
             return result;
         }
 
+        public async Task<string?> GetCategoryPreviewUrlAsync(string tag, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return null;
+
+            try
+            {
+                string encoded = Uri.EscapeDataString(tag.Trim());
+                string url = $"https://konachan.net/post.json?limit=1&tags={encoded}+order:score";
+                var resp = await _http.GetStringAsync(url, ct);
+                var array = JArray.Parse(resp);
+                if (array.Count > 0)
+                {
+                    var p = array[0];
+                    return p["sample_url"]?.ToString() ?? p["preview_url"]?.ToString();
+                }
+            }
+            catch { }
+
+            try
+            {
+                // Fallback to yande.re
+                string encoded = Uri.EscapeDataString(tag.Trim());
+                string url = $"https://yande.re/post.json?limit=1&tags={encoded}+order:score";
+                var resp = await _http.GetStringAsync(url, ct);
+                var array = JArray.Parse(resp);
+                if (array.Count > 0)
+                {
+                    var p = array[0];
+                    return p["sample_url"]?.ToString() ?? p["preview_url"]?.ToString();
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
         public void Dispose() => _http.Dispose();
     }
 }

@@ -173,13 +173,28 @@ namespace WallSafe
         public bool Enabled { get; set; } = true;
     }
 
-    public class SeriesCategoryItem
+    public class SeriesCategoryItem : INotifyPropertyChanged
     {
+        private string _previewImageUrl = string.Empty;
+
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Name { get; set; } = string.Empty;
         public string Tag { get; set; } = string.Empty;
         public string Type { get; set; } = "Anime"; // "Anime", "Game", "Custom"
         public bool IsCustom { get; set; } = false;
+
+        public string PreviewImageUrl
+        {
+            get => _previewImageUrl;
+            set
+            {
+                if (_previewImageUrl != value)
+                {
+                    _previewImageUrl = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         public string TypeBadgeColor => Type switch
         {
@@ -187,5 +202,11 @@ namespace WallSafe
             "Custom" => "#EC4899", // Pink
             _ => "#A855F7"         // Purple for Anime
         };
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
     }
 }
