@@ -9,7 +9,7 @@ namespace WallSafe
 {
     public partial class App : System.Windows.Application
     {
-        private NotifyIcon _trayIcon = null!;
+        private NotifyIcon? _trayIcon;
         private MainWindow? _mainWindow;
         private const string MutexName = "WallSafe_SingleInstance_App_Mutex_2026";
         private const string WakeupEventName = "WallSafe_ShowWindow_Event_2026";
@@ -193,14 +193,18 @@ namespace WallSafe
 
         protected override void OnExit(ExitEventArgs e)
         {
-            HotkeyManager.Instance.Dispose();
-            _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-            _wakeupEvent?.Dispose();
+            try { HotkeyManager.Instance.Dispose(); } catch { }
+            if (_trayIcon != null)
+            {
+                try { _trayIcon.Visible = false; } catch { }
+                try { _trayIcon.Dispose(); } catch { }
+                _trayIcon = null;
+            }
+            try { _wakeupEvent?.Dispose(); } catch { }
             if (_singleInstanceMutex != null)
             {
                 try { _singleInstanceMutex.ReleaseMutex(); } catch { }
-                _singleInstanceMutex.Dispose();
+                try { _singleInstanceMutex.Dispose(); } catch { }
             }
             base.OnExit(e);
         }

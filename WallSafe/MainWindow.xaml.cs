@@ -19,7 +19,7 @@ namespace WallSafe
         private readonly System.Windows.Shapes.Ellipse? StatusDot = null;
         private readonly TextBlock? PanicButtonLabel = null;
 
-        private enum ActiveSection { Home, Explore, Favorites, Downloaded }
+        private enum ActiveSection { Home, Explore, Favorites, Downloaded, History }
 
         private ActiveSection _currentSection = ActiveSection.Home;
         private readonly ApiClient _api = new();
@@ -77,6 +77,7 @@ namespace WallSafe
 
             FavoritesManager.Instance.FavoritesChanged += OnFavoritesChanged;
             DownloadsManager.Instance.DownloadsChanged += OnDownloadsChanged;
+            HistoryManager.Instance.HistoryChanged += OnHistoryChanged;
             WallpaperManager.Instance.SafeWallpaperTriggered += OnSafeWallpaperTriggered;
             WallpaperManager.Instance.SafeWallpaperRestored += OnSafeWallpaperRestored;
             HotkeyManager.Instance.RegistrationChanged += OnHotkeyRegistrationChanged;
@@ -299,7 +300,7 @@ namespace WallSafe
 
         private void NavTab_Checked(object sender, RoutedEventArgs e)
         {
-            if (NavHome == null || NavExplore == null || NavFavorites == null || NavDownloads == null) return;
+            if (NavHome == null || NavExplore == null || NavFavorites == null || NavDownloads == null || NavHistory == null) return;
 
             if (NavHome.IsChecked == true)
             {
@@ -308,6 +309,7 @@ namespace WallSafe
                 WallpaperGridControl.Visibility = Visibility.Collapsed;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
+                if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
                 EmptyState.Visibility = Visibility.Collapsed;
                 DisplayCurrentSection();
             }
@@ -318,6 +320,7 @@ namespace WallSafe
                 WallpaperGridControl.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Visible;
                 FilterDrawer.Visibility = FilterDrawerToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+                if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
                 DisplayCurrentSection();
             }
             else if (NavFavorites.IsChecked == true)
@@ -327,6 +330,7 @@ namespace WallSafe
                 WallpaperGridControl.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
+                if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
                 DisplayCurrentSection();
             }
             else if (NavDownloads.IsChecked == true)
@@ -336,6 +340,17 @@ namespace WallSafe
                 WallpaperGridControl.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
+                if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
+                DisplayCurrentSection();
+            }
+            else if (NavHistory.IsChecked == true)
+            {
+                _currentSection = ActiveSection.History;
+                HomeView.Visibility = Visibility.Collapsed;
+                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreToolbar.Visibility = Visibility.Collapsed;
+                FilterDrawer.Visibility = Visibility.Collapsed;
+                if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Visible;
                 DisplayCurrentSection();
             }
         }
@@ -367,6 +382,15 @@ namespace WallSafe
                     WallpaperGridControl.SetPosts(downs, canLoadMore: false);
                     CheckEmptyState(downs.Count, "No Downloaded Wallpapers", "Click 📥 on any wallpaper to download original high-res files.");
                     if (StatusText != null) StatusText.Text = $"{downs.Count} offline wallpapers";
+                    break;
+
+                case ActiveSection.History:
+                    var hist = HistoryManager.Instance.GetAllHistory();
+                    WallpaperGridControl.SetPosts(hist, canLoadMore: false);
+                    if (HistoryCountBadgeText != null)
+                        HistoryCountBadgeText.Text = $"{hist.Count} wallpaper{(hist.Count == 1 ? "" : "s")}";
+                    CheckEmptyState(hist.Count, "No Wallpaper History Yet", "Wallpapers you apply to your desktop will automatically appear here.");
+                    if (StatusText != null) StatusText.Text = $"{hist.Count} applied wallpaper{(hist.Count == 1 ? "" : "s")} in history";
                     break;
             }
         }
@@ -405,6 +429,25 @@ namespace WallSafe
                 else if (_currentSection == ActiveSection.Home)
                     UpdateQuickShelf();
             });
+        }
+
+        private void OnHistoryChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (_currentSection == ActiveSection.History)
+                    DisplayCurrentSection();
+            });
+        }
+
+        private void ClearHistory_Click(object sender, RoutedEventArgs e)
+        {
+            HistoryManager.Instance.ClearHistory();
+            if (_currentSection == ActiveSection.History)
+            {
+                DisplayCurrentSection();
+            }
+            ShowToast("✓", "Wallpaper history cleared!");
         }
 
         // ═════════════════════════════════════════════════════════════════
@@ -1262,7 +1305,21 @@ namespace WallSafe
             var ratingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string;
             var sortTag = ((ComboBoxItem?)SortBox?.SelectedItem)?.Tag as string;
 
-            if (!string.IsNullOrEmpty(ratingTag)) tags.Add(ratingTag);
+            if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
+            {
+                tags.RemoveAll(t => t.StartsWith("rating:", StringComparison.OrdinalIgnoreCase));
+                tags.Add("rating:s");
+            }
+            else if (Settings.Instance.RatingMode == ContentRatingMode.Questionable)
+            {
+                tags.RemoveAll(t => t.StartsWith("rating:", StringComparison.OrdinalIgnoreCase));
+                tags.Add("rating:q");
+            }
+            else if (!string.IsNullOrEmpty(ratingTag))
+            {
+                tags.Add(ratingTag);
+            }
+
             if (!string.IsNullOrEmpty(sortTag)) tags.Add(sortTag);
 
             return string.Join(" ", tags);
@@ -1288,9 +1345,27 @@ namespace WallSafe
             var blacklist = _cachedBlacklist;
 
             bool discretionBlur = Settings.Instance.DiscretionBlur;
+            var ratingMode = Settings.Instance.RatingMode;
+            string selectedRatingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string ?? "";
 
             return posts.Where(p =>
             {
+                // Strict Rating Enforcement: Never leak non-SFW into SFW mode
+                if (ratingMode == ContentRatingMode.SfwOnly)
+                {
+                    if (p.Rating != "s") return false;
+                }
+                else if (ratingMode == ContentRatingMode.Questionable)
+                {
+                    if (p.Rating == "e") return false;
+                }
+                else if (ratingMode == ContentRatingMode.Custom)
+                {
+                    if (selectedRatingTag == "rating:s" && p.Rating != "s") return false;
+                    if (selectedRatingTag == "rating:q" && p.Rating != "q") return false;
+                    if (selectedRatingTag == "rating:e" && p.Rating != "e") return false;
+                }
+
                 if (minWidth > 0 && p.Width < minWidth) return false;
 
                 if (aspect == "landscape" && (p.Width <= p.Height || (double)p.Width / p.Height < 1.3)) return false;
@@ -1740,7 +1815,7 @@ namespace WallSafe
             try
             {
                 // Fetch top trending wallpapers for hero spotlight & trending row
-                string homeSource = Settings.Instance.SfwOnlyMode ? "konasfw" : "yande";
+                string homeSource = Settings.Instance.RatingMode == ContentRatingMode.SfwOnly ? "konasfw" : "yande";
                 string homeRating = Settings.Instance.RatingMode switch
                 {
                     ContentRatingMode.SfwOnly => "rating:s",
@@ -1748,7 +1823,8 @@ namespace WallSafe
                     _ => ""
                 };
                 string homeQuery = string.IsNullOrEmpty(homeRating) ? "order:score" : $"order:score {homeRating}";
-                var posts = await _api.FetchPostsAsync(homeSource, homeQuery, 1, 12, CancellationToken.None);
+                var rawPosts = await _api.FetchPostsAsync(homeSource, homeQuery, 1, 16, CancellationToken.None);
+                var posts = FilterPosts(rawPosts);
                 _trendingPosts = posts;
 
                 // Priority: Show user's saved favorite artwork if available

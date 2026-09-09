@@ -73,12 +73,22 @@ namespace WallSafe
             if (source.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
                 var targetSources = new List<string>();
-                if (Settings.Instance.SfwOnlyMode)
+                if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
                 {
                     targetSources.Add("konasfw");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && cs.IsSfw && !string.IsNullOrWhiteSpace(cs.BaseUrl))
+                            targetSources.Add(cs.Id);
+                    }
+                }
+                else if (Settings.Instance.RatingMode == ContentRatingMode.Questionable)
+                {
+                    targetSources.Add("konasfw");
+                    targetSources.Add("yande");
+                    foreach (var cs in Settings.Instance.CustomSources)
+                    {
+                        if (cs.Enabled && !string.IsNullOrWhiteSpace(cs.BaseUrl))
                             targetSources.Add(cs.Id);
                     }
                 }
@@ -123,6 +133,31 @@ namespace WallSafe
         private async Task<List<PostItem>> FetchSingleSourcePostsAsync(
             string source, string tags, int page, int limit, CancellationToken ct)
         {
+            // Strict SFW protection: if SFW mode is active, never query NSFW boorus
+            if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly && (source == "konansfw" || source == "yande"))
+            {
+                source = "konasfw";
+            }
+
+            // Sanitize tags according to active rating mode
+            if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
+            {
+                tags = tags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase)
+                           .Replace("rating:q", "", StringComparison.OrdinalIgnoreCase);
+                if (!tags.Contains("rating:s", StringComparison.OrdinalIgnoreCase))
+                {
+                    tags = (tags + " rating:s").Trim();
+                }
+            }
+            else if (Settings.Instance.RatingMode == ContentRatingMode.Questionable)
+            {
+                tags = tags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase);
+                if (!tags.Contains("rating:q", StringComparison.OrdinalIgnoreCase) && !tags.Contains("rating:s", StringComparison.OrdinalIgnoreCase))
+                {
+                    tags = (tags + " rating:q").Trim();
+                }
+            }
+
             string baseUrl = ResolveBaseUrl(source);
             string formattedTags = FormatTagQuery(tags);
             var url = string.IsNullOrEmpty(formattedTags)
@@ -136,7 +171,7 @@ namespace WallSafe
                 using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    if (source == "konansfw")
+                    if (source == "konansfw" && Settings.Instance.RatingMode != ContentRatingMode.SfwOnly)
                     {
                         return await FetchSingleSourcePostsAsync("yande", tags, page, limit, ct);
                     }
@@ -199,7 +234,7 @@ namespace WallSafe
             }
             catch
             {
-                if (source == "konansfw")
+                if (source == "konansfw" && Settings.Instance.RatingMode != ContentRatingMode.SfwOnly)
                 {
                     try { return await FetchSingleSourcePostsAsync("yande", tags, page, limit, ct); } catch { }
                 }

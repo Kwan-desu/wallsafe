@@ -97,6 +97,15 @@
                                 <TextBlock Text="Downloads" VerticalAlignment="Center" FontSize="12"/>
                             </StackPanel>
                         </RadioButton>
+                        <RadioButton x:Name="NavHistory" Style="{StaticResource NavTabStyle}" Margin="4,0,0,0"
+                                     Padding="9,5" Checked="NavTab_Checked">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconHistoryGeo}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="History" VerticalAlignment="Center" FontSize="12"/>
+                            </StackPanel>
+                        </RadioButton>
 
                         <!-- Subtle Divider -->
                         <Border Width="1" Height="16" Background="{DynamicResource BorderBrush}" Margin="10,0,10,0" VerticalAlignment="Center"/>
@@ -393,6 +402,42 @@
                             </Border>
                         </StackPanel>
                     </ToggleButton>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 ROW 1: History Section Toolbar
+                 ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Row="1" x:Name="HistoryToolbar" Visibility="Collapsed" Background="{DynamicResource BgBrush}"
+                    Padding="16,8,16,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconHistoryGeo}" Fill="{DynamicResource AccentBrush}"
+                              Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Wallpaper Application History" Foreground="{DynamicResource TextBrush}"
+                                   FontSize="13" FontFamily="Segoe UI Semibold" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="HistoryCountBadgeText" Text="0 wallpapers"
+                                       Foreground="{DynamicResource SubtextBrush}" FontSize="11" FontFamily="Segoe UI"/>
+                        </Border>
+                    </StackPanel>
+
+                    <Button Grid.Column="1" x:Name="ClearHistoryBtn" Style="{StaticResource DangerButton}"
+                            Padding="12,6" Click="ClearHistory_Click" VerticalAlignment="Center"
+                            ToolTip="Clear all wallpaper application history">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconTrashGeo}" Fill="White" Width="11" Height="11"
+                                  Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Clear History" Foreground="White" FontSize="11.5"
+                                       FontFamily="Segoe UI Semibold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
 

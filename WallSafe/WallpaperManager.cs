@@ -278,31 +278,66 @@ namespace WallSafe
             }
             else
             {
-                var url = post.BestImageUrl;
-                string cachedThumb = await ImageCacheService.Instance.GetCachedImagePathAsync(url);
-                if (File.Exists(cachedThumb) && new FileInfo(cachedThumb).Length > 0)
+                // Prioritize FullDownloadUrl (full resolution master image, e.g. 4K/6K/8K uncompressed)
+                string fullUrl = !string.IsNullOrEmpty(post.FullDownloadUrl) ? post.FullDownloadUrl : post.BestImageUrl;
+                string ext = ".jpg";
+                try
                 {
-                    targetPath = cachedThumb;
-                }
-                else
-                {
-                    var uri = new Uri(url);
-                    var ext = Path.GetExtension(uri.AbsolutePath);
+                    var uri = new Uri(fullUrl);
+                    ext = Path.GetExtension(uri.AbsolutePath);
                     if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-                    targetPath = Path.Combine(_cacheDir, $"{post.Source}_{post.Id}{ext}");
+                }
+                catch { }
 
-                    if (!File.Exists(targetPath) || new FileInfo(targetPath).Length == 0)
+                targetPath = Path.Combine(_cacheDir, $"{post.Source}_{post.Id}_full{ext}");
+
+                // If not cached yet, download the original full resolution image
+                if (!File.Exists(targetPath) || new FileInfo(targetPath).Length == 0)
+                {
+                    bool downloaded = false;
+                    try
                     {
-                        using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                        if (url.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
+                        using var req = new HttpRequestMessage(HttpMethod.Get, fullUrl);
+                        if (fullUrl.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
                             req.Headers.Referrer = new Uri("https://yande.re/");
-                        else if (url.Contains("konachan", StringComparison.OrdinalIgnoreCase))
+                        else if (fullUrl.Contains("konachan", StringComparison.OrdinalIgnoreCase))
                             req.Headers.Referrer = new Uri("https://konachan.net/");
 
                         using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
-                        resp.EnsureSuccessStatusCode();
-                        await using var fs = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                        await resp.Content.CopyToAsync(fs);
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            await using var fs = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                            await resp.Content.CopyToAsync(fs);
+                            downloaded = true;
+                        }
+                    }
+                    catch { }
+
+                    // Fallback to BestImageUrl / SampleUrl if full image failed to download
+                    if (!downloaded && fullUrl != post.BestImageUrl)
+                    {
+                        try
+                        {
+                            using var fallbackReq = new HttpRequestMessage(HttpMethod.Get, post.BestImageUrl);
+                            if (post.BestImageUrl.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
+                                fallbackReq.Headers.Referrer = new Uri("https://yande.re/");
+                            else if (post.BestImageUrl.Contains("konachan", StringComparison.OrdinalIgnoreCase))
+                                fallbackReq.Headers.Referrer = new Uri("https://konachan.net/");
+
+                            using var fallbackResp = await _http.SendAsync(fallbackReq, HttpCompletionOption.ResponseHeadersRead);
+                            fallbackResp.EnsureSuccessStatusCode();
+                            await using var fs = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                            await fallbackResp.Content.CopyToAsync(fs);
+                        }
+                        catch
+                        {
+                            // Final fallback: local cached thumbnail
+                            string cachedThumb = await ImageCacheService.Instance.GetCachedImagePathAsync(post.BestImageUrl);
+                            if (File.Exists(cachedThumb) && new FileInfo(cachedThumb).Length > 0)
+                            {
+                                targetPath = cachedThumb;
+                            }
+                        }
                     }
                 }
             }
@@ -310,6 +345,14 @@ namespace WallSafe
             _previousWallpaper = GetCurrentWallpaper();
             _isPanicActive = false;
             SetWallpaper(targetPath, monitorIndex);
+
+            // Record in persistent history
+            try
+            {
+                HistoryManager.Instance.RecordApplied(post, targetPath);
+            }
+            catch { }
+
             WallpaperApplied?.Invoke(targetPath);
         }
 

@@ -24,6 +24,7 @@ namespace WallSafe
         public string Author { get; set; } = "";
         public string SourceUrl { get; set; } = "";
         public DateTime? CreatedAt { get; set; }
+        public DateTime? AppliedAt { get; set; }
 
         public bool IsFavorite
         {
