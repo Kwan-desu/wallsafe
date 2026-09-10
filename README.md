@@ -1,8 +1,10 @@
 # 🛡️ WallSafe
 
-> **Next-Generation Windows Desktop Anime Wallpaper Manager with Instant Panic Hotkey Protection**
+> **Next-Generation Windows Desktop Anime Wallpaper Manager with Instant Panic Hotkey Protection — now with a built-in Taskbar Transparency engine (merged from TranslucentTB).**
 
 WallSafe is a sleek, modern Windows 11 desktop application crafted in WPF / .NET that lets you explore, download, and set high-resolution anime wallpapers from top booru boards—all while keeping your privacy safe with a hardware-level instant panic concealment system.
+
+**As of this build, WallSafe also natively controls the appearance of your Windows taskbar** — making it translucent, blurred, or acrylic with a custom tint color. This capability is a native C# reimplementation of [TranslucentTB](https://github.com/TranslucentTB/TranslucentTB)'s core engine, integrated directly into WallSafe's settings, tray menu, startup lifecycle and panic hotkey. No second process, no extra install.
 
 ---
 
@@ -47,6 +49,16 @@ WallSafe is a sleek, modern Windows 11 desktop application crafted in WPF / .NET
   - Option to auto-launch WallSafe on Windows boot via registry integration.
   - **Start in Background / System Tray**: Silently loads into the system tray and aggressively compacts process memory (`AppSuspensionManager`) without popping up windows.
 
+- **🪟 Built-in Taskbar Transparency (merged from TranslucentTB)**
+  - Make the Windows taskbar **Normal / Opaque / Clear / Blur / Acrylic** — the same states TranslucentTB offers.
+  - **Custom tint color** via `#AARRGGBB` hex, with quick presets (Dark, Light, Indigo, Clear) and a live swatch.
+  - **Live apply**: changes take effect instantly as you adjust them in *Settings → Taskbar Appearance*.
+  - **Multi-monitor aware**: applies to the primary taskbar and every secondary (per-display) taskbar.
+  - **Self-healing refresh loop** re-applies the effect so it survives Explorer restarts and display changes.
+  - **Tray toggle**: enable/disable taskbar transparency straight from the WallSafe tray icon.
+  - **Panic-integrated**: optionally revert the taskbar to its default look while WallSafe is concealed, then restore it on the second (restore) press — kept in lock-step with the bimodal safe-wallpaper toggle.
+  - Implemented natively in C# via the undocumented `SetWindowCompositionAttribute` + `ACCENT_POLICY` API — **no extra process and no separate install**; the taskbar is automatically restored to normal when WallSafe exits.
+
 - **🎨 Windows 11 Fluent Light & Dark Themes**
   - Seamlessly switch between dark mode and clean Windows 11 light mode.
   - Dynamic theme-reactive brushes, vector icon geometry, and subtle drop shadows.
@@ -87,12 +99,40 @@ dotnet publish WallSafe/WallSafe.csproj -c Release -r win-x64 --self-contained t
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Ctrl + Shift + W` | **Global Panic Hotkey** (Instantly switch to safe wallpaper) |
+| `Ctrl + Shift + W` | **Global Panic Hotkey** (Instantly switch to safe wallpaper + revert taskbar) |
 | `Click Tray Icon` | Show / Hide WallSafe window |
 | `Double Click Card` | Open High-Resolution Progressive Preview |
+| `Tray → Taskbar Transparency` | Toggle the built-in taskbar transparency effect |
+
+To configure the taskbar effect, open **Settings → Taskbar Appearance**, pick a state (Normal / Opaque / Clear / Blur / Acrylic), set a tint color, and enable it. Changes apply live.
+
+---
+
+## 🧩 About This Build (WallSafe + TranslucentTB Merge)
+
+This build merges two originally-separate applications into one:
+
+- **WallSafe** — the C# / .NET WPF anime wallpaper manager (the host app).
+- **TranslucentTB** — a C++ utility that makes the Windows taskbar translucent.
+
+Because the two projects use incompatible tech stacks (C# / .NET vs. C++ / WinRT), TranslucentTB was not bundled as a binary. Instead, its **core taskbar-appearance mechanism was reimplemented natively in C#** (`WallSafe/TaskbarManager.cs`) and wired directly into WallSafe's settings, system-tray menu, startup/exit lifecycle, and panic hotkey. The result is a single self-contained executable with no additional processes or installers.
+
+The engine calls the same undocumented Windows API TranslucentTB uses — `user32!SetWindowCompositionAttribute` with a `WCA_ACCENT_POLICY` payload — against the taskbar windows (`Shell_TrayWnd` and every `Shell_SecondaryTrayWnd`).
+
+### Building from Source
+
+```bash
+dotnet build WallSafe/WallSafe.csproj -c Release
+```
+
+Requires the **.NET 10 SDK** on Windows 10/11.
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License.
+WallSafe is distributed under the MIT License.
+
+The taskbar-transparency engine is an independent reimplementation inspired by
+[TranslucentTB](https://github.com/TranslucentTB/TranslucentTB) (GPLv3). Credit for the
+original taskbar-transparency concept and API research goes to the TranslucentTB team.

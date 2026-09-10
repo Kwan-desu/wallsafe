@@ -13,7 +13,7 @@
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal"
-                                   HorizontalAlignment="Center"
+                                   HorizontalAlignment="Left"
                                    ItemWidth="{Binding CardWidth, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:WallpaperGrid}}}"
                                    ItemHeight="{Binding CardHeight, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:WallpaperGrid}}}"/>
                     </ItemsPanelTemplate>
@@ -24,7 +24,8 @@
                                              WallpaperApplied="Card_WallpaperApplied"
                                              FavoriteToggled="Card_FavoriteToggled"
                                              DownloadCompleted="Card_DownloadCompleted"
-                                             PreviewRequested="Card_PreviewRequested"/>
+                                             PreviewRequested="Card_PreviewRequested"
+                                             MoveToCollectionRequested="Card_MoveToCollectionRequested"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

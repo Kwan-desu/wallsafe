@@ -81,11 +81,21 @@ namespace WallSafe
             WallpaperManager.Instance.SafeWallpaperTriggered += OnSafeWallpaperTriggered;
             WallpaperManager.Instance.SafeWallpaperRestored += OnSafeWallpaperRestored;
             HotkeyManager.Instance.RegistrationChanged += OnHotkeyRegistrationChanged;
-            ThemeManager.ThemeChanged += _ => Dispatcher.Invoke(UpdateThemeIcon);
+            ThemeManager.ThemeChanged += _ => Dispatcher.Invoke(() =>
+            {
+                UpdateThemeIcon();
+                // Keep the DWM title-bar + window backdrop in sync with the new theme.
+                MicaHelper.SyncCaptionTheme(this);
+                ApplyWindowBackdrop();
+                // Force chrome surfaces to follow the theme (guards against any stale brush).
+                if (TopBarBorder != null)
+                    TopBarBorder.Background = (System.Windows.Media.Brush)FindResource("SurfaceBrush");
+            });
             UpdateThemeIcon();
             UpdateSfwToggleVisuals();
             ApplySfwModeToFilters();
             ApplyHomeSectionsVisibility();
+            UpdateTaskbarQuickToggle();
 
             Loaded += async (_, _) =>
             {
@@ -163,51 +173,131 @@ namespace WallSafe
             var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             var source = System.Windows.Interop.HwndSource.FromHwnd(handle);
             source?.AddHook(WndProc);
+
+            // Apply the opt-in Windows 11 Mica backdrop (no-op on older Windows).
+            ApplyWindowBackdrop();
+            // Rounded corners via DWM (Windows 11).
+            MicaHelper.EnableRoundedCorners(this);
         }
 
-        private const int WM_NCHITTEST = 0x0084;
-        private const int HTLEFT = 10;
-        private const int HTRIGHT = 11;
-        private const int HTTOP = 12;
-        private const int HTTOPLEFT = 13;
-        private const int HTTOPRIGHT = 14;
-        private const int HTBOTTOM = 15;
-        private const int HTBOTTOMLEFT = 16;
-        private const int HTBOTTOMRIGHT = 17;
+        private const int WM_GETMINMAXINFO = 0x0024;
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct POINT { public int X; public int Y; }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct MINMAXINFO
+        {
+            public POINT ptReserved;
+            public POINT ptMaxSize;
+            public POINT ptMaxPosition;
+            public POINT ptMinTrackSize;
+            public POINT ptMaxTrackSize;
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flag);
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct MONITORINFO
+        {
+            public int cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public int dwFlags;
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == WM_NCHITTEST)
+            // Constrain a maximized WindowStyle=None window to the monitor work area so it
+            // fills the screen exactly (without covering the taskbar or overflowing edges).
+            if (msg == WM_GETMINMAXINFO)
             {
-                int x = (short)(lParam.ToInt32() & 0xFFFF);
-                int y = (short)((lParam.ToInt32() >> 16) & 0xFFFF);
-                var p = PointFromScreen(new System.Windows.Point(x, y));
-
-                int grip = 12;
-                bool left = p.X <= grip;
-                bool right = p.X >= ActualWidth - grip;
-                bool top = p.Y <= grip;
-                bool bottom = p.Y >= ActualHeight - grip;
-
-                if (top && left) { handled = true; return new IntPtr(HTTOPLEFT); }
-                if (top && right) { handled = true; return new IntPtr(HTTOPRIGHT); }
-                if (bottom && left) { handled = true; return new IntPtr(HTBOTTOMLEFT); }
-                if (bottom && right) { handled = true; return new IntPtr(HTBOTTOMRIGHT); }
-                if (left) { handled = true; return new IntPtr(HTLEFT); }
-                if (right) { handled = true; return new IntPtr(HTRIGHT); }
-                if (top) { handled = true; return new IntPtr(HTTOP); }
-                if (bottom) { handled = true; return new IntPtr(HTBOTTOM); }
+                const int MONITOR_DEFAULTTONEAREST = 0x00000002;
+                IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if (monitor != IntPtr.Zero)
+                {
+                    var mi = new MONITORINFO { cbSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO)) };
+                    if (GetMonitorInfo(monitor, ref mi))
+                    {
+                        var mmi = System.Runtime.InteropServices.Marshal.PtrToStructure<MINMAXINFO>(lParam);
+                        mmi.ptMaxPosition.X = mi.rcWork.Left - mi.rcMonitor.Left;
+                        mmi.ptMaxPosition.Y = mi.rcWork.Top - mi.rcMonitor.Top;
+                        mmi.ptMaxSize.X = mi.rcWork.Right - mi.rcWork.Left;
+                        mmi.ptMaxSize.Y = mi.rcWork.Bottom - mi.rcWork.Top;
+                        mmi.ptMinTrackSize.X = (int)MinWidth;
+                        mmi.ptMinTrackSize.Y = (int)MinHeight;
+                        System.Runtime.InteropServices.Marshal.StructureToPtr(mmi, lParam, true);
+                        handled = true;
+                    }
+                }
             }
             return IntPtr.Zero;
         }
 
+        /// <summary>Apply or remove the Mica backdrop based on the user setting. When Mica is
+        /// active the window background is made transparent so the DWM backdrop shows; the
+        /// wallpaper grid area itself remains opaque for thumbnail legibility.</summary>
+        public void ApplyWindowBackdrop()
+        {
+            bool want = Settings.Instance.WindowMicaEnabled && MicaHelper.IsMicaSupported;
+            bool applied = MicaHelper.Apply(this, want);
+            if (applied)
+            {
+                // Let the Mica backdrop show through the window + root border.
+                Background = System.Windows.Media.Brushes.Transparent;
+                if (RootBorder != null)
+                    RootBorder.Background = System.Windows.Media.Brushes.Transparent;
+            }
+            else
+            {
+                // Re-bind to the themed brush via a resource reference so it keeps
+                // following Dark/Light switches (a static snapshot would freeze the color).
+                SetResourceReference(BackgroundProperty, "BgBrush");
+                if (RootBorder != null)
+                    RootBorder.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "BgBrush");
+            }
+        }
+
+        /// <summary>Re-apply grid card density (called from Settings when the density changes).</summary>
+        public void RefreshGridDensity()
+        {
+            try { WallpaperGridControl?.RefreshDensity(); } catch { }
+        }
+
+        private void TaskbarQuickToggle_Click(object sender, RoutedEventArgs e)
+        {
+            Settings.Instance.TaskbarTransparencyEnabled = !Settings.Instance.TaskbarTransparencyEnabled;
+            Settings.Instance.Save();
+            TaskbarManager.Instance.ApplyFromSettings();
+            UpdateTaskbarQuickToggle();
+            ShowToast("✓", Settings.Instance.TaskbarTransparencyEnabled
+                ? "Taskbar Transparency On" : "Taskbar Transparency Off");
+        }
+
+        /// <summary>Reflect the taskbar-transparency on/off state in the top-bar quick toggle.</summary>
+        public void UpdateTaskbarQuickToggle()
+        {
+            if (TaskbarQuickIcon == null) return;
+            bool on = Settings.Instance.TaskbarTransparencyEnabled;
+            TaskbarQuickIcon.Fill = on
+                ? (System.Windows.Media.Brush)FindResource("AccentHoverBrush")
+                : (System.Windows.Media.Brush)FindResource("SubtextBrush");
+            if (TaskbarQuickToggle != null)
+                TaskbarQuickToggle.ToolTip = on
+                    ? "Taskbar Transparency: On (click to disable)"
+                    : "Taskbar Transparency: Off (click to enable)";
+        }
+
         private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (e.NewSize.Width > 0 && e.NewSize.Height > 0)
-            {
-                RootBorder.Clip = new System.Windows.Media.RectangleGeometry(
-                    new Rect(0, 0, e.NewSize.Width, e.NewSize.Height), 12, 12);
-            }
+            // WindowChrome + DWM round the window corners; no manual corner clip required.
         }
 
         private void SlideshowQuickToggle_Click(object sender, RoutedEventArgs e)
@@ -256,6 +346,7 @@ namespace WallSafe
             bool isEnabled = Settings.Instance.SlideshowEnabled;
             if (isEnabled)
             {
+                SlideshowIconPath.Data = (System.Windows.Media.Geometry)FindResource("IconPauseGeo");
                 SlideshowIconPath.Fill = (System.Windows.Media.Brush)FindResource("AccentHoverBrush");
                 SlideshowQuickToggle.ToolTip = "Automated Slideshow Active (Click to Pause)";
                 if (SlideshowActiveDot != null)
@@ -269,6 +360,7 @@ namespace WallSafe
             }
             else
             {
+                SlideshowIconPath.Data = (System.Windows.Media.Geometry)FindResource("IconPlayGeo");
                 SlideshowIconPath.Fill = (System.Windows.Media.Brush)FindResource("SubtextBrush");
                 SlideshowQuickToggle.ToolTip = "Automated Slideshow Paused (Click to Start)";
                 if (SlideshowActiveDot != null)
@@ -306,7 +398,7 @@ namespace WallSafe
             {
                 _currentSection = ActiveSection.Home;
                 HomeView.Visibility = Visibility.Visible;
-                WallpaperGridControl.Visibility = Visibility.Collapsed;
+                ExploreResultsContainer.Visibility = Visibility.Collapsed;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
                 if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
@@ -317,7 +409,7 @@ namespace WallSafe
             {
                 _currentSection = ActiveSection.Explore;
                 HomeView.Visibility = Visibility.Collapsed;
-                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreResultsContainer.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Visible;
                 FilterDrawer.Visibility = FilterDrawerToggle.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
                 if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
@@ -327,7 +419,7 @@ namespace WallSafe
             {
                 _currentSection = ActiveSection.Favorites;
                 HomeView.Visibility = Visibility.Collapsed;
-                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreResultsContainer.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
                 if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
@@ -337,7 +429,7 @@ namespace WallSafe
             {
                 _currentSection = ActiveSection.Downloaded;
                 HomeView.Visibility = Visibility.Collapsed;
-                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreResultsContainer.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
                 if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Collapsed;
@@ -347,12 +439,22 @@ namespace WallSafe
             {
                 _currentSection = ActiveSection.History;
                 HomeView.Visibility = Visibility.Collapsed;
-                WallpaperGridControl.Visibility = Visibility.Visible;
+                ExploreResultsContainer.Visibility = Visibility.Visible;
                 ExploreToolbar.Visibility = Visibility.Collapsed;
                 FilterDrawer.Visibility = Visibility.Collapsed;
                 if (HistoryToolbar != null) HistoryToolbar.Visibility = Visibility.Visible;
                 DisplayCurrentSection();
             }
+
+            // The filter chips are only meaningful in Explore.
+            bool explore = _currentSection == ActiveSection.Explore;
+            if (ExploreChipsRow != null) ExploreChipsRow.Visibility = explore ? Visibility.Visible : Visibility.Collapsed;
+            if (explore) RebuildFilterChips();
+
+            // The collection bar is only meaningful in Favorites.
+            bool favorites = _currentSection == ActiveSection.Favorites;
+            if (FavoritesCollectionBar != null) FavoritesCollectionBar.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
+            if (favorites) RebuildCollectionChips();
         }
 
         private void DisplayCurrentSection()
@@ -371,9 +473,23 @@ namespace WallSafe
                     break;
 
                 case ActiveSection.Favorites:
-                    var favs = FavoritesManager.Instance.GetAllFavorites();
+                    // "\u0001ALL" = every favorite; "" = Unsorted (uncategorized); else a specific collection.
+                    List<PostItem> favs;
+                    if (_selectedCollection == "\u0001ALL")
+                        favs = FavoritesManager.Instance.GetAllFavorites();
+                    else if (string.IsNullOrEmpty(_selectedCollection))
+                        favs = FavoritesManager.Instance.GetUncategorizedFavorites();
+                    else
+                        favs = FavoritesManager.Instance.GetFavoritesByCollection(_selectedCollection);
                     WallpaperGridControl.SetPosts(favs, canLoadMore: false);
-                    CheckEmptyState(favs.Count, "No Favorites Yet", "Click the ♥ heart on any wallpaper card to save it here!");
+                    CheckEmptyState(favs.Count,
+                        _selectedCollection == "\u0001ALL" ? "No Favorites Yet"
+                            : string.IsNullOrEmpty(_selectedCollection) ? "No unsorted favorites"
+                            : $"No wallpapers in \u201c{_selectedCollection}\u201d",
+                        _selectedCollection == "\u0001ALL" ? "Click the \u2665 heart on any wallpaper to save it here."
+                            : string.IsNullOrEmpty(_selectedCollection)
+                                ? "Favorites you haven't filed yet appear here. Drag them onto a folder above to organize."
+                                : "Drag wallpapers onto this folder to add them here.");
                     if (StatusText != null) StatusText.Text = $"{favs.Count} favorite wallpapers";
                     break;
 
@@ -442,12 +558,29 @@ namespace WallSafe
 
         private void ClearHistory_Click(object sender, RoutedEventArgs e)
         {
+            var snapshot = HistoryManager.Instance.GetAllHistory();
+            if (snapshot.Count == 0)
+            {
+                ShowToast("✓", "History is already empty");
+                return;
+            }
+
             HistoryManager.Instance.ClearHistory();
             if (_currentSection == ActiveSection.History)
             {
                 DisplayCurrentSection();
             }
-            ShowToast("✓", "Wallpaper history cleared!");
+
+            // Offer a one-tap Undo instead of a blocking confirmation dialog.
+            ShowToast("✓", $"Cleared {snapshot.Count} history item(s)", () =>
+            {
+                HistoryManager.Instance.RestoreHistory(snapshot);
+                if (_currentSection == ActiveSection.History)
+                {
+                    DisplayCurrentSection();
+                }
+                ShowToast("✓", "History restored");
+            });
         }
 
         // ═════════════════════════════════════════════════════════════════
@@ -482,8 +615,8 @@ namespace WallSafe
 
         public void SfwToggle_Click(object sender, RoutedEventArgs e)
         {
+            // Legacy cycle entry point (kept for compatibility) — advance one mode.
             bool allowCustom = Settings.Instance.CustomFilterProfileEnabled;
-
             var nextMode = Settings.Instance.RatingMode switch
             {
                 ContentRatingMode.SfwOnly => ContentRatingMode.Questionable,
@@ -492,20 +625,36 @@ namespace WallSafe
                 ContentRatingMode.Custom => ContentRatingMode.SfwOnly,
                 _ => ContentRatingMode.SfwOnly
             };
-            Settings.Instance.RatingMode = nextMode;
+            SetRatingMode(nextMode);
+        }
+
+        private bool _isUpdatingRatingSegments;
+
+        /// <summary>Handler for the segmented rating control (SFW | Questionable | Explicit).</summary>
+        private void RatingSegment_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingRatingSegments) return;
+            if (sender is not RadioButton rb || rb.Tag is not string tag || !int.TryParse(tag, out int modeVal)) return;
+            SetRatingMode((ContentRatingMode)modeVal);
+        }
+
+        /// <summary>Set the content rating mode directly (no cycling).</summary>
+        private void SetRatingMode(ContentRatingMode mode)
+        {
+            Settings.Instance.RatingMode = mode;
             Settings.Instance.Save();
 
             UpdateSfwToggleVisuals();
             ApplySfwModeToFilters();
 
-            string toastIcon = nextMode switch
+            string toastIcon = mode switch
             {
                 ContentRatingMode.SfwOnly => "🛡",
                 ContentRatingMode.Questionable => "⚠️",
                 ContentRatingMode.Explicit => "🔞",
                 _ => "⚙️"
             };
-            string toastMsg = nextMode switch
+            string toastMsg = mode switch
             {
                 ContentRatingMode.SfwOnly => "Safe Mode: SFW Content Only (konachan.net)",
                 ContentRatingMode.Questionable => "Questionable Mode: Mild / Suggestive / Ecchi Content",
@@ -532,62 +681,31 @@ namespace WallSafe
 
         public void UpdateSfwToggleVisuals()
         {
-            if (SfwToggleBtn == null || SfwToggleText == null || SfwToggleIcon == null) return;
+            if (RatingSegSfw == null || RatingSegQ == null || RatingSegE == null) return;
 
             var mode = Settings.Instance.RatingMode;
-            switch (mode)
+            bool customEnabled = Settings.Instance.CustomFilterProfileEnabled;
+
+            _isUpdatingRatingSegments = true;
+            try
             {
-                case ContentRatingMode.SfwOnly:
-                    SfwToggleText.Text = "SFW Only";
-                    if (TryFindResource("IconShieldGeo") is System.Windows.Media.Geometry shieldGeo)
-                        SfwToggleIcon.Data = shieldGeo;
-                    if (TryFindResource("EmeraldBrush") is System.Windows.Media.Brush emerald)
-                    {
-                        SfwToggleIcon.Fill = emerald;
-                        SfwToggleText.Foreground = emerald;
-                    }
-                    SfwToggleBtn.ToolTip = "Safe Mode Active: Restricted strictly to konachan.net & safe sources. Click to switch to Questionable (Mild/Ecchi).";
-                    break;
+                // Show the Custom segment only when the custom profile feature is enabled.
+                if (RatingSegCustom != null)
+                    RatingSegCustom.Visibility = customEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-                case ContentRatingMode.Questionable:
-                    SfwToggleText.Text = "Questionable";
-                    if (TryFindResource("IconEyeGeo") is System.Windows.Media.Geometry eyeGeo)
-                        SfwToggleIcon.Data = eyeGeo;
-                    else if (TryFindResource("IconSparkleGeo") is System.Windows.Media.Geometry sparkleGeo)
-                        SfwToggleIcon.Data = sparkleGeo;
-                    if (TryFindResource("AmberBrush") is System.Windows.Media.Brush amber)
-                    {
-                        SfwToggleIcon.Fill = amber;
-                        SfwToggleText.Foreground = amber;
-                    }
-                    SfwToggleBtn.ToolTip = "Questionable Mode Active: Mild suggestive & ecchi content. Click to switch to Explicit (NSFW).";
-                    break;
+                RatingSegSfw.IsChecked = mode == ContentRatingMode.SfwOnly;
+                RatingSegQ.IsChecked = mode == ContentRatingMode.Questionable;
+                RatingSegE.IsChecked = mode == ContentRatingMode.Explicit;
+                if (RatingSegCustom != null)
+                    RatingSegCustom.IsChecked = mode == ContentRatingMode.Custom;
 
-                case ContentRatingMode.Explicit:
-                    SfwToggleText.Text = "Explicit (NSFW)";
-                    if (TryFindResource("IconFireGeo") is System.Windows.Media.Geometry fireGeo)
-                        SfwToggleIcon.Data = fireGeo;
-                    if (TryFindResource("DangerBrush") is System.Windows.Media.Brush danger)
-                    {
-                        SfwToggleIcon.Fill = danger;
-                        SfwToggleText.Foreground = danger;
-                    }
-                    SfwToggleBtn.ToolTip = Settings.Instance.CustomFilterProfileEnabled
-                        ? "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Custom Profile Mode."
-                        : "Explicit Mode Active: Includes all 18+ NSFW content. Click to switch to Safe Mode (SFW Only).";
-                    break;
-
-                case ContentRatingMode.Custom:
-                    SfwToggleText.Text = "Custom";
-                    if (TryFindResource("IconSettingsGeo") is System.Windows.Media.Geometry settingsGeo)
-                        SfwToggleIcon.Data = settingsGeo;
-                    if (TryFindResource("AccentHoverBrush") is System.Windows.Media.Brush accent)
-                    {
-                        SfwToggleIcon.Fill = accent;
-                        SfwToggleText.Foreground = accent;
-                    }
-                    SfwToggleBtn.ToolTip = "Custom Profile Active: All filters unlocked and persistent. Click to switch to Safe Mode (SFW Only).";
-                    break;
+                // If custom mode is active but the feature was disabled, fall back to SFW selection visually.
+                if (mode == ContentRatingMode.Custom && !customEnabled)
+                    RatingSegSfw.IsChecked = true;
+            }
+            finally
+            {
+                _isUpdatingRatingSegments = false;
             }
         }
 
@@ -605,6 +723,16 @@ namespace WallSafe
             try
             {
                 var mode = Settings.Instance.RatingMode;
+                bool allowAll = Settings.Instance.AllowAllSources;
+
+                // Honor the "All Sources" setting: show/hide the aggregation pill.
+                if (SourceAll != null)
+                    SourceAll.Visibility = allowAll ? Visibility.Visible : Visibility.Collapsed;
+
+                // When "All Sources" aggregation is enabled, it becomes the default active
+                // source whenever the rating mode is (re)applied. Users can still click a
+                // single source pill afterward to narrow the results for that session.
+                bool keepAll = allowAll;
 
                 if (mode == ContentRatingMode.SfwOnly)
                 {
@@ -618,8 +746,8 @@ namespace WallSafe
                         RatingBox.ToolTip = "Rating restricted strictly to SFW. (Switch to Custom mode to override).";
                     }
 
-                    SourceKonaSfw.IsChecked = true;
-                    _currentSource = "konasfw";
+                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
+                    else { SourceKonaSfw.IsChecked = true; _currentSource = "konasfw"; }
                 }
                 else if (mode == ContentRatingMode.Questionable)
                 {
@@ -633,8 +761,8 @@ namespace WallSafe
                         RatingBox.ToolTip = "Rating locked to Questionable. (Switch to Custom mode to override).";
                     }
 
-                    SourceYande.IsChecked = true;
-                    _currentSource = "yande";
+                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
+                    else { SourceYande.IsChecked = true; _currentSource = "yande"; }
                 }
                 else if (mode == ContentRatingMode.Explicit)
                 {
@@ -648,8 +776,8 @@ namespace WallSafe
                         RatingBox.ToolTip = "Rating locked to Explicit (NSFW). (Switch to Custom mode to override).";
                     }
 
-                    SourceYande.IsChecked = true;
-                    _currentSource = "yande";
+                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
+                    else { SourceYande.IsChecked = true; _currentSource = "yande"; }
                 }
                 else // ContentRatingMode.Custom
                 {
@@ -779,12 +907,424 @@ namespace WallSafe
             if (_isUpdatingFilters) return;
             SaveCurrentFilterProfile();
             UpdateFilterBadge();
+            RebuildFilterChips();
             if (_currentSection == ActiveSection.Explore && IsLoaded)
             {
                 _currentPage = 1;
                 _ = DoExploreSearch(append: false);
             }
         }
+
+        // ── Active-filter chips + Reset + result count ──
+
+        private sealed class FilterChip
+        {
+            public string Label { get; set; } = "";
+            public Action Clear { get; set; } = () => { };
+        }
+
+        /// <summary>Rebuild the dismissible chip row from the currently-active (non-default) filters.</summary>
+        private void RebuildFilterChips()
+        {
+            if (FilterChipsPanel == null || RatingBox == null || SortBox == null || ResolutionBox == null || AspectBox == null) return;
+
+            var chips = new List<FilterChip>();
+
+            if (SortBox.SelectedIndex > 0 && SortBox.SelectedItem is ComboBoxItem sortItem)
+                chips.Add(new FilterChip { Label = "Sort: " + StripText(sortItem.Content?.ToString()), Clear = () => SortBox.SelectedIndex = 0 });
+            if (ResolutionBox.SelectedIndex > 0 && ResolutionBox.SelectedItem is ComboBoxItem resItem)
+                chips.Add(new FilterChip { Label = StripText(resItem.Content?.ToString()), Clear = () => ResolutionBox.SelectedIndex = 0 });
+            if (AspectBox.SelectedIndex > 0 && AspectBox.SelectedItem is ComboBoxItem aspItem)
+                chips.Add(new FilterChip { Label = StripText(aspItem.Content?.ToString()), Clear = () => AspectBox.SelectedIndex = 0 });
+
+            FilterChipsPanel.Items.Clear();
+            foreach (var chip in chips)
+            {
+                FilterChipsPanel.Items.Add(BuildChipControl(chip));
+            }
+
+            if (ResetFiltersBtn != null)
+                ResetFiltersBtn.Visibility = chips.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private static string StripText(string? s) => string.IsNullOrEmpty(s) ? "" :
+            (s.Contains('(') ? s.Substring(0, s.IndexOf('(')).Trim() : s.Trim());
+
+        private System.Windows.Controls.Border BuildChipControl(FilterChip chip)
+        {
+            var panel = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            panel.Children.Add(new TextBlock
+            {
+                Text = chip.Label,
+                FontSize = 10.5,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush")
+            });
+            var x = new TextBlock
+            {
+                Text = "  ✕",
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (System.Windows.Media.Brush)FindResource("SubtextBrush")
+            };
+            panel.Children.Add(x);
+
+            var border = new System.Windows.Controls.Border
+            {
+                Background = (System.Windows.Media.Brush)FindResource("ElevatedBrush"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(9, 2, 9, 2),
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Child = panel,
+                ToolTip = "Remove this filter"
+            };
+            border.MouseLeftButtonDown += (_, _) => { chip.Clear(); };
+            return border;
+        }
+
+        private void ResetFilters_Click(object sender, RoutedEventArgs e)
+        {
+            if (RatingBox == null) return;
+            _isUpdatingFilters = true;
+            try
+            {
+                // Rating stays governed by the rating mode; reset the other three.
+                SortBox.SelectedIndex = 0;
+                ResolutionBox.SelectedIndex = 0;
+                AspectBox.SelectedIndex = 0;
+            }
+            finally { _isUpdatingFilters = false; }
+
+            SaveCurrentFilterProfile();
+            UpdateFilterBadge();
+            RebuildFilterChips();
+            if (_currentSection == ActiveSection.Explore && IsLoaded)
+            {
+                _currentPage = 1;
+                _ = DoExploreSearch(append: false);
+            }
+        }
+
+        private void WallpaperGrid_PostsChanged(object? sender, int count)
+        {
+            if (ResultCountText == null) return;
+            ResultCountText.Text = count > 0
+                ? (count == 1 ? "1 wallpaper" : $"{count:N0} wallpapers")
+                : "";
+        }
+
+        // ─────────────── Favorite collections / folders ───────────────
+
+        private string _selectedCollection = "\u0001ALL"; // default: All Favorites
+
+        /// <summary>Rebuild the collection folder tiles (All + each collection folder).</summary>
+        private void RebuildCollectionChips()
+        {
+            if (CollectionChipsPanel == null) return;
+            CollectionChipsPanel.Items.Clear();
+
+            // "All Favorites" (everything) + each collection folder.
+            CollectionChipsPanel.Items.Add(BuildFolderTile("All Favorites", "\u0001ALL", isAll: false, isAllFavorites: true));
+            foreach (var name in FavoritesManager.Instance.GetCollections())
+                CollectionChipsPanel.Items.Add(BuildFolderTile(name, name, isAll: false));
+            CollectionChipsPanel.Items.Add(BuildAddFolderTile());
+        }
+
+        /// <summary>A dashed, card-sized "New Folder" tile aligned with the folder cards.</summary>
+        private System.Windows.Controls.Border BuildAddFolderTile()
+        {
+            const double CardW = 236, CardH = 140, CardRadius = 10;
+
+            var content = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            content.Children.Add(new TextBlock
+            {
+                Text = "+  New Folder",
+                Foreground = (System.Windows.Media.Brush)FindResource("SubtextBrush"),
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Semibold"),
+                FontSize = 12.5
+            });
+
+            var tile = new System.Windows.Controls.Border
+            {
+                Width = CardW, Height = CardH,
+                Background = (System.Windows.Media.Brush)FindResource("ElevatedBrush"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(CardRadius),
+                Margin = new Thickness(0, 0, 10, 10),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Child = content,
+                ToolTip = "Create a new collection folder"
+            };
+            tile.MouseLeftButtonUp += (_, _) => NewCollection_Click(tile, new RoutedEventArgs());
+            tile.MouseEnter += (_, _) => tile.BorderBrush = (System.Windows.Media.Brush)FindResource("AccentHoverBrush");
+            tile.MouseLeave += (_, _) => tile.BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush");
+            return tile;
+        }
+
+        /// <summary>Build a Home-style banner folder card: cover image + gradient + name + count,
+        /// with drag/drop (assign wallpapers, reorder folders) and right-click rename/delete.</summary>
+        private System.Windows.Controls.Border BuildFolderTile(string label, string value, bool isAll, bool isAllFavorites = false)
+        {
+            const double CardW = 236, CardH = 140, CardRadius = 10;
+
+            bool active = string.Equals(_selectedCollection, value, StringComparison.OrdinalIgnoreCase);
+            double bt = active ? 2 : 1;
+            double innerW = CardW - bt * 2, innerH = CardH - bt * 2, innerR = System.Math.Max(0, CardRadius - bt);
+            int count = isAllFavorites
+                ? FavoritesManager.Instance.GetAllFavorites().Count
+                : (isAll ? FavoritesManager.Instance.GetUncategorizedFavorites().Count
+                         : FavoritesManager.Instance.GetFavoritesByCollection(value).Count);
+            string cover = isAllFavorites
+                ? (FavoritesManager.Instance.GetAllFavorites().FirstOrDefault()?.PreviewUrl ?? "")
+                : FavoritesManager.Instance.GetCollectionCover(value);
+
+            var grid = new Grid { Width = innerW, Height = innerH };
+
+            // Cover artwork (falls back to a flat surface when empty).
+            if (!string.IsNullOrEmpty(cover))
+            {
+                try
+                {
+                    var img = new System.Windows.Controls.Image
+                    {
+                        Stretch = System.Windows.Media.Stretch.UniformToFill,
+                        Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(cover, UriKind.Absolute))
+                    };
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.LowQuality);
+                    grid.Children.Add(img);
+                }
+                catch { }
+            }
+
+            // Top-left: item count pill.
+            var countPill = new System.Windows.Controls.Border
+            {
+                Background = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#B3000000")!,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(7, 3, 7, 3),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(10, 10, 0, 0),
+                Child = new TextBlock
+                {
+                    Text = count == 1 ? "1 item" : $"{count} items",
+                    Foreground = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#E2E8F0")!,
+                    FontSize = 9, FontFamily = new System.Windows.Media.FontFamily("Segoe UI Semibold")
+                }
+            };
+            grid.Children.Add(countPill);
+
+            // Bottom gradient with folder icon + name.
+            var gradient = new System.Windows.Media.LinearGradientBrush
+            {
+                StartPoint = new System.Windows.Point(0, 0), EndPoint = new System.Windows.Point(0, 1)
+            };
+            gradient.GradientStops.Add(new System.Windows.Media.GradientStop((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#00090A0F"), 0.0));
+            gradient.GradientStops.Add(new System.Windows.Media.GradientStop((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#CC090A0F"), 0.45));
+            gradient.GradientStops.Add(new System.Windows.Media.GradientStop((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F0090A0F"), 1.0));
+
+            string glyph = isAllFavorites ? "IconHeartGeo" : (isAll ? "IconSparkleGeo" : "IconFolderGeo");
+            var titleRow = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(12, 0, 12, 10) };
+            titleRow.Children.Add(new System.Windows.Shapes.Path
+            {
+                Data = (System.Windows.Media.Geometry)FindResource(glyph),
+                Width = 14, Height = 14, Stretch = System.Windows.Media.Stretch.Uniform,
+                Fill = System.Windows.Media.Brushes.White, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0)
+            });
+            titleRow.Children.Add(new TextBlock
+            {
+                Text = label, Foreground = System.Windows.Media.Brushes.White,
+                FontFamily = new System.Windows.Media.FontFamily("Segoe UI Bold"), FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            var gradientBorder = new System.Windows.Controls.Border
+            {
+                Height = 62, VerticalAlignment = VerticalAlignment.Bottom, Background = gradient, Child = titleRow
+            };
+            grid.Children.Add(gradientBorder);
+
+            // Clip the cover/content to rounded corners matching the card interior.
+            grid.Clip = new System.Windows.Media.RectangleGeometry(new Rect(0, 0, innerW, innerH), innerR, innerR);
+
+            var tile = new System.Windows.Controls.Border
+            {
+                Width = CardW, Height = CardH,
+                Background = string.IsNullOrEmpty(cover) ? (System.Windows.Media.Brush)FindResource("ElevatedBrush") : (System.Windows.Media.Brush)FindResource("CardBgBrush"),
+                BorderBrush = active ? (System.Windows.Media.Brush)FindResource("AccentBrush") : (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(bt),
+                CornerRadius = new CornerRadius(CardRadius),
+                Margin = new Thickness(0, 0, 10, 10),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Child = grid,
+                AllowDrop = !isAllFavorites,
+                Tag = value
+            };
+
+            tile.MouseLeftButtonUp += (_, _) =>
+            {
+                if (_folderDragging) return;
+                _selectedCollection = value;
+                RebuildCollectionChips();
+                if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+            };
+
+            // Only real collection folders can be dragged (to reorder).
+            if (!isAll && !isAllFavorites)
+            {
+                tile.PreviewMouseLeftButtonDown += (_, e) => _folderPress = e.GetPosition(null);
+                tile.MouseMove += (s, e) =>
+                {
+                    if (e.LeftButton != MouseButtonState.Pressed) return;
+                    var p = e.GetPosition(null);
+                    if (System.Math.Abs(p.X - _folderPress.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                        System.Math.Abs(p.Y - _folderPress.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+                    _folderDragging = true;
+                    try { System.Windows.DragDrop.DoDragDrop(tile, new System.Windows.DataObject("WallSafeCollection", value), System.Windows.DragDropEffects.Move); }
+                    finally { _folderDragging = false; }
+                };
+            }
+
+            // "All Favorites" is not a drop target (it shows everything).
+            if (!isAllFavorites)
+            {
+                tile.DragOver += (_, e) =>
+                {
+                    if (e.Data.GetDataPresent("WallSafePostItem")) e.Effects = System.Windows.DragDropEffects.Copy;
+                    else if (e.Data.GetDataPresent("WallSafeCollection") && !isAll) e.Effects = System.Windows.DragDropEffects.Move;
+                    else e.Effects = System.Windows.DragDropEffects.None;
+                    if (e.Effects != System.Windows.DragDropEffects.None)
+                        tile.BorderBrush = (System.Windows.Media.Brush)FindResource("AccentHoverBrush");
+                    e.Handled = true;
+                };
+                tile.DragLeave += (_, _) =>
+                    tile.BorderBrush = active ? (System.Windows.Media.Brush)FindResource("AccentBrush") : (System.Windows.Media.Brush)FindResource("BorderBrush");
+                tile.Drop += (_, e) =>
+                {
+                    tile.BorderBrush = active ? (System.Windows.Media.Brush)FindResource("AccentBrush") : (System.Windows.Media.Brush)FindResource("BorderBrush");
+                    if (e.Data.GetDataPresent("WallSafePostItem") && e.Data.GetData("WallSafePostItem") is PostItem dropped)
+                    {
+                        AssignItemToCollection(dropped, isAll ? "" : value);
+                    }
+                    else if (e.Data.GetDataPresent("WallSafeCollection") && e.Data.GetData("WallSafeCollection") is string draggedName && !isAll)
+                    {
+                        var order = FavoritesManager.Instance.GetCollections();
+                        int targetIndex = order.FindIndex(c => c.Equals(value, StringComparison.OrdinalIgnoreCase));
+                        if (targetIndex >= 0 && !draggedName.Equals(value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            FavoritesManager.Instance.MoveCollection(draggedName, targetIndex);
+                            RebuildCollectionChips();
+                        }
+                    }
+                    e.Handled = true;
+                };
+            }
+
+            if (!isAll && !isAllFavorites)
+            {
+                var menu = new System.Windows.Controls.ContextMenu();
+                var rename = new System.Windows.Controls.MenuItem { Header = "Rename Collection…" };
+                rename.Click += (_, _) => RenameCollectionPrompt(value);
+                var delete = new System.Windows.Controls.MenuItem { Header = "Delete Collection" };
+                delete.Click += (_, _) => DeleteCollectionConfirm(value);
+                menu.Items.Add(rename);
+                menu.Items.Add(delete);
+                tile.ContextMenu = menu;
+            }
+            return tile;
+        }
+
+        private System.Windows.Point _folderPress;
+        private bool _folderDragging;
+
+        private void NewCollection_Click(object sender, RoutedEventArgs e)
+        {
+            var name = ThemedDialog.Prompt(this, "New Collection", "Enter a name for the new collection:", "", "Create");
+            if (string.IsNullOrWhiteSpace(name)) return;
+            if (FavoritesManager.Instance.CreateCollection(name.Trim()))
+            {
+                _selectedCollection = name.Trim();
+                RebuildCollectionChips();
+                if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+                ShowToast("✓", $"Collection \u201c{name.Trim()}\u201d created");
+            }
+            else
+            {
+                ShowToast("⚠", "A collection with that name already exists");
+            }
+        }
+
+        private void RenameCollectionPrompt(string oldName)
+        {
+            var name = ThemedDialog.Prompt(this, "Rename Collection", $"Rename \u201c{oldName}\u201d to:", oldName, "Rename");
+            if (string.IsNullOrWhiteSpace(name) || name.Trim() == oldName) return;
+            if (FavoritesManager.Instance.RenameCollection(oldName, name.Trim()))
+            {
+                if (_selectedCollection == oldName) _selectedCollection = name.Trim();
+                RebuildCollectionChips();
+                if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+            }
+            else ShowToast("⚠", "Couldn't rename (name may already exist)");
+        }
+
+        private void DeleteCollectionConfirm(string name)
+        {
+            bool ok = ThemedDialog.Confirm(this, "Delete Collection",
+                $"Delete the collection \u201c{name}\u201d?\n\nThe wallpapers stay in your favorites — they just become uncategorized.",
+                "Delete");
+            if (!ok) return;
+            FavoritesManager.Instance.DeleteCollection(name);
+            if (_selectedCollection == name) _selectedCollection = "\u0001ALL";
+            RebuildCollectionChips();
+            if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+        }
+
+        private void WallpaperGrid_MoveToCollectionRequested(object? sender, PostItem item)
+        {
+            var collections = FavoritesManager.Instance.GetCollections();
+
+            var menu = new System.Windows.Controls.ContextMenu();
+            var uncategorized = new System.Windows.Controls.MenuItem { Header = "Uncategorized (no collection)" };
+            uncategorized.Click += (_, _) => AssignItemToCollection(item, "");
+            menu.Items.Add(uncategorized);
+            if (collections.Count > 0) menu.Items.Add(new System.Windows.Controls.Separator());
+            foreach (var c in collections)
+            {
+                var mi = new System.Windows.Controls.MenuItem { Header = c };
+                var captured = c;
+                mi.Click += (_, _) => AssignItemToCollection(item, captured);
+                menu.Items.Add(mi);
+            }
+            menu.Items.Add(new System.Windows.Controls.Separator());
+            var newC = new System.Windows.Controls.MenuItem { Header = "New Collection…" };
+            newC.Click += (_, _) =>
+            {
+                var name = ThemedDialog.Prompt(this, "New Collection", "Enter a name for the new collection:", "", "Create");
+                if (!string.IsNullOrWhiteSpace(name))
+                    AssignItemToCollection(item, name.Trim());
+            };
+            menu.Items.Add(newC);
+            menu.IsOpen = true;
+        }
+
+        private void AssignItemToCollection(PostItem item, string collection)
+        {
+            FavoritesManager.Instance.AssignToCollection(item, collection);
+            RebuildCollectionChips();
+            if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+            ShowToast("✓", string.IsNullOrEmpty(collection)
+                ? "Removed from collection"
+                : $"Added to \u201c{collection}\u201d");
+        }
+
 
         private void UpdateFilterBadge()
         {
@@ -1412,9 +1952,22 @@ namespace WallSafe
         private void WallpaperGrid_FavoriteToggled(object? sender, PostItem e)
         {
             if (e.IsFavorite)
+            {
                 ShowToast("♥", "Added to Favorites");
+            }
             else
-                ShowToast("✕", "Removed from Favorites");
+            {
+                // Offer a one-tap Undo to restore the just-removed favorite.
+                var removed = e;
+                ShowToast("✕", "Removed from Favorites", () =>
+                {
+                    FavoritesManager.Instance.AddFavorite(removed);
+                    removed.IsFavorite = true;
+                    if (_currentSection == ActiveSection.Favorites)
+                        DisplayCurrentSection();
+                    ShowToast("♥", "Favorite restored");
+                });
+            }
 
             if (_currentSection == ActiveSection.Favorites)
                 DisplayCurrentSection();
@@ -1681,8 +2234,11 @@ namespace WallSafe
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // WindowChrome handles caption dragging; this is a harmless fallback.
             if (e.ChangedButton == MouseButton.Left)
-                DragMove();
+            {
+                try { DragMove(); } catch { }
+            }
         }
 
         private void Refresh_Click(object sender, RoutedEventArgs e)
@@ -1808,14 +2364,37 @@ namespace WallSafe
 
             ToastIcon.Text = icon;
             ToastMessage.Text = message;
+            if (ToastUndoBtn != null && _toastUndoAction == null)
+                ToastUndoBtn.Visibility = Visibility.Collapsed;
             ToastBanner.Visibility = Visibility.Visible;
 
             try
             {
-                await Task.Delay(2500, ct);
+                await Task.Delay(_toastUndoAction != null ? 6000 : 2500, ct);
                 ToastBanner.Visibility = Visibility.Collapsed;
+                if (ToastUndoBtn != null) ToastUndoBtn.Visibility = Visibility.Collapsed;
+                _toastUndoAction = null;
             }
             catch (OperationCanceledException) { /* replaced by newer toast — leave visible */ }
+        }
+
+        private Action? _toastUndoAction;
+
+        /// <summary>Show a toast with an Undo button that invokes <paramref name="undo"/> when clicked.</summary>
+        private void ShowToast(string icon, string message, Action undo)
+        {
+            _toastUndoAction = undo;
+            if (ToastUndoBtn != null) ToastUndoBtn.Visibility = Visibility.Visible;
+            ShowToast(icon, message);
+        }
+
+        private void ToastUndo_Click(object sender, RoutedEventArgs e)
+        {
+            var action = _toastUndoAction;
+            _toastUndoAction = null;
+            if (ToastUndoBtn != null) ToastUndoBtn.Visibility = Visibility.Collapsed;
+            ToastBanner.Visibility = Visibility.Collapsed;
+            action?.Invoke();
         }
 
         // ═════════════════════════════════════════════════════════════════

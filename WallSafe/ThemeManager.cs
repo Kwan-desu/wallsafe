@@ -36,12 +36,13 @@ namespace WallSafe
 
             if (isDark)
             {
-                // Dark Theme — Clean Windows 11 Fluent Slate (No AI neon glow)
-                SetColor(res, "BgColor", "#0F1117");
-                SetColor(res, "SurfaceColor", "#181B24");
+                // Dark Theme — Refined Windows 11 Fluent Slate with depth + secondary accent
+                SetColor(res, "BgColor", "#0B0D12");
+                SetColor(res, "SurfaceColor", "#161922");
                 SetColor(res, "SurfaceHoverColor", "#222634");
-                SetColor(res, "CardBgColor", "#181B24");
-                SetColor(res, "BorderColor", "#282D3D");
+                SetColor(res, "CardBgColor", "#1C202B");
+                SetColor(res, "ElevatedColor", "#232838");
+                SetColor(res, "BorderColor", "#2A3040");
                 SetColor(res, "BorderHoverColor", "#3D455C");
 
                 SetColor(res, "TextColor", "#F8FAFC");
@@ -51,14 +52,18 @@ namespace WallSafe
                 SetColor(res, "AccentColor", "#6366F1");
                 SetColor(res, "AccentHoverColor", "#818CF8");
                 SetColor(res, "AccentGlowColor", "#4F46E5");
+                SetColor(res, "SecondaryAccentColor", "#22D3EE");
 
-                SetColor(res, "CardOverlayFadeColor", "#E60F1117");
-                SetColor(res, "CardBottomBarColor", "#D90F1117");
+                SetColor(res, "CardOverlayFadeColor", "#E60B0D12");
+                SetColor(res, "CardBottomBarColor", "#D90B0D12");
                 SetColor(res, "CardActionBtnBgColor", "#33FFFFFF");
                 SetColor(res, "CardActionBtnBorderColor", "#26FFFFFF");
                 SetColor(res, "CardActionBtnFgColor", "#CBD5E1");
                 SetColor(res, "NavActiveBgColor", "#25293C");
                 SetColor(res, "ScrollThumbColor", "#3D455C");
+
+                // Semi-transparent surface used for transient (Acrylic-style) chrome.
+                SetColor(res, "AcrylicSurfaceColor", "#D9161922");
             }
             else
             {
@@ -67,6 +72,7 @@ namespace WallSafe
                 SetColor(res, "SurfaceColor", "#FFFFFF");
                 SetColor(res, "SurfaceHoverColor", "#F1F5F9");
                 SetColor(res, "CardBgColor", "#FFFFFF");
+                SetColor(res, "ElevatedColor", "#FFFFFF");
                 SetColor(res, "BorderColor", "#E2E8F0");
                 SetColor(res, "BorderHoverColor", "#CBD5E1");
 
@@ -77,6 +83,7 @@ namespace WallSafe
                 SetColor(res, "AccentColor", "#4F46E5");
                 SetColor(res, "AccentHoverColor", "#4338CA");
                 SetColor(res, "AccentGlowColor", "#3730A3");
+                SetColor(res, "SecondaryAccentColor", "#0891B2");
 
                 SetColor(res, "CardOverlayFadeColor", "#E6FFFFFF");
                 SetColor(res, "CardBottomBarColor", "#F2FFFFFF");
@@ -85,6 +92,8 @@ namespace WallSafe
                 SetColor(res, "CardActionBtnFgColor", "#334155");
                 SetColor(res, "NavActiveBgColor", "#E2E8F0");
                 SetColor(res, "ScrollThumbColor", "#CBD5E1");
+
+                SetColor(res, "AcrylicSurfaceColor", "#F2FFFFFF");
             }
 
             ThemeChanged?.Invoke(isDark);

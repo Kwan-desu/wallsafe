@@ -33,6 +33,167 @@ namespace WallSafe
                 DragMove();
         }
 
+        // ─────────────── Taskbar Appearance (merged TranslucentTB engine) ───────────────
+
+        /// <summary>Parse a #AARRGGBB or #RRGGBB hex string into a 0xAARRGGBB uint. Returns false if invalid.</summary>
+        private static bool TryParseArgb(string? text, out uint argb)
+        {
+            argb = 0;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            var hex = text.Trim().TrimStart('#');
+            if (hex.Length == 6) hex = "FF" + hex; // assume opaque if alpha omitted
+            if (hex.Length != 8) return false;
+            return uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out argb);
+        }
+
+        private static void UpdateSwatch(System.Windows.Controls.Border? swatch, string? colorText)
+        {
+            if (swatch == null) return;
+            if (TryParseArgb(colorText, out uint argb))
+            {
+                var c = System.Windows.Media.Color.FromArgb(
+                    (byte)((argb >> 24) & 0xFF), (byte)((argb >> 16) & 0xFF),
+                    (byte)((argb >> 8) & 0xFF), (byte)(argb & 0xFF));
+                swatch.Background = new System.Windows.Media.SolidColorBrush(c);
+            }
+        }
+
+        /// <summary>Load one dynamic-state appearance into its controls.</summary>
+        private static void LoadStateAppearance(TaskbarStateAppearance? a,
+            System.Windows.Controls.CheckBox? chk, System.Windows.Controls.ComboBox? combo,
+            System.Windows.Controls.TextBox? colorBox, System.Windows.Controls.Border? swatch,
+            System.Windows.Controls.CheckBox? noTint = null)
+        {
+            a ??= new TaskbarStateAppearance();
+            if (chk != null) chk.IsChecked = a.Enabled;
+            if (combo != null) combo.SelectedIndex = System.Math.Clamp(a.AccentState, 0, 4);
+            if (colorBox != null) colorBox.Text = "#" + unchecked((uint)a.ColorArgb).ToString("X8");
+            if (noTint != null) noTint.IsChecked = a.NoTint;
+            if (colorBox != null) colorBox.IsEnabled = !(noTint?.IsChecked ?? false);
+            UpdateSwatch(swatch, colorBox?.Text);
+        }
+
+        /// <summary>Read one dynamic-state appearance from its controls back into settings.</summary>
+        private static void SaveStateAppearance(TaskbarStateAppearance a,
+            System.Windows.Controls.CheckBox? chk, System.Windows.Controls.ComboBox? combo,
+            System.Windows.Controls.TextBox? colorBox, System.Windows.Controls.CheckBox? noTint = null)
+        {
+            a.Enabled = chk?.IsChecked == true;
+            if (combo?.SelectedItem is ComboBoxItem item && item.Tag is string tag && int.TryParse(tag, out int sv))
+                a.AccentState = System.Math.Clamp(sv, 0, 4);
+            if (TryParseArgb(colorBox?.Text, out uint argb))
+                a.ColorArgb = unchecked((int)argb);
+            a.NoTint = noTint?.IsChecked == true;
+        }
+
+        /// <summary>Live-apply: persist all taskbar states from the UI and re-evaluate the engine.</summary>
+        private void TaskbarLiveApply_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            // Grey out the color box + swatch when "No tint" is active for that state.
+            if (StateDesktopColor != null) StateDesktopColor.IsEnabled = !(ChkStateDesktopNoTint?.IsChecked ?? false);
+            if (StateVisibleColor != null) StateVisibleColor.IsEnabled = !(ChkStateVisibleNoTint?.IsChecked ?? false);
+            if (StateMaximizedColor != null) StateMaximizedColor.IsEnabled = !(ChkStateMaximizedNoTint?.IsChecked ?? false);
+            if (StateStartColor != null) StateStartColor.IsEnabled = !(ChkStateStartNoTint?.IsChecked ?? false);
+
+            // Keep swatches in sync.
+            UpdateSwatch(StateDesktopSwatch, StateDesktopColor?.Text);
+            UpdateSwatch(StateVisibleSwatch, StateVisibleColor?.Text);
+            UpdateSwatch(StateMaximizedSwatch, StateMaximizedColor?.Text);
+            UpdateSwatch(StateStartSwatch, StateStartColor?.Text);
+
+            var s = Settings.Instance;
+            s.TaskbarTransparencyEnabled = ChkTaskbarEnabled?.IsChecked == true;
+            SaveStateAppearance(s.DesktopAppearance ??= new(), ChkStateDesktop, StateDesktopCombo, StateDesktopColor, ChkStateDesktopNoTint);
+            SaveStateAppearance(s.VisibleWindowAppearance ??= new(), ChkStateVisible, StateVisibleCombo, StateVisibleColor, ChkStateVisibleNoTint);
+            SaveStateAppearance(s.MaximizedWindowAppearance ??= new(), ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, ChkStateMaximizedNoTint);
+            SaveStateAppearance(s.StartOpenedAppearance ??= new(), ChkStateStart, StateStartCombo, StateStartColor, ChkStateStartNoTint);
+            s.Save();
+
+            TaskbarManager.Instance.ApplyFromSettings();
+            (Owner as MainWindow)?.UpdateTaskbarQuickToggle();
+        }
+
+        // ─────────────── Interface: density + Mica ───────────────
+
+        private void SlideshowInterval_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateCustomIntervalVisibility();
+        }
+
+        private void UpdateCustomIntervalVisibility()
+        {
+            if (CustomIntervalPanel == null) return;
+            bool custom = SlideshowIntervalCombo?.SelectedItem is ComboBoxItem ci && ci.Tag is int t && t == -1;
+            CustomIntervalPanel.Visibility = custom ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void NumericOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            e.Handled = !e.Text.All(char.IsDigit);
+        }
+
+        private void Density_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+            string density = "comfortable";
+            if (DensityCompactRadio?.IsChecked == true) density = "compact";
+            else if (DensityLargeRadio?.IsChecked == true) density = "large";
+
+            Settings.Instance.CardDensity = density;
+            Settings.Instance.Save();
+
+            if (Owner is MainWindow mw)
+                mw.RefreshGridDensity();
+        }
+
+        private void WindowMica_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+            Settings.Instance.WindowMicaEnabled = ChkWindowMica?.IsChecked == true;
+            Settings.Instance.Save();
+
+            if (Owner is MainWindow mw)
+                mw.ApplyWindowBackdrop();
+        }
+
+        // ─────────────── Wi-Fi auto wallpaper ───────────────
+
+        private void WifiAuto_Changed(object sender, RoutedEventArgs e)
+        {
+            // Live apply happens on save/close; nothing required here beyond letting the user toggle.
+        }
+
+        private void WifiUseCurrent_Click(object sender, RoutedEventArgs e)
+        {
+            var ssid = WifiWatcher.GetCurrentSsid();
+            if (!string.IsNullOrEmpty(ssid) && WifiSsidBox != null)
+            {
+                WifiSsidBox.Text = ssid;
+            }
+            else
+            {
+                System.Windows.MessageBox.Show(
+                    "Couldn't detect a connected Wi-Fi network. Make sure you're connected, then try again.",
+                    "Wi-Fi", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void WifiBrowseWallpaper_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Choose a wallpaper for the trigger network",
+                Filter = "Images (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp|All files (*.*)|*.*"
+            };
+            if (dlg.ShowDialog() == true && WifiWallpaperBox != null)
+            {
+                WifiWallpaperBox.Text = dlg.FileName;
+            }
+        }
+
         private void SettingsRootGrid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (sender is UIElement elem && e.NewSize.Width > 0 && e.NewSize.Height > 0)
@@ -52,6 +213,7 @@ namespace WallSafe
             if (SecPanelSlideshow != null) SecPanelSlideshow.Visibility = Visibility.Collapsed;
             if (SecPanelSources != null) SecPanelSources.Visibility = Visibility.Collapsed;
             if (SecPanelGeneral != null) SecPanelGeneral.Visibility = Visibility.Collapsed;
+            if (SecPanelTaskbar != null) SecPanelTaskbar.Visibility = Visibility.Collapsed;
 
             if (NavSecHome?.IsChecked == true)
             {
@@ -83,6 +245,12 @@ namespace WallSafe
                 if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "GENERAL & SYSTEM STORAGE";
                 if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Configure theme mode, Windows startup behavior, and local wallpaper cache.";
             }
+            else if (NavSecTaskbar?.IsChecked == true)
+            {
+                if (SecPanelTaskbar != null) SecPanelTaskbar.Visibility = Visibility.Visible;
+                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "TASKBAR APPEARANCE";
+                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Make the Windows taskbar translucent, blurred or acrylic with a custom tint color.";
+            }
         }
 
         private void ShowAllHomeSections_Click(object sender, RoutedEventArgs e)
@@ -112,6 +280,7 @@ namespace WallSafe
             SlideshowIntervalCombo.Items.Add(new ComboBoxItem { Content = "30 Minutes", Tag = 30 });
             SlideshowIntervalCombo.Items.Add(new ComboBoxItem { Content = "1 Hour", Tag = 60 });
             SlideshowIntervalCombo.Items.Add(new ComboBoxItem { Content = "4 Hours", Tag = 240 });
+            SlideshowIntervalCombo.Items.Add(new ComboBoxItem { Content = "Custom…", Tag = -1 });
 
             // Monitors
             MonitorTargetCombo.Items.Clear();
@@ -151,6 +320,12 @@ namespace WallSafe
             ChkPanicMute.IsChecked = s.PanicMuteAudio;
             ChkPanicRestore.IsChecked = s.PanicRestoreToggle;
 
+            // Wi-Fi auto wallpaper
+            if (ChkWifiAuto != null) ChkWifiAuto.IsChecked = s.WifiAutoWallpaperEnabled;
+            if (WifiSsidBox != null) WifiSsidBox.Text = s.WifiTriggerSsid;
+            if (WifiWallpaperBox != null) WifiWallpaperBox.Text = s.WifiTriggerWallpaperPath;
+            if (ChkWifiRestore != null) ChkWifiRestore.IsChecked = s.WifiRestoreOnDisconnect;
+
             // Slideshow Engine
             ChkSlideshow.IsChecked = s.SlideshowEnabled;
 
@@ -163,7 +338,31 @@ namespace WallSafe
                 }
             }
             if (SlideshowIntervalCombo.SelectedItem == null)
-                SlideshowIntervalCombo.SelectedIndex = 1; // 15 mins default
+            {
+                // No preset matched → it's a custom interval; select "Custom…" and fill the box.
+                foreach (ComboBoxItem item in SlideshowIntervalCombo.Items)
+                {
+                    if (item.Tag is int t && t == -1) { SlideshowIntervalCombo.SelectedItem = item; break; }
+                }
+                if (CustomIntervalBox != null) CustomIntervalBox.Text = s.SlideshowIntervalMinutes.ToString();
+            }
+            UpdateCustomIntervalVisibility();
+
+            // Add each favorite collection as a slideshow source option.
+            // (Remove any previously-added collection items first to avoid duplicates.)
+            for (int i = SlideshowSourceCombo.Items.Count - 1; i >= 0; i--)
+            {
+                if (SlideshowSourceCombo.Items[i] is ComboBoxItem ci && (ci.Tag as string)?.StartsWith("collection:") == true)
+                    SlideshowSourceCombo.Items.RemoveAt(i);
+            }
+            foreach (var col in FavoritesManager.Instance.GetCollections())
+            {
+                SlideshowSourceCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"Collection: {col}",
+                    Tag = "collection:" + col
+                });
+            }
 
             foreach (ComboBoxItem item in SlideshowSourceCombo.Items)
             {
@@ -204,6 +403,34 @@ namespace WallSafe
                 ThemeLightRadio.IsChecked = true;
             else
                 ThemeDarkRadio.IsChecked = true;
+
+            // Taskbar Appearance (merged TranslucentTB engine)
+            if (ChkTaskbarEnabled != null) ChkTaskbarEnabled.IsChecked = s.TaskbarTransparencyEnabled;
+            if (ChkTaskbarRestoreOnPanic != null)
+                ChkTaskbarRestoreOnPanic.IsChecked = s.TaskbarRestoreOnPanic;
+
+            LoadStateAppearance(s.DesktopAppearance, ChkStateDesktop, StateDesktopCombo, StateDesktopColor, StateDesktopSwatch, ChkStateDesktopNoTint);
+            LoadStateAppearance(s.VisibleWindowAppearance, ChkStateVisible, StateVisibleCombo, StateVisibleColor, StateVisibleSwatch, ChkStateVisibleNoTint);
+            LoadStateAppearance(s.MaximizedWindowAppearance, ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, StateMaximizedSwatch, ChkStateMaximizedNoTint);
+            LoadStateAppearance(s.StartOpenedAppearance, ChkStateStart, StateStartCombo, StateStartColor, StateStartSwatch, ChkStateStartNoTint);
+
+            // Interface: grid density + Mica
+            switch (s.CardDensity)
+            {
+                case "compact": if (DensityCompactRadio != null) DensityCompactRadio.IsChecked = true; break;
+                case "large": if (DensityLargeRadio != null) DensityLargeRadio.IsChecked = true; break;
+                default: if (DensityComfortableRadio != null) DensityComfortableRadio.IsChecked = true; break;
+            }
+            if (ChkWindowMica != null)
+            {
+                ChkWindowMica.IsChecked = s.WindowMicaEnabled;
+                if (!MicaHelper.IsMicaSupported)
+                {
+                    ChkWindowMica.IsEnabled = false;
+                    if (MicaHintText != null)
+                        MicaHintText.Text = "Requires Windows 11 (build 22621+). Not available on this system.";
+                }
+            }
         }
 
         private void ChkAutoStart_CheckedChanged(object sender, RoutedEventArgs e)
@@ -507,6 +734,14 @@ namespace WallSafe
 
         private void ClearCache_Click(object sender, RoutedEventArgs e)
         {
+            var confirm = System.Windows.MessageBox.Show(
+                "Clear the local wallpaper thumbnail cache?\n\nThis frees disk space. Thumbnails will be re-downloaded as you browse. Your favorites and downloads are not affected.",
+                "Clear Cache",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question,
+                MessageBoxResult.No);
+            if (confirm != MessageBoxResult.Yes) return;
+
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "WallSafe", "cache");
@@ -518,6 +753,9 @@ namespace WallSafe
                     try { File.Delete(f); } catch { }
                 }
             }
+
+            // Also clear the thumbnail cache managed by ImageCacheService.
+            try { ImageCacheService.Instance.ClearCache(); } catch { }
 
             RefreshCacheInfo();
         }
@@ -585,6 +823,15 @@ namespace WallSafe
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
+            ApplySettings();
+            Close();
+        }
+
+        private bool _settingsApplied;
+
+        /// <summary>Persist and apply all settings. Safe to call multiple times.</summary>
+        private void ApplySettings()
+        {
             var s = Settings.Instance;
             s.SafeWallpaperPath = SafePathBox.Text;
             s.HotkeyModifiers = _recordedModifiers;
@@ -608,10 +855,24 @@ namespace WallSafe
             s.PanicMuteAudio = ChkPanicMute.IsChecked == true;
             s.PanicRestoreToggle = ChkPanicRestore.IsChecked == true;
 
+            // Wi-Fi auto wallpaper
+            s.WifiAutoWallpaperEnabled = ChkWifiAuto?.IsChecked == true;
+            s.WifiTriggerSsid = WifiSsidBox?.Text?.Trim() ?? "";
+            s.WifiTriggerWallpaperPath = WifiWallpaperBox?.Text?.Trim() ?? "";
+            s.WifiRestoreOnDisconnect = ChkWifiRestore?.IsChecked == true;
+
             s.SlideshowEnabled = ChkSlideshow.IsChecked == true;
             if (SlideshowIntervalCombo.SelectedItem is ComboBoxItem intervalItem && intervalItem.Tag is int intervalVal)
             {
-                s.SlideshowIntervalMinutes = intervalVal;
+                if (intervalVal == -1) // Custom
+                {
+                    if (int.TryParse(CustomIntervalBox?.Text, out int custom) && custom > 0)
+                        s.SlideshowIntervalMinutes = Math.Clamp(custom, 1, 1440);
+                }
+                else
+                {
+                    s.SlideshowIntervalMinutes = intervalVal;
+                }
             }
             if (SlideshowSourceCombo.SelectedItem is ComboBoxItem srcItem && srcItem.Tag is string srcVal)
             {
@@ -639,7 +900,27 @@ namespace WallSafe
             }
             s.AllowAllSources = ChkAllowAllSources.IsChecked == true;
 
+            // Taskbar Appearance (merged TranslucentTB engine)
+            s.TaskbarTransparencyEnabled = ChkTaskbarEnabled?.IsChecked == true;
+            SaveStateAppearance(s.DesktopAppearance ??= new(), ChkStateDesktop, StateDesktopCombo, StateDesktopColor, ChkStateDesktopNoTint);
+            SaveStateAppearance(s.VisibleWindowAppearance ??= new(), ChkStateVisible, StateVisibleCombo, StateVisibleColor, ChkStateVisibleNoTint);
+            SaveStateAppearance(s.MaximizedWindowAppearance ??= new(), ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, ChkStateMaximizedNoTint);
+            SaveStateAppearance(s.StartOpenedAppearance ??= new(), ChkStateStart, StateStartCombo, StateStartColor, ChkStateStartNoTint);
+            s.TaskbarRestoreOnPanic = ChkTaskbarRestoreOnPanic?.IsChecked == true;
+
+            // Interface: grid density + Mica
+            if (DensityCompactRadio?.IsChecked == true) s.CardDensity = "compact";
+            else if (DensityLargeRadio?.IsChecked == true) s.CardDensity = "large";
+            else s.CardDensity = "comfortable";
+            s.WindowMicaEnabled = ChkWindowMica?.IsChecked == true;
+
             s.Save();
+
+            // Apply taskbar appearance right away.
+            TaskbarManager.Instance.ApplyFromSettings();
+
+            // Restart the Wi-Fi auto-wallpaper watcher with the new settings.
+            try { WifiWatcher.Instance.Start(); } catch { }
 
             WallpaperManager.Instance.SetSafeWallpaper(s.SafeWallpaperPath);
             if (s.SlideshowEnabled)
@@ -656,7 +937,18 @@ namespace WallSafe
                 mw.ApplyHomeSectionsVisibility();
             }
 
-            Close();
+            _settingsApplied = true;
+        }
+
+        // Automatically persist & apply settings whenever the window closes,
+        // so there is no explicit "Save & Apply" step — just change and close.
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_settingsApplied)
+            {
+                try { ApplySettings(); } catch { }
+            }
+            base.OnClosing(e);
         }
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();

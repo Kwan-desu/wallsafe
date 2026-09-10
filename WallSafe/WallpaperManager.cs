@@ -426,12 +426,28 @@ namespace WallSafe
             // Check if user is playing a 3D game or running fullscreen video
             if (IsForegroundFullscreen()) return;
 
+            NextSlideshowWallpaper();
+        }
+
+        /// <summary>Immediately advance to a random wallpaper from the configured slideshow pool.
+        /// Usable from the tray menu even when the timer-based slideshow is off.</summary>
+        public void NextSlideshowWallpaper()
+        {
             try
             {
                 List<string> pool = new();
-                if (Settings.Instance.SlideshowSource == "downloads")
+                string src = Settings.Instance.SlideshowSource ?? "favorites";
+                if (src == "downloads")
                 {
                     pool = DownloadsManager.Instance.GetAllDownloads()
+                        .Where(i => !string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath))
+                        .Select(i => i.LocalPath!)
+                        .ToList();
+                }
+                else if (src.StartsWith("collection:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string collection = src.Substring("collection:".Length);
+                    pool = FavoritesManager.Instance.GetFavoritesByCollection(collection)
                         .Where(i => !string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath))
                         .Select(i => i.LocalPath!)
                         .ToList();

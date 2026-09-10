@@ -7,24 +7,22 @@
         Width="1080" Height="740"
         MinWidth="780" MinHeight="560"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        AllowsTransparency="False"
+        Background="{DynamicResource BgBrush}"
         ResizeMode="CanResize"
         ShowInTaskbar="True"
         Topmost="True"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Outer Container with Clean Windows 11 Fluent Shadow -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="50" ResizeBorderThickness="6"
+                      CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <!-- Outer Container (opaque themed background; Mica backdrop, when enabled, tints via DWM) -->
     <Border Background="{DynamicResource BgBrush}"
-            CornerRadius="12"
-            BorderThickness="1"
-            BorderBrush="{DynamicResource BorderBrush}"
             x:Name="RootBorder"
-            Margin="8"
             SizeChanged="RootBorder_SizeChanged">
-        <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="4" Opacity="0.35"/>
-        </Border.Effect>
 
         <Grid>
             <Grid.RowDefinitions>
@@ -37,7 +35,7 @@
             <!-- ═══════════════════════════════════════════════════════════
                  ROW 0: Top Title Bar & Main Nav Tabs
                  ═══════════════════════════════════════════════════════════ -->
-            <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}"
+            <Border Grid.Row="0" x:Name="TopBarBorder" Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="12,12,0,0"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="TitleBar_MouseDown" Cursor="SizeAll">
@@ -60,7 +58,8 @@
                     </StackPanel>
 
                     <!-- Navigation Tabs -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                WindowChrome.IsHitTestVisibleInChrome="True">
                         <RadioButton x:Name="NavHome" Style="{StaticResource NavTabStyle}" IsChecked="True"
                                      Padding="9,5" Checked="NavTab_Checked">
                             <StackPanel Orientation="Horizontal">
@@ -110,26 +109,59 @@
                         <!-- Subtle Divider -->
                         <Border Width="1" Height="16" Background="{DynamicResource BorderBrush}" Margin="10,0,10,0" VerticalAlignment="Center"/>
 
-                        <!-- SFW / NSFW Mode Quick Toggle Pill -->
-                        <Button x:Name="SfwToggleBtn"
-                                Style="{StaticResource TabButton}"
-                                Height="28" Padding="9,0"
-                                Click="SfwToggle_Click"
-                                ToolTip="Content Rating Mode: SFW Only | Questionable | Explicit (NSFW). Click to cycle mode."
-                                VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path x:Name="SfwToggleIcon" Data="{StaticResource IconShieldGeo}"
-                                      Fill="{DynamicResource EmeraldBrush}"
-                                      Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="SfwToggleText" Text="SFW Only"
-                                           Foreground="{DynamicResource EmeraldBrush}"
-                                           FontFamily="Segoe UI Semibold" FontSize="11" VerticalAlignment="Center"/>
+                        <!-- Segmented Content Rating Control (SFW | Questionable | Explicit) -->
+                        <Border x:Name="RatingSegmentedControl"
+                                Background="{DynamicResource ElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7" Padding="2" Height="28" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="RatingSegSfw" GroupName="RatingSeg"
+                                             Style="{StaticResource RatingSegmentStyle}"
+                                             Checked="RatingSegment_Checked" Tag="0"
+                                             ToolTip="Safe Mode: strictly SFW content (konachan.net).">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconShieldGeo}" Width="11" Height="11" Stretch="Uniform"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                              Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="SFW" VerticalAlignment="Center" FontSize="11"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="RatingSegQ" GroupName="RatingSeg"
+                                             Style="{StaticResource RatingSegmentStyle}"
+                                             Checked="RatingSegment_Checked" Tag="1"
+                                             ToolTip="Questionable: mild / suggestive / ecchi content.">
+                                    <TextBlock Text="Questionable" VerticalAlignment="Center" FontSize="11"/>
+                                </RadioButton>
+                                <RadioButton x:Name="RatingSegE" GroupName="RatingSeg"
+                                             Style="{StaticResource RatingSegmentStyle}"
+                                             Checked="RatingSegment_Checked" Tag="2"
+                                             ToolTip="Explicit: unrestricted 18+ NSFW content.">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconFireGeo}" Width="11" Height="11" Stretch="Uniform"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                              Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Explicit" VerticalAlignment="Center" FontSize="11"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="RatingSegCustom" GroupName="RatingSeg"
+                                             Style="{StaticResource RatingSegmentStyle}"
+                                             Checked="RatingSegment_Checked" Tag="3"
+                                             Visibility="Collapsed"
+                                             ToolTip="Custom: your own persistent filter profile (unlocked in Settings).">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconSettingsGeo}" Width="11" Height="11" Stretch="Uniform"
+                                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                              Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Custom" VerticalAlignment="Center" FontSize="11"/>
+                                    </StackPanel>
+                                </RadioButton>
                             </StackPanel>
-                        </Button>
+                        </Border>
                     </StackPanel>
 
                     <!-- Window Action Icons -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                                WindowChrome.IsHitTestVisibleInChrome="True">
                         <!-- Theme Toggle (Dark / Light Mode) -->
                         <Button x:Name="ThemeToggleBtn" Style="{StaticResource ToolButton}"
                                 ToolTip="Toggle Dark / Light Mode"
@@ -143,7 +175,7 @@
                                 ToolTip="Toggle Automated Wallpaper Slideshow"
                                 Click="SlideshowQuickToggle_Click" Padding="6,4" Margin="2,0,0,0">
                             <StackPanel Orientation="Horizontal">
-                                <Path x:Name="SlideshowIconPath" Data="{StaticResource IconTimerGeo}"
+                                <Path x:Name="SlideshowIconPath" Data="{StaticResource IconPlayGeo}"
                                       Fill="{DynamicResource SubtextBrush}" Width="13" Height="13" Stretch="Uniform"/>
                                 <Ellipse x:Name="SlideshowActiveDot" Width="5" Height="5"
                                          Fill="{DynamicResource EmeraldBrush}"
@@ -158,6 +190,14 @@
                                 Click="Refresh_Click" Padding="6,4" Margin="2,0,0,0">
                             <Path Data="{StaticResource IconRefreshGeo}" Fill="{DynamicResource SubtextBrush}"
                                   Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+
+                        <!-- Taskbar Transparency Quick Toggle -->
+                        <Button x:Name="TaskbarQuickToggle" Style="{StaticResource ToolButton}"
+                                ToolTip="Toggle Taskbar Transparency"
+                                Click="TaskbarQuickToggle_Click" Padding="6,4" Margin="2,0,0,0">
+                            <Path x:Name="TaskbarQuickIcon" Data="{StaticResource IconMonitorGeo}"
+                                  Fill="{DynamicResource SubtextBrush}" Width="13" Height="13" Stretch="Uniform"/>
                         </Button>
 
                         <!-- Settings -->
@@ -246,7 +286,7 @@
                                    VerticalOffset="4"
                                    StaysOpen="False"
                                    AllowsTransparency="True">
-                                <Border Background="{DynamicResource SurfaceBrush}"
+                                <Border Background="{DynamicResource AcrylicSurfaceBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1" CornerRadius="8"
                                         Width="{Binding ActualWidth, ElementName=SearchBarContainer}"
@@ -1089,14 +1129,68 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Wallpaper Scrollable Grid Control -->
-                <local:WallpaperGrid x:Name="WallpaperGridControl"
-                                     Visibility="Collapsed"
-                                     WallpaperApplied="WallpaperGrid_WallpaperApplied"
-                                     FavoriteToggled="WallpaperGrid_FavoriteToggled"
-                                     DownloadCompleted="WallpaperGrid_DownloadCompleted"
-                                     PreviewRequested="WallpaperGrid_PreviewRequested"
-                                     LoadMoreRequested="WallpaperGrid_LoadMoreRequested"/>
+                <!-- Explore results: status strip + filter chips + result count, above the grid -->
+                <Grid x:Name="ExploreResultsContainer" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Favorites collection bar (shown only in the Favorites section) -->
+                    <Border Grid.Row="0" x:Name="FavoritesCollectionBar" Visibility="Collapsed"
+                            Background="{DynamicResource BgBrush}" Padding="8,10,8,4">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="COLLECTIONS" Foreground="{DynamicResource MutedBrush}"
+                                           FontFamily="Segoe UI Bold" FontSize="10" VerticalAlignment="Center"/>
+                                <TextBlock Text="  •  drag a wallpaper onto a folder to organize it"
+                                           Foreground="{DynamicResource MutedBrush}" FontSize="9.5" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ItemsControl x:Name="CollectionChipsPanel" HorizontalAlignment="Left">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Filter chips + result count + reset -->
+                    <Grid Grid.Row="1" x:Name="ExploreChipsRow" Margin="8,8,8,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="ResultCountText" Text=""
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       FontFamily="Segoe UI Semibold" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ItemsControl x:Name="FilterChipsPanel" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" x:Name="ResetFiltersBtn" Style="{StaticResource ToolButton}"
+                                Content="Reset filters" FontSize="10.5" Padding="8,3"
+                                Visibility="Collapsed" Click="ResetFilters_Click"
+                                ToolTip="Clear all filters back to defaults"/>
+                    </Grid>
+
+                    <!-- Wallpaper Scrollable Grid Control -->
+                    <local:WallpaperGrid x:Name="WallpaperGridControl" Grid.Row="2"
+                                         WallpaperApplied="WallpaperGrid_WallpaperApplied"
+                                         FavoriteToggled="WallpaperGrid_FavoriteToggled"
+                                         DownloadCompleted="WallpaperGrid_DownloadCompleted"
+                                         PreviewRequested="WallpaperGrid_PreviewRequested"
+                                         LoadMoreRequested="WallpaperGrid_LoadMoreRequested"
+                                         PostsChanged="WallpaperGrid_PostsChanged"
+                                         MoveToCollectionRequested="WallpaperGrid_MoveToCollectionRequested"/>
+                </Grid>
 
                 <!-- Empty State Message -->
                 <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -1332,7 +1426,17 @@
                           Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <TextBlock x:Name="ToastIcon" Text="" Visibility="Collapsed"/>
                     <TextBlock x:Name="ToastMessage" Text="Action completed"
-                               Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12"/>
+                               Foreground="White" FontFamily="Segoe UI Semibold" FontSize="12" VerticalAlignment="Center"/>
+                    <Button x:Name="ToastUndoBtn" Content="Undo" Visibility="Collapsed"
+                            Click="ToastUndo_Click" Cursor="Hand" Margin="12,0,0,0"
+                            AutomationProperties.Name="Undo the last action"
+                            Foreground="White" FontFamily="Segoe UI Bold" FontSize="12"
+                            Background="#33FFFFFF" BorderBrush="#66FFFFFF" BorderThickness="1"
+                            Padding="8,2" VerticalAlignment="Center">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                        </Button.Resources>
+                    </Button>
                 </StackPanel>
             </Border>
         </Grid>

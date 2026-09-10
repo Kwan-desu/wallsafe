@@ -16,6 +16,9 @@
             <Color x:Key="AccentColor">#7C3AED</Color>
             <Color x:Key="AccentHoverColor">#8B5CF6</Color>
             <Color x:Key="AccentGlowColor">#6D28D9</Color>
+            <Color x:Key="SecondaryAccentColor">#22D3EE</Color>
+            <Color x:Key="ElevatedColor">#1C202B</Color>
+            <Color x:Key="AcrylicSurfaceColor">#D9161922</Color>
 
             <Color x:Key="TextColor">#F8FAFC</Color>
             <Color x:Key="SubtextColor">#94A3B8</Color>
@@ -36,6 +39,9 @@
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
             <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlowColor}"/>
+            <SolidColorBrush x:Key="SecondaryAccentBrush" Color="{StaticResource SecondaryAccentColor}"/>
+            <SolidColorBrush x:Key="ElevatedBrush" Color="{StaticResource ElevatedColor}"/>
+            <SolidColorBrush x:Key="AcrylicSurfaceBrush" Color="{StaticResource AcrylicSurfaceColor}"/>
 
             <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}"/>
             <SolidColorBrush x:Key="SubtextBrush" Color="{StaticResource SubtextColor}"/>
@@ -248,6 +254,41 @@
                                 <Trigger Property="IsPressed" Value="True">
                                     <Setter TargetName="bd" Property="Background" Value="#B91C1C"/>
                                 </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Segmented Rating Control Button -->
+            <Style x:Key="RatingSegmentStyle" TargetType="RadioButton">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="9,0"/>
+                <Setter Property="FontFamily" Value="Segoe UI Semibold"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                    CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="IsChecked" Value="False"/>
+                                        <Condition Property="IsMouseOver" Value="True"/>
+                                    </MultiTrigger.Conditions>
+                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                </MultiTrigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>

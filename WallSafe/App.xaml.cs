@@ -97,13 +97,36 @@ namespace WallSafe
 
             _trayIcon.Click += TrayIcon_Click;
 
-            var ctx = new ContextMenuStrip();
-            ctx.Items.Add("Open WallSafe", null, (_, _) => ShowMainWindow());
-            ctx.Items.Add("Safe Wallpaper (Panic Toggle)", null, (_, _) => WallpaperManager.Instance.ApplySafeWallpaper());
+            var ctx = new ContextMenuStrip
+            {
+                Renderer = new TrayMenuRenderer(),
+                ShowImageMargin = false,
+                Font = new System.Drawing.Font("Segoe UI Semibold", 9.25f),
+                Padding = new Padding(4)
+            };
+
+            // Header (non-interactive brand row)
+            var header = new ToolStripMenuItem("WallSafe")
+            {
+                Enabled = false,
+                Font = new System.Drawing.Font("Segoe UI", 10.5f, System.Drawing.FontStyle.Bold)
+            };
+            ctx.Items.Add(header);
             ctx.Items.Add(new ToolStripSeparator());
 
-            var slideshowItem = new ToolStripMenuItem("Auto Slideshow");
-            slideshowItem.Checked = Settings.Instance.SlideshowEnabled;
+            ctx.Items.Add("  Open WallSafe", null, (_, _) => ShowMainWindow());
+            ctx.Items.Add("  Safe Wallpaper  ·  Panic Toggle", null, (_, _) => WallpaperManager.Instance.ApplySafeWallpaper());
+            ctx.Items.Add("  Next Wallpaper", null, (_, _) =>
+            {
+                try { WallpaperManager.Instance.NextSlideshowWallpaper(); } catch { }
+            });
+            ctx.Items.Add(new ToolStripSeparator());
+
+            var slideshowItem = new ToolStripMenuItem("  Auto Slideshow")
+            {
+                Checked = Settings.Instance.SlideshowEnabled,
+                CheckOnClick = false
+            };
             slideshowItem.Click += (_, _) =>
             {
                 Settings.Instance.SlideshowEnabled = !Settings.Instance.SlideshowEnabled;
@@ -116,12 +139,65 @@ namespace WallSafe
             };
             ctx.Items.Add(slideshowItem);
 
+            var taskbarItem = new ToolStripMenuItem("  Taskbar Transparency")
+            {
+                Checked = Settings.Instance.TaskbarTransparencyEnabled,
+                CheckOnClick = false
+            };
+            taskbarItem.Click += (_, _) =>
+            {
+                Settings.Instance.TaskbarTransparencyEnabled = !Settings.Instance.TaskbarTransparencyEnabled;
+                Settings.Instance.Save();
+                taskbarItem.Checked = Settings.Instance.TaskbarTransparencyEnabled;
+                TaskbarManager.Instance.ApplyFromSettings();
+            };
+            ctx.Items.Add(taskbarItem);
+
             ctx.Items.Add(new ToolStripSeparator());
-            ctx.Items.Add("Exit WallSafe", null, (_, _) => Shutdown());
+            ctx.Items.Add("  Exit WallSafe", null, (_, _) => Shutdown());
+
+            // Keep the checkmarks in sync each time the menu opens (state may change elsewhere).
+            ctx.Opening += (_, _) =>
+            {
+                slideshowItem.Checked = Settings.Instance.SlideshowEnabled;
+                taskbarItem.Checked = Settings.Instance.TaskbarTransparencyEnabled;
+            };
+
+            // Clip the menu window to a rounded-rectangle region so the square window
+            // corners don't show a dark artifact behind our rounded background.
+            void ApplyRoundedRegion()
+            {
+                try
+                {
+                    int r = 12;
+                    var rect = new System.Drawing.Rectangle(0, 0, ctx.Width, ctx.Height);
+                    using var path = new System.Drawing.Drawing2D.GraphicsPath();
+                    int d = r * 2;
+                    if (rect.Width > d && rect.Height > d)
+                    {
+                        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+                        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+                        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+                        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+                        path.CloseFigure();
+                        ctx.Region = new System.Drawing.Region(path);
+                    }
+                }
+                catch { }
+            }
+            ctx.Opened += (_, _) => ApplyRoundedRegion();
+            ctx.SizeChanged += (_, _) => ApplyRoundedRegion();
+
             _trayIcon.ContextMenuStrip = ctx;
 
             // Register global panic hotkey
             HotkeyManager.Instance.ReRegister();
+
+            // Apply the merged taskbar-transparency appearance (TranslucentTB engine) if enabled.
+            try { TaskbarManager.Instance.ApplyFromSettings(); } catch { }
+
+            // Start the Wi-Fi-triggered auto-wallpaper watcher if enabled.
+            try { WifiWatcher.Instance.Start(); } catch { }
 
             // Check if launched on Windows startup or requested minimized
             bool isAutoStart = false;
@@ -194,6 +270,9 @@ namespace WallSafe
         protected override void OnExit(ExitEventArgs e)
         {
             try { HotkeyManager.Instance.Dispose(); } catch { }
+            // Restore the taskbar to its default Windows appearance and stop the engine.
+            try { TaskbarManager.Instance.Dispose(); } catch { }
+            try { WifiWatcher.Instance.Dispose(); } catch { }
             if (_trayIcon != null)
             {
                 try { _trayIcon.Visible = false; } catch { }
@@ -211,6 +290,7 @@ namespace WallSafe
 
         private static System.Drawing.Icon LoadAppIcon()
         {
+            // 1. Prefer a loose WallSafe.ico next to the executable (highest fidelity, multi-res).
             try
             {
                 string exePath = AppDomain.CurrentDomain.BaseDirectory;
@@ -222,7 +302,25 @@ namespace WallSafe
             }
             catch { }
 
-            // Fallback GDI+ generated icon — copy the icon so the HICON handle can be freed immediately
+            // 2. Fall back to the icon embedded in the running executable itself
+            //    (the <ApplicationIcon> baked in at build time). This works even for
+            //    single-file self-contained publishes where no loose .ico exists.
+            try
+            {
+                string? exeFile = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exeFile) && File.Exists(exeFile))
+                {
+                    var extracted = System.Drawing.Icon.ExtractAssociatedIcon(exeFile);
+                    if (extracted != null)
+                    {
+                        // Clone so the icon is independent of any transient handle.
+                        return (System.Drawing.Icon)extracted.Clone();
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Last-resort GDI+ generated icon — copy the icon so the HICON handle can be freed immediately
             using var bmp = new Bitmap(32, 32);
             using var g = Graphics.FromImage(bmp);
             g.Clear(Color.Transparent);

@@ -26,6 +26,9 @@ namespace WallSafe
         public DateTime? CreatedAt { get; set; }
         public DateTime? AppliedAt { get; set; }
 
+        // Name of the favorite collection/folder this item belongs to. Empty = uncategorized.
+        public string Collection { get; set; } = "";
+
         public bool IsFavorite
         {
             get => _isFavorite;

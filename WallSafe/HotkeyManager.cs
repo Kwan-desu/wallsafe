@@ -25,6 +25,7 @@ namespace WallSafe
         private readonly NativeWindow _window = new HotkeyWindow();
         private int _registeredId = 0;
         private Action? _action;
+        private bool _panicTaskbarConcealed = false;
 
         public HotkeyManager()
         {
@@ -80,7 +81,24 @@ namespace WallSafe
                         WallpaperManager.MuteMasterAudio();
                     }
 
-                    // 4. Bimodal Safe Wallpaper Toggle
+                    // 4. Taskbar concealment: revert the (merged TranslucentTB) taskbar effect
+                    //    to Normal on conceal, and restore the user's appearance on the
+                    //    second (restore) press — kept in sync with the bimodal wallpaper toggle.
+                    if (Settings.Instance.TaskbarTransparencyEnabled && Settings.Instance.TaskbarRestoreOnPanic)
+                    {
+                        if (!_panicTaskbarConcealed)
+                        {
+                            TaskbarManager.Instance.Restore();
+                            _panicTaskbarConcealed = true;
+                        }
+                        else
+                        {
+                            TaskbarManager.Instance.ApplyFromSettings();
+                            _panicTaskbarConcealed = false;
+                        }
+                    }
+
+                    // 5. Bimodal Safe Wallpaper Toggle
                     WallpaperManager.Instance.ApplySafeWallpaper();
                 });
             });

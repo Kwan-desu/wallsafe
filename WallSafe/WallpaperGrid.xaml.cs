@@ -31,9 +31,11 @@ namespace WallSafe
         public event EventHandler<PostItem>? FavoriteToggled;
         public event EventHandler<PostItem>? DownloadCompleted;
         public event EventHandler<PostItem>? PreviewRequested;
+        public event EventHandler<PostItem>? MoveToCollectionRequested;
         public event EventHandler? LoadMoreRequested;
 
         private readonly ObservableCollection<PostItem> _posts = new();
+        private readonly HashSet<string> _postKeys = new(StringComparer.OrdinalIgnoreCase);
         private DateTime _lastLoadMoreTime = DateTime.MinValue;
         private const double LoadMoreThrottleMs = 600; // Minimum ms between load-more triggers
         private bool _isLoadingMore;
@@ -85,9 +87,14 @@ namespace WallSafe
                 availableWidth = 260;
             }
 
-            // Target column width ~240px: at ~480-600px usable width, cols = 2 (each ~240-300px)
-            // Desktop PC landscape widescreen ratio (16:9 / 16:10) suited for monitors rather than mobile portrait
-            int cols = Math.Max(2, (int)Math.Floor(availableWidth / 240.0));
+            // Target column width varies by user's density preference.
+            double targetColWidth = Settings.Instance.CardDensity switch
+            {
+                "compact" => 190.0,
+                "large" => 320.0,
+                _ => 240.0 // comfortable
+            };
+            int cols = Math.Max(2, (int)Math.Floor(availableWidth / targetColWidth));
             double itemWidth = Math.Floor(availableWidth / cols);
             double itemHeight = Math.Round(itemWidth * 0.58); // 16:9 - 16:10 landscape desktop ratio
 
@@ -101,6 +108,7 @@ namespace WallSafe
         public void Clear()
         {
             _posts.Clear();
+            _postKeys.Clear();
             _isLoadingMore = false;
             _canLoadMore = false;
             StopSpinnerAnimation();
@@ -109,6 +117,9 @@ namespace WallSafe
             EndOfResultsText.Visibility = Visibility.Collapsed;
             MainScroll.ScrollToTop();
         }
+
+        /// <summary>Re-run card layout after the density setting changes.</summary>
+        public void RefreshDensity() => UpdateCardDimensions();
 
         public void SetLoadingMore(bool isLoading)
         {
@@ -147,21 +158,35 @@ namespace WallSafe
             _canLoadMore = canLoadMore;
             foreach (var p in posts)
             {
-                _posts.Add(p);
+                var key = $"{p.Source}:{p.Id}";
+                if (_postKeys.Add(key))
+                {
+                    _posts.Add(p);
+                }
             }
             SetLoadingMore(false);
+            PostsChanged?.Invoke(this, _posts.Count);
         }
 
         public void SetPosts(IEnumerable<PostItem> posts, bool canLoadMore = false)
         {
             _posts.Clear();
+            _postKeys.Clear();
             _canLoadMore = canLoadMore;
             foreach (var p in posts)
             {
-                _posts.Add(p);
+                var key = $"{p.Source}:{p.Id}";
+                if (_postKeys.Add(key))
+                {
+                    _posts.Add(p);
+                }
             }
             SetLoadingMore(false);
+            PostsChanged?.Invoke(this, _posts.Count);
         }
+
+        /// <summary>Raised whenever the number of displayed posts changes (for result-count UI).</summary>
+        public event EventHandler<int>? PostsChanged;
 
         private void StartSpinnerAnimation()
         {
@@ -194,6 +219,9 @@ namespace WallSafe
 
         private void Card_PreviewRequested(object? sender, PostItem e) =>
             PreviewRequested?.Invoke(this, e);
+
+        private void Card_MoveToCollectionRequested(object? sender, PostItem e) =>
+            MoveToCollectionRequested?.Invoke(this, e);
 
         private void LoadMore_Click(object sender, RoutedEventArgs e) =>
             TriggerLoadMore();

@@ -57,6 +57,7 @@
             <MenuItem Header="Set as Windows Lock Screen" Click="ContextMenu_SetLockScreen"/>
             <Separator/>
             <MenuItem Header="Toggle Favorite" Click="ContextMenu_ToggleFavorite"/>
+            <MenuItem Header="Move to Collection…" Click="ContextMenu_MoveToCollection"/>
             <MenuItem Header="Download Original (Full-Res)" Click="ContextMenu_Download"/>
             <Separator/>
             <MenuItem Header="Copy Image URL" Click="ContextMenu_CopyUrl"/>
@@ -67,8 +68,14 @@
     <Border x:Name="CardBorder" Background="{DynamicResource CardBgBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1" CornerRadius="8"
+            Focusable="True" KeyboardNavigation.IsTabStop="True" Cursor="Hand"
+            AutomationProperties.Name="Wallpaper. Press Enter to preview, A to apply, F to favorite, D to download."
             MouseEnter="Card_MouseEnter" MouseLeave="Card_MouseLeave"
-            MouseLeftButtonDown="Card_MouseLeftButtonDown">
+            MouseLeftButtonDown="Card_MouseLeftButtonDown"
+            MouseMove="Card_MouseMove"
+            KeyDown="Card_KeyDown"
+            GotKeyboardFocus="Card_GotKeyboardFocus"
+            LostKeyboardFocus="Card_LostKeyboardFocus">
         <Border.Effect>
             <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Opacity="0.25"/>
         </Border.Effect>
@@ -152,21 +159,24 @@
                     <!-- Right: Icon-Only Action Buttons (Favorite, Apply, Download) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- 1. Favorite Toggle (♥) -->
-                        <Button x:Name="CardFavBtn" Style="{StaticResource CardActionBtn}" ToolTip="Favorite"
+                        <Button x:Name="CardFavBtn" Style="{StaticResource CardActionBtn}" ToolTip="Favorite (F)"
+                                AutomationProperties.Name="Toggle favorite"
                                 Click="Favorite_Click" Margin="0,0,4,0" Width="22" Height="22">
                             <Path x:Name="CardFavIcon" Data="{StaticResource IconHeartGeo}"
                                   Fill="{DynamicResource CardActionBtnFgBrush}" Stretch="Uniform" Width="10.5" Height="10.5"/>
                         </Button>
 
                         <!-- 2. Set Wallpaper (⚡) -->
-                        <Button x:Name="CardApplyBtn" Style="{StaticResource CardActionBtn}" ToolTip="Apply as Desktop Wallpaper"
+                        <Button x:Name="CardApplyBtn" Style="{StaticResource CardActionBtn}" ToolTip="Apply as Desktop Wallpaper (A)"
+                                AutomationProperties.Name="Apply as desktop wallpaper"
                                 Click="SetWallpaper_Click" Margin="0,0,4,0" Width="22" Height="22">
                             <Path x:Name="CardApplyIcon" Data="{StaticResource IconBoltGeo}" Fill="#8B5CF6"
                                   Stretch="Uniform" Width="10" Height="10"/>
                         </Button>
 
                         <!-- 3. Download Full-Res (📥) -->
-                        <Button x:Name="CardDownloadBtn" Style="{StaticResource CardActionBtn}" ToolTip="Download Original Wallpaper"
+                        <Button x:Name="CardDownloadBtn" Style="{StaticResource CardActionBtn}" ToolTip="Download Original Wallpaper (D)"
+                                AutomationProperties.Name="Download original full resolution wallpaper"
                                 Click="Download_Click" Margin="0,0,3,0" Width="22" Height="22">
                             <Path x:Name="DownloadIconPath" Data="{StaticResource IconDownloadGeo}" Fill="#0EA5E9"
                                   Stretch="Uniform" Width="10" Height="10"/>
@@ -174,6 +184,7 @@
 
                         <!-- 4. Open in Web Browser (↗) -->
                         <Button Style="{StaticResource CardActionBtn}" ToolTip="View on Web Source"
+                                AutomationProperties.Name="Open source post in web browser"
                                 Click="OpenWeb_Click" Width="22" Height="22">
                             <Path Data="{StaticResource IconExternalGeo}" Fill="{DynamicResource MutedBrush}" Stretch="Uniform" Width="9.5" Height="9.5"/>
                         </Button>
@@ -181,14 +192,19 @@
                 </Grid>
             </Border>
 
-            <!-- Success Notification Overlay -->
+            <!-- Success / Error Notification Overlay (clickable to retry on errors) -->
             <Border x:Name="NoticeOverlay" Background="{DynamicResource AccentBrush}" CornerRadius="6"
                     Margin="10" VerticalAlignment="Center" Visibility="Collapsed"
-                    Padding="12,8">
+                    Padding="12,8" MouseLeftButtonDown="NoticeOverlay_Click">
                 <TextBlock x:Name="NoticeText" Text="Wallpaper Set!" Foreground="White"
-                           FontFamily="Segoe UI Semibold" FontSize="11"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           FontFamily="Segoe UI Semibold" FontSize="11" TextWrapping="Wrap"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
             </Border>
+
+            <!-- Keyboard Focus Ring (shown only when the card has keyboard focus) -->
+            <Border x:Name="FocusRing" CornerRadius="8" IsHitTestVisible="False"
+                    Visibility="Collapsed" BorderThickness="2.5"
+                    BorderBrush="{DynamicResource AccentHoverBrush}"/>
         </Grid>
     </Border>
 </UserControl>

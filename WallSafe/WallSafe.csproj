@@ -26,4 +26,13 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
+  <!-- Ensure the multi-resolution WallSafe.ico sits next to the published exe so the
+       system-tray icon loads the full-quality icon even for single-file publishes
+       (LoadAppIcon() prefers the loose file, then falls back to the embedded exe icon). -->
+  <Target Name="CopyIconToPublishDir" AfterTargets="Publish">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\WallSafe.ico"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="false" />
+  </Target>
+
 </Project>

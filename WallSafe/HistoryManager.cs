@@ -110,5 +110,17 @@ namespace WallSafe
             }
             Save();
         }
+
+        /// <summary>Restore a previously-captured history snapshot (used for Undo).</summary>
+        public void RestoreHistory(List<PostItem> snapshot)
+        {
+            if (snapshot == null) return;
+            lock (_lock)
+            {
+                _history.Clear();
+                _history.AddRange(snapshot);
+            }
+            Save();
+        }
     }
 }

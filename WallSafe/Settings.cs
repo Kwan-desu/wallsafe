@@ -23,6 +23,18 @@ namespace WallSafe
         public string Source { get; set; } = "konasfw";
     }
 
+    /// <summary>A single dynamic taskbar appearance state (TranslucentTB-style).</summary>
+    public class TaskbarStateAppearance
+    {
+        public bool Enabled { get; set; }
+        // 0=Normal, 1=Opaque, 2=Clear, 3=Blur, 4=Acrylic
+        public int AccentState { get; set; } = 4;
+        // 0xAARRGGBB
+        public int ColorArgb { get; set; } = unchecked((int)0x66000000);
+        // When true, no color tint is applied — only the accent effect (transparent gradient color).
+        public bool NoTint { get; set; } = false;
+    }
+
     public class Settings
     {
         public static readonly Settings Instance = Load();
@@ -69,6 +81,21 @@ namespace WallSafe
         public string AspectRatioFilter { get; set; } = "all"; // all, landscape, ultrawide, portrait
         public string Theme { get; set; } = "Dark"; // "Dark" or "Light"
 
+        // Grid card density: "compact" | "comfortable" | "large"
+        public string CardDensity { get; set; } = "comfortable";
+
+        // Windows 11 Mica window backdrop (opt-in; falls back to opaque on older Windows).
+        public bool WindowMicaEnabled { get; set; } = false;
+
+        // ── Wi-Fi-triggered auto wallpaper ──
+        // When connected to WifiTriggerSsid, automatically apply a wallpaper.
+        public bool WifiAutoWallpaperEnabled { get; set; } = false;
+        public string WifiTriggerSsid { get; set; } = "";
+        // Wallpaper to apply when the trigger SSID connects. Empty = use SafeWallpaperPath.
+        public string WifiTriggerWallpaperPath { get; set; } = "";
+        // Optionally restore the previous wallpaper when disconnecting from the trigger SSID.
+        public bool WifiRestoreOnDisconnect { get; set; } = false;
+
         // Home Dashboard Section Visibility
         public bool ShowHomeHero { get; set; } = true;
         public bool ShowHomeQuickControls { get; set; } = true;
@@ -91,6 +118,33 @@ namespace WallSafe
         // Content Discretion & Filtering
         public bool DiscretionBlur { get; set; } = false;
         public string TagBlacklist { get; set; } = "";
+
+        // ── Taskbar Transparency Engine (merged from TranslucentTB) ──
+        // Master enable for the built-in taskbar transparency feature.
+        public bool TaskbarTransparencyEnabled { get; set; } = false;
+        // 0=Normal, 1=Opaque, 2=Clear, 3=Blur, 4=Acrylic (matches TaskbarManager.AccentState)
+        public int TaskbarAccentState { get; set; } = 4; // Acrylic by default
+        // Tint color as 0xAARRGGBB. Default: subtle dark translucent tint.
+        public int TaskbarColorArgb { get; set; } = unchecked((int)0x66000000);
+        // When true, the taskbar reverts to Normal while the panic hotkey conceals WallSafe,
+        // then restores the configured appearance on the second (restore) press.
+        public bool TaskbarRestoreOnPanic { get; set; } = true;
+
+        // ── Dynamic per-state taskbar appearances (TranslucentTB-style) ──
+        // Each state has its own enabled flag, accent state and tint color. They are
+        // evaluated by priority (Maximized > Visible window > Start opened > Desktop).
+        public TaskbarStateAppearance DesktopAppearance { get; set; }
+            = new() { Enabled = true, AccentState = 4, ColorArgb = unchecked((int)0x66000000) };
+        public TaskbarStateAppearance VisibleWindowAppearance { get; set; }
+            = new() { Enabled = false, AccentState = 2, ColorArgb = unchecked((int)0x99000000) };
+        public TaskbarStateAppearance MaximizedWindowAppearance { get; set; }
+            = new() { Enabled = false, AccentState = 1, ColorArgb = unchecked((int)0xFF1C1C1C) };
+        public TaskbarStateAppearance StartOpenedAppearance { get; set; }
+            = new() { Enabled = false, AccentState = 4, ColorArgb = unchecked((int)0x66000000) };
+
+        // Migrates the old single-appearance settings into the new Desktop state (run once).
+        [JsonProperty]
+        private bool TaskbarStatesMigrated { get; set; } = false;
 
         [JsonIgnore]
         public bool HotkeyCtrl
@@ -182,6 +236,7 @@ namespace WallSafe
                             if (!string.IsNullOrEmpty(detectedWin11))
                                 s.SafeWallpaperPath = detectedWin11;
                         }
+                        s.MigrateTaskbarStates();
                         return s;
                     }
                 }
@@ -195,6 +250,18 @@ namespace WallSafe
                 newSettings.SafeWallpaperPath = detected;
             }
             return newSettings;
+        }
+
+        /// <summary>One-time migration: seed the Desktop dynamic state from the legacy
+        /// single-appearance taskbar settings so existing configs keep working.</summary>
+        public void MigrateTaskbarStates()
+        {
+            if (TaskbarStatesMigrated) return;
+            DesktopAppearance ??= new TaskbarStateAppearance();
+            DesktopAppearance.Enabled = true;
+            DesktopAppearance.AccentState = TaskbarAccentState;
+            DesktopAppearance.ColorArgb = TaskbarColorArgb;
+            TaskbarStatesMigrated = true;
         }
 
         public void Save()

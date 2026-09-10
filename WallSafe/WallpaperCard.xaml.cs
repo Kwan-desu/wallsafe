@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaGeometry = System.Windows.Media.Geometry;
@@ -16,6 +17,7 @@ namespace WallSafe
         public event EventHandler<PostItem>? FavoriteToggled;
         public event EventHandler<PostItem>? DownloadCompleted;
         public event EventHandler<PostItem>? PreviewRequested;
+        public event EventHandler<PostItem>? MoveToCollectionRequested;
 
         public PostItem? Item => DataContext as PostItem;
 
@@ -52,6 +54,9 @@ namespace WallSafe
 
         private void Card_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            // A single click focuses the card for keyboard interaction; double-click opens preview.
+            Keyboard.Focus(CardBorder);
+            _dragStart = e.GetPosition(null);
             if (e.ClickCount == 2)
             {
                 if (Item != null)
@@ -59,6 +64,77 @@ namespace WallSafe
                     PreviewRequested?.Invoke(this, Item);
                 }
                 e.Handled = true;
+            }
+        }
+
+        private System.Windows.Point _dragStart;
+
+        private void Card_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || Item == null) return;
+            var pos = e.GetPosition(null);
+            if (System.Math.Abs(pos.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                System.Math.Abs(pos.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+                return;
+
+            // Begin a drag carrying this wallpaper so it can be dropped onto a collection folder.
+            try
+            {
+                var data = new System.Windows.DataObject("WallSafePostItem", Item);
+                System.Windows.DragDrop.DoDragDrop(this, data, System.Windows.DragDropEffects.Copy);
+            }
+            catch { }
+        }
+
+        // ─────────────── Keyboard accessibility ───────────────
+
+        private void Card_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (Item == null) return;
+            switch (e.Key)
+            {
+                case Key.Enter:
+                case Key.Space:
+                    PreviewRequested?.Invoke(this, Item);
+                    e.Handled = true;
+                    break;
+                case Key.A: // Apply as wallpaper
+                    SetWallpaper_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                    break;
+                case Key.F: // Favorite toggle
+                    Favorite_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                    break;
+                case Key.D: // Download
+                    Download_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                    break;
+                case Key.O: // Open source in browser
+                    OpenWeb_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                    break;
+            }
+        }
+
+        private void Card_GotKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+        {
+            if (FocusRing != null) FocusRing.Visibility = Visibility.Visible;
+            // Reveal a discreet (blurred) thumbnail while it has focus, so keyboard users
+            // aren't locked out of the mouse-hover reveal behavior.
+            if (Item?.IsDiscreet == true) ThumbImage.Effect = null;
+        }
+
+        private void Card_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e)
+        {
+            if (FocusRing != null) FocusRing.Visibility = Visibility.Collapsed;
+            if (Item?.IsDiscreet == true)
+            {
+                ThumbImage.Effect = new System.Windows.Media.Effects.BlurEffect
+                {
+                    Radius = 24,
+                    KernelType = System.Windows.Media.Effects.KernelType.Gaussian
+                };
             }
         }
 
@@ -183,6 +259,12 @@ namespace WallSafe
             if (CardFavIcon == null) return;
             try
             {
+                if (CardFavBtn != null)
+                {
+                    System.Windows.Automation.AutomationProperties.SetName(
+                        CardFavBtn,
+                        Item != null && Item.IsFavorite ? "Remove from favorites" : "Add to favorites");
+                }
                 if (Item != null && Item.IsFavorite)
                 {
                     if (TryFindResource("PinkHeartBrush") is MediaBrush pink)
@@ -216,6 +298,12 @@ namespace WallSafe
 
             try
             {
+                if (CardDownloadBtn != null)
+                {
+                    System.Windows.Automation.AutomationProperties.SetName(
+                        CardDownloadBtn,
+                        Item != null && Item.IsDownloaded ? "Already downloaded" : "Download original full resolution wallpaper");
+                }
                 if (Item != null && Item.IsDownloaded)
                 {
                     if (TryFindResource("IconCheckGeo") is MediaGeometry checkGeo)
@@ -286,7 +374,8 @@ namespace WallSafe
             }
             catch (Exception ex)
             {
-                ShowNotice($"Error: {ex.Message}");
+                ShowRetryNotice(FriendlyError("Couldn't set wallpaper", ex),
+                    () => SetWallpaper_Click(sender, e));
             }
         }
 
@@ -312,8 +401,26 @@ namespace WallSafe
             catch (Exception ex)
             {
                 DownloadBar.Visibility = Visibility.Collapsed;
-                ShowNotice($"Failed: {ex.Message}");
+                ShowRetryNotice(FriendlyError("Download failed", ex),
+                    () => Download_Click(sender, e));
             }
+        }
+
+        /// <summary>Translate a raw exception into a short, human-readable message.</summary>
+        private static string FriendlyError(string prefix, Exception ex)
+        {
+            string detail = ex switch
+            {
+                System.Net.Http.HttpRequestException => "network problem — check your connection",
+                TaskCanceledException => "the request timed out",
+                OperationCanceledException => "the request timed out",
+                UnauthorizedAccessException => "permission denied writing the file",
+                IOException io when io.Message.Contains("disk", StringComparison.OrdinalIgnoreCase)
+                    => "not enough disk space",
+                IOException => "a file error occurred",
+                _ => "an unexpected error occurred"
+            };
+            return $"{prefix}: {detail}. Tap to retry.";
         }
 
         private void OpenWeb_Click(object sender, RoutedEventArgs e)
@@ -337,6 +444,8 @@ namespace WallSafe
             _noticeCts = new CancellationTokenSource();
             var ct = _noticeCts.Token;
 
+            _retryAction = null;
+            NoticeOverlay.Cursor = System.Windows.Input.Cursors.Arrow;
             NoticeText.Text = text;
             NoticeOverlay.Visibility = Visibility.Visible;
 
@@ -346,6 +455,42 @@ namespace WallSafe
                 NoticeOverlay.Visibility = Visibility.Collapsed;
             }
             catch (OperationCanceledException) { /* replaced by newer notice — leave visible */ }
+        }
+
+        private Action? _retryAction;
+
+        /// <summary>Show an error notice the user can click (or press Enter on) to retry.</summary>
+        private async void ShowRetryNotice(string text, Action retry)
+        {
+            _noticeCts.Cancel();
+            _noticeCts = new CancellationTokenSource();
+            var ct = _noticeCts.Token;
+
+            _retryAction = retry;
+            NoticeText.Text = text;
+            NoticeOverlay.Cursor = System.Windows.Input.Cursors.Hand;
+            System.Windows.Automation.AutomationProperties.SetName(NoticeOverlay, text);
+            NoticeOverlay.Visibility = Visibility.Visible;
+
+            try
+            {
+                // Errors linger longer (5s) so the user has time to click retry.
+                await Task.Delay(5000, ct);
+                NoticeOverlay.Visibility = Visibility.Collapsed;
+                _retryAction = null;
+            }
+            catch (OperationCanceledException) { }
+        }
+
+        private void NoticeOverlay_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var action = _retryAction;
+            if (action != null)
+            {
+                _retryAction = null;
+                NoticeOverlay.Visibility = Visibility.Collapsed;
+                action();
+            }
         }
 
         private void ContextMenu_SetWallpaper(object sender, RoutedEventArgs e)
@@ -371,13 +516,20 @@ namespace WallSafe
             }
             catch (Exception ex)
             {
-                ShowNotice($"Error: {ex.Message}");
+                ShowRetryNotice(FriendlyError("Couldn't set lock screen", ex),
+                    () => ContextMenu_SetLockScreen(sender, e));
             }
         }
 
         private void ContextMenu_ToggleFavorite(object sender, RoutedEventArgs e)
         {
             Favorite_Click(sender, e);
+        }
+
+        private void ContextMenu_MoveToCollection(object sender, RoutedEventArgs e)
+        {
+            if (Item != null)
+                MoveToCollectionRequested?.Invoke(this, Item);
         }
 
         private void ContextMenu_Download(object sender, RoutedEventArgs e)
