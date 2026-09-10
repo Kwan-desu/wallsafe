@@ -438,24 +438,31 @@
                                             <TextBlock Text="WI-FI AUTO WALLPAPER" Foreground="{DynamicResource TextBrush}"
                                                        FontFamily="Segoe UI Bold" FontSize="11"/>
                                         </StackPanel>
-                                        <TextBlock Text="Automatically switch to a safe/neutral wallpaper when you connect to a specific network (e.g. school or work Wi-Fi)."
+                                        <TextBlock Text="Automatically switch to a safe/neutral wallpaper when you connect to one of these networks (e.g. school or work Wi-Fi)."
                                                    Foreground="{DynamicResource SubtextBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                                         <CheckBox x:Name="ChkWifiAuto" Content="Enable Wi-Fi-triggered wallpaper switching"
                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"
                                                   Checked="WifiAuto_Changed" Unchecked="WifiAuto_Changed"/>
 
-                                        <TextBlock Text="Trigger network name (SSID):" Foreground="{DynamicResource SubtextBrush}"
+                                        <TextBlock Text="Trigger network names (one SSID per line):" Foreground="{DynamicResource SubtextBrush}"
                                                    FontSize="10" Margin="0,0,0,4"/>
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="WifiSsidBox" Grid.Column="0" Style="{StaticResource ModernSearchBox}" Height="32"/>
-                                            <Button Grid.Column="1" Style="{StaticResource TabButton}" Content="Use current"
-                                                    Margin="8,0,0,0" Padding="10,0" Click="WifiUseCurrent_Click"
-                                                    ToolTip="Fill in the network you're connected to right now"/>
+                                            <TextBox x:Name="WifiSsidBox" Grid.Column="0" Style="{StaticResource ModernMultiLineTextBox}"
+                                                     MinHeight="60" MaxHeight="120" Height="68"/>
+                                            <Button Grid.Column="1" Style="{StaticResource TabButton}" Content="Add current"
+                                                    Margin="8,0,0,0" Padding="10,0" VerticalAlignment="Top" Height="32"
+                                                    Click="WifiUseCurrent_Click"
+                                                    ToolTip="Add the network you're connected to right now"/>
+                                            <Button Grid.Column="2" Style="{StaticResource TabButton}" Content="From saved…"
+                                                    Margin="8,0,0,0" Padding="10,0" VerticalAlignment="Top" Height="32"
+                                                    Click="WifiFromSaved_Click"
+                                                    ToolTip="Pick from Wi-Fi networks saved on this PC (works even when offline)"/>
                                         </Grid>
 
                                         <TextBlock Text="Wallpaper to apply (leave empty to use the Safe Wallpaper above):"

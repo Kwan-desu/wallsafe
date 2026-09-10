@@ -169,16 +169,166 @@ namespace WallSafe
         private void WifiUseCurrent_Click(object sender, RoutedEventArgs e)
         {
             var ssid = WifiWatcher.GetCurrentSsid();
-            if (!string.IsNullOrEmpty(ssid) && WifiSsidBox != null)
+            if (!string.IsNullOrEmpty(ssid))
             {
-                WifiSsidBox.Text = ssid;
+                AddSsid(ssid!);
             }
             else
             {
                 System.Windows.MessageBox.Show(
-                    "Couldn't detect a connected Wi-Fi network. Make sure you're connected, then try again.",
+                    "Couldn't detect a connected Wi-Fi network. You can add a saved network with \"From saved…\" instead, or type the name manually.",
                     "Wi-Fi", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private void WifiFromSaved_Click(object sender, RoutedEventArgs e)
+        {
+            List<string> profiles;
+            try { profiles = WifiWatcher.GetSavedProfiles(); }
+            catch { profiles = new List<string>(); }
+
+            if (profiles.Count == 0)
+            {
+                System.Windows.MessageBox.Show(
+                    "No saved Wi-Fi networks were found on this PC. Once you've connected to a network at least once, it will show up here — or you can type the name manually.",
+                    "Wi-Fi", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var chosen = ShowSavedProfilePicker(profiles);
+            foreach (var ssid in chosen)
+                AddSsid(ssid);
+        }
+
+        /// <summary>Append an SSID to the box as a new line, skipping case-insensitive duplicates.</summary>
+        private void AddSsid(string ssid)
+        {
+            if (WifiSsidBox == null || string.IsNullOrWhiteSpace(ssid)) return;
+            ssid = ssid.Trim();
+
+            var existing = WifiSsidBox.Text
+                .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var e2 in existing)
+            {
+                if (string.Equals(e2.Trim(), ssid, StringComparison.OrdinalIgnoreCase))
+                    return; // already present
+            }
+
+            var current = WifiSsidBox.Text.TrimEnd('\r', '\n');
+            WifiSsidBox.Text = string.IsNullOrWhiteSpace(current) ? ssid : current + Environment.NewLine + ssid;
+            WifiSsidBox.CaretIndex = WifiSsidBox.Text.Length;
+        }
+
+        /// <summary>
+        /// Show a small modal picker listing saved Wi-Fi profiles (multi-select).
+        /// Returns the selected SSIDs, or an empty list if cancelled.
+        /// </summary>
+        private List<string> ShowSavedProfilePicker(List<string> profiles)
+        {
+            var result = new List<string>();
+
+            var list = new System.Windows.Controls.ListBox
+            {
+                SelectionMode = System.Windows.Controls.SelectionMode.Extended,
+                Margin = new Thickness(0, 0, 0, 10),
+                MinHeight = 180,
+                Background = (System.Windows.Media.Brush)FindResource("CardBgBrush"),
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1)
+            };
+            list.ItemContainerStyle = new Style(typeof(System.Windows.Controls.ListBoxItem))
+            {
+                Setters =
+                {
+                    new Setter(System.Windows.Controls.Control.PaddingProperty, new Thickness(8, 5, 8, 5)),
+                    new Setter(System.Windows.Controls.Control.CursorProperty, System.Windows.Input.Cursors.Hand)
+                }
+            };
+            foreach (var p in profiles) list.Items.Add(p);
+
+            var okButton = new System.Windows.Controls.Button
+            {
+                Content = "Add selected",
+                IsDefault = true,
+                MinWidth = 100,
+                Height = 32,
+                Margin = new Thickness(0, 0, 8, 0),
+                Padding = new Thickness(12, 0, 12, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "Cancel",
+                IsCancel = true,
+                MinWidth = 80,
+                Height = 32,
+                Padding = new Thickness(12, 0, 12, 0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            if (TryFindResource("TabButton") is Style tabBtnStyle)
+            {
+                okButton.Style = tabBtnStyle;
+                cancelButton.Style = tabBtnStyle;
+            }
+            if (TryFindResource("AccentBrush") is System.Windows.Media.Brush accent)
+            {
+                okButton.Background = accent;
+                okButton.Foreground = System.Windows.Media.Brushes.White;
+            }
+
+            var buttonRow = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            buttonRow.Children.Add(okButton);
+            buttonRow.Children.Add(cancelButton);
+
+            var root = new System.Windows.Controls.DockPanel { Margin = new Thickness(14) };
+            var header = new System.Windows.Controls.TextBlock
+            {
+                Text = "Select one or more saved networks to add (Ctrl/Shift to multi-select):",
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                FontSize = 11.5,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            System.Windows.Controls.DockPanel.SetDock(header, System.Windows.Controls.Dock.Top);
+            System.Windows.Controls.DockPanel.SetDock(buttonRow, System.Windows.Controls.Dock.Bottom);
+            root.Children.Add(header);
+            root.Children.Add(buttonRow);
+            root.Children.Add(list);
+
+            var dialog = new Window
+            {
+                Title = "Saved Wi-Fi networks",
+                Content = root,
+                Background = (System.Windows.Media.Brush)FindResource("SurfaceBrush"),
+                Width = 360,
+                Height = 340,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.CanResizeWithGrip
+            };
+
+            MicaHelper.SyncCaptionTheme(dialog);
+            MicaHelper.EnableRoundedCorners(dialog);
+
+            list.MouseDoubleClick += (_, _) =>
+            {
+                if (list.SelectedItem != null) dialog.DialogResult = true;
+            };
+
+            okButton.Click += (_, _) => { dialog.DialogResult = true; };
+
+            if (dialog.ShowDialog() == true)
+            {
+                foreach (var item in list.SelectedItems)
+                    if (item is string s) result.Add(s);
+            }
+            return result;
         }
 
         private void WifiBrowseWallpaper_Click(object sender, RoutedEventArgs e)
@@ -322,7 +472,11 @@ namespace WallSafe
 
             // Wi-Fi auto wallpaper
             if (ChkWifiAuto != null) ChkWifiAuto.IsChecked = s.WifiAutoWallpaperEnabled;
-            if (WifiSsidBox != null) WifiSsidBox.Text = s.WifiTriggerSsid;
+            if (WifiSsidBox != null)
+            {
+                var ssids = s.WifiTriggerSsids;
+                WifiSsidBox.Text = ssids.Count > 0 ? string.Join(Environment.NewLine, ssids) : s.WifiTriggerSsid;
+            }
             if (WifiWallpaperBox != null) WifiWallpaperBox.Text = s.WifiTriggerWallpaperPath;
             if (ChkWifiRestore != null) ChkWifiRestore.IsChecked = s.WifiRestoreOnDisconnect;
 
@@ -858,6 +1012,7 @@ namespace WallSafe
             // Wi-Fi auto wallpaper
             s.WifiAutoWallpaperEnabled = ChkWifiAuto?.IsChecked == true;
             s.WifiTriggerSsid = WifiSsidBox?.Text?.Trim() ?? "";
+            s.WifiTriggerSsid = string.Join(Environment.NewLine, s.WifiTriggerSsids);
             s.WifiTriggerWallpaperPath = WifiWallpaperBox?.Text?.Trim() ?? "";
             s.WifiRestoreOnDisconnect = ChkWifiRestore?.IsChecked == true;
 

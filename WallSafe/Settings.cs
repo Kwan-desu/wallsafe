@@ -88,9 +88,33 @@ namespace WallSafe
         public bool WindowMicaEnabled { get; set; } = false;
 
         // ── Wi-Fi-triggered auto wallpaper ──
-        // When connected to WifiTriggerSsid, automatically apply a wallpaper.
+        // When connected to any of the configured trigger SSIDs, automatically apply a wallpaper.
         public bool WifiAutoWallpaperEnabled { get; set; } = false;
+        // One or more trigger SSIDs. Multiple networks may be separated by newlines,
+        // commas or semicolons. Kept as a single string for backward-compatible JSON.
         public string WifiTriggerSsid { get; set; } = "";
+
+        /// <summary>
+        /// Parsed list of trigger SSIDs from <see cref="WifiTriggerSsid"/>. Entries may be
+        /// separated by newlines, commas or semicolons. Empty entries and duplicates are removed.
+        /// </summary>
+        [JsonIgnore]
+        public List<string> WifiTriggerSsids
+        {
+            get
+            {
+                var result = new List<string>();
+                if (string.IsNullOrWhiteSpace(WifiTriggerSsid)) return result;
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var raw in WifiTriggerSsid.Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var name = raw.Trim();
+                    if (name.Length > 0 && seen.Add(name))
+                        result.Add(name);
+                }
+                return result;
+            }
+        }
         // Wallpaper to apply when the trigger SSID connects. Empty = use SafeWallpaperPath.
         public string WifiTriggerWallpaperPath { get; set; } = "";
         // Optionally restore the previous wallpaper when disconnecting from the trigger SSID.
