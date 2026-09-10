@@ -124,6 +124,9 @@ namespace WallSafe
         private bool _isPanicActive = false;
         private readonly string _cacheDir;
         private readonly DispatcherTimer _slideshowTimer;
+        private readonly List<PostItem> _slideshowQueue = new();
+        private readonly object _slideshowLock = new();
+        private string? _lastSlideshowItemKey;
 
         public event Action<string>? WallpaperApplied;
         public event Action? SafeWallpaperTriggered;
@@ -272,7 +275,7 @@ namespace WallSafe
         {
             string targetPath;
 
-            if (post.IsDownloaded && !string.IsNullOrEmpty(post.LocalPath) && File.Exists(post.LocalPath))
+            if (!string.IsNullOrEmpty(post.LocalPath) && File.Exists(post.LocalPath))
             {
                 targetPath = post.LocalPath;
             }
@@ -406,12 +409,17 @@ namespace WallSafe
             Settings.Instance.Save();
         }
 
-        public void StartSlideshow(int intervalMinutes)
+        public void StartSlideshow(int intervalMinutes, bool advanceImmediately = false)
         {
             _slideshowTimer.Stop();
             int safeMinutes = Math.Max(1, intervalMinutes);
             _slideshowTimer.Interval = TimeSpan.FromMinutes(safeMinutes);
             _slideshowTimer.Start();
+
+            if (advanceImmediately)
+            {
+                NextSlideshowWallpaper();
+            }
         }
 
         public void StopSlideshow()
@@ -429,45 +437,117 @@ namespace WallSafe
             NextSlideshowWallpaper();
         }
 
-        /// <summary>Immediately advance to a random wallpaper from the configured slideshow pool.
-        /// Usable from the tray menu even when the timer-based slideshow is off.</summary>
+        /// <summary>Immediately advance to the next wallpaper in the shuffle cycle queue.
+        /// Usable from the tray menu or UI even when the timer-based slideshow is off.</summary>
         public void NextSlideshowWallpaper()
         {
-            try
+            if (_slideshowTimer.IsEnabled)
             {
-                List<string> pool = new();
-                string src = Settings.Instance.SlideshowSource ?? "favorites";
-                if (src == "downloads")
+                _slideshowTimer.Stop();
+                _slideshowTimer.Start();
+            }
+            _ = NextSlideshowWallpaperAsync();
+        }
+
+        public void ResetSlideshowQueue()
+        {
+            lock (_slideshowLock)
+            {
+                _slideshowQueue.Clear();
+            }
+        }
+
+        private static string GetItemKey(PostItem item)
+        {
+            if (!string.IsNullOrEmpty(item.Source) && item.Id > 0)
+                return $"{item.Source}_{item.Id}";
+            if (!string.IsNullOrEmpty(item.LocalPath))
+                return item.LocalPath;
+            if (!string.IsNullOrEmpty(item.FullDownloadUrl))
+                return item.FullDownloadUrl;
+            if (!string.IsNullOrEmpty(item.BestImageUrl))
+                return item.BestImageUrl;
+            return item.FileUrl ?? item.SampleUrl ?? item.PreviewUrl ?? Guid.NewGuid().ToString("N");
+        }
+
+        private List<PostItem> GetSlideshowPool()
+        {
+            List<PostItem> rawPool;
+            string src = Settings.Instance.SlideshowSource ?? "favorites";
+            if (src == "downloads")
+            {
+                rawPool = DownloadsManager.Instance.GetAllDownloads();
+            }
+            else if (src.StartsWith("collection:", StringComparison.OrdinalIgnoreCase))
+            {
+                string collection = src.Substring("collection:".Length);
+                rawPool = FavoritesManager.Instance.GetFavoritesByCollection(collection);
+            }
+            else
+            {
+                rawPool = FavoritesManager.Instance.GetAllFavorites();
+            }
+
+            return rawPool.Where(i =>
+                (!string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath)) ||
+                !string.IsNullOrEmpty(i.FullDownloadUrl) ||
+                !string.IsNullOrEmpty(i.BestImageUrl) ||
+                !string.IsNullOrEmpty(i.FileUrl) ||
+                !string.IsNullOrEmpty(i.SampleUrl)
+            ).ToList();
+        }
+
+        public async Task NextSlideshowWallpaperAsync()
+        {
+            if (_isPanicActive) return;
+
+            PostItem? nextItem = null;
+
+            lock (_slideshowLock)
+            {
+                var pool = GetSlideshowPool();
+                if (pool.Count == 0) return;
+
+                // Prune queue: remove items that are no longer in the active pool (e.g., deleted or unfavorited)
+                var poolKeys = new HashSet<string>(pool.Select(GetItemKey));
+                _slideshowQueue.RemoveAll(i => !poolKeys.Contains(GetItemKey(i)));
+
+                // If queue is empty, refill with all pool items and perform Fisher-Yates shuffle
+                // This guarantees every wallpaper is shown at least once per cycle before any repetitions
+                if (_slideshowQueue.Count == 0)
                 {
-                    pool = DownloadsManager.Instance.GetAllDownloads()
-                        .Where(i => !string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath))
-                        .Select(i => i.LocalPath!)
-                        .ToList();
-                }
-                else if (src.StartsWith("collection:", StringComparison.OrdinalIgnoreCase))
-                {
-                    string collection = src.Substring("collection:".Length);
-                    pool = FavoritesManager.Instance.GetFavoritesByCollection(collection)
-                        .Where(i => !string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath))
-                        .Select(i => i.LocalPath!)
-                        .ToList();
-                }
-                else
-                {
-                    pool = FavoritesManager.Instance.GetAllFavorites()
-                        .Where(i => !string.IsNullOrEmpty(i.LocalPath) && File.Exists(i.LocalPath))
-                        .Select(i => i.LocalPath!)
-                        .ToList();
+                    var cycle = new List<PostItem>(pool);
+                    for (int i = cycle.Count - 1; i > 0; i--)
+                    {
+                        int j = Random.Shared.Next(i + 1);
+                        (cycle[i], cycle[j]) = (cycle[j], cycle[i]);
+                    }
+
+                    // Anti-repeat boundary check: ensure first wallpaper in new cycle isn't identical to the last one played
+                    if (cycle.Count > 1 && !string.IsNullOrEmpty(_lastSlideshowItemKey) && GetItemKey(cycle[0]) == _lastSlideshowItemKey)
+                    {
+                        (cycle[0], cycle[^1]) = (cycle[^1], cycle[0]);
+                    }
+
+                    _slideshowQueue.AddRange(cycle);
                 }
 
-                if (pool.Count > 0)
+                if (_slideshowQueue.Count > 0)
                 {
-                    var rnd = new Random();
-                    string nextWall = pool[rnd.Next(pool.Count)];
-                    ApplyWallpaperFromPath(nextWall, Settings.Instance.TargetMonitor);
+                    nextItem = _slideshowQueue[0];
+                    _slideshowQueue.RemoveAt(0);
+                    _lastSlideshowItemKey = GetItemKey(nextItem);
                 }
             }
-            catch { }
+
+            if (nextItem != null)
+            {
+                try
+                {
+                    await ApplyWallpaperAsync(nextItem, Settings.Instance.TargetMonitor);
+                }
+                catch { }
+            }
         }
 
         public static bool IsForegroundFullscreen()

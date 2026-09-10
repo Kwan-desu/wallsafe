@@ -1031,7 +1031,11 @@ namespace WallSafe
             }
             if (SlideshowSourceCombo.SelectedItem is ComboBoxItem srcItem && srcItem.Tag is string srcVal)
             {
-                s.SlideshowSource = srcVal;
+                if (s.SlideshowSource != srcVal)
+                {
+                    s.SlideshowSource = srcVal;
+                    WallpaperManager.Instance.ResetSlideshowQueue();
+                }
             }
             if (MonitorTargetCombo.SelectedItem is ComboBoxItem monItem && monItem.Tag is int monVal)
             {

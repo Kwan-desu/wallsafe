@@ -306,7 +306,7 @@ namespace WallSafe
             Settings.Instance.Save();
             if (Settings.Instance.SlideshowEnabled)
             {
-                WallpaperManager.Instance.StartSlideshow(Settings.Instance.SlideshowIntervalMinutes);
+                WallpaperManager.Instance.StartSlideshow(Settings.Instance.SlideshowIntervalMinutes, advanceImmediately: true);
                 ShowToast("▶", "Slideshow Started");
             }
             else

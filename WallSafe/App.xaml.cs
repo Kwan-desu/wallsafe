@@ -133,7 +133,7 @@ namespace WallSafe
                 Settings.Instance.Save();
                 slideshowItem.Checked = Settings.Instance.SlideshowEnabled;
                 if (Settings.Instance.SlideshowEnabled)
-                    WallpaperManager.Instance.StartSlideshow(Settings.Instance.SlideshowIntervalMinutes);
+                    WallpaperManager.Instance.StartSlideshow(Settings.Instance.SlideshowIntervalMinutes, advanceImmediately: true);
                 else
                     WallpaperManager.Instance.StopSlideshow();
             };
