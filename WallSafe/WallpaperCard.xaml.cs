@@ -18,6 +18,25 @@ namespace WallSafe
         public event EventHandler<PostItem>? DownloadCompleted;
         public event EventHandler<PostItem>? PreviewRequested;
         public event EventHandler<PostItem>? MoveToCollectionRequested;
+        public event EventHandler<PostItem>? RemoveFromCollectionRequested;
+
+        public static readonly DependencyProperty IsInCollectionFolderProperty =
+            DependencyProperty.Register(nameof(IsInCollectionFolder), typeof(bool), typeof(WallpaperCard),
+                new PropertyMetadata(false, OnIsInCollectionFolderChanged));
+
+        public bool IsInCollectionFolder
+        {
+            get => (bool)GetValue(IsInCollectionFolderProperty);
+            set => SetValue(IsInCollectionFolderProperty, value);
+        }
+
+        private static void OnIsInCollectionFolderChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is WallpaperCard card)
+            {
+                card.UpdateFavoriteStatus();
+            }
+        }
 
         public PostItem? Item => DataContext as PostItem;
 
@@ -259,12 +278,41 @@ namespace WallSafe
             if (CardFavIcon == null) return;
             try
             {
+                if (IsInCollectionFolder)
+                {
+                    if (TryFindResource("IconFolderMinusGeo") is MediaGeometry minusGeo)
+                        CardFavIcon.Data = minusGeo;
+                    else if (TryFindResource("IconCloseGeo") is MediaGeometry closeGeo)
+                        CardFavIcon.Data = closeGeo;
+
+                    if (TryFindResource("AccentHoverBrush") is MediaBrush hoverBrush)
+                        CardFavIcon.Fill = hoverBrush;
+                    else if (new System.Windows.Media.BrushConverter().ConvertFromString("#F59E0B") is MediaBrush amber)
+                        CardFavIcon.Fill = amber;
+
+                    if (CardFavBtn != null)
+                    {
+                        string colName = !string.IsNullOrEmpty(Item?.Collection) ? Item.Collection : "collection";
+                        CardFavBtn.ToolTip = $"Remove from \u201c{colName}\u201d (keeps in Favorites) (F)";
+                        System.Windows.Automation.AutomationProperties.SetName(CardFavBtn, $"Remove from collection {colName}");
+                        var amberAlpha = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#33F59E0B");
+                        CardFavBtn.Background = new System.Windows.Media.SolidColorBrush(amberAlpha);
+                    }
+                    return;
+                }
+
+                // Normal favorite mode
+                if (TryFindResource("IconHeartGeo") is MediaGeometry heartGeo)
+                    CardFavIcon.Data = heartGeo;
+
                 if (CardFavBtn != null)
                 {
+                    CardFavBtn.ToolTip = "Favorite (F)";
                     System.Windows.Automation.AutomationProperties.SetName(
                         CardFavBtn,
                         Item != null && Item.IsFavorite ? "Remove from favorites" : "Add to favorites");
                 }
+
                 if (Item != null && Item.IsFavorite)
                 {
                     if (TryFindResource("PinkHeartBrush") is MediaBrush pink)
@@ -355,6 +403,16 @@ namespace WallSafe
         private void Favorite_Click(object sender, RoutedEventArgs e)
         {
             if (Item == null) return;
+
+            if (IsInCollectionFolder)
+            {
+                string col = Item.Collection;
+                FavoritesManager.Instance.AssignToCollection(Item, "");
+                ShowNotice("Removed from folder");
+                RemoveFromCollectionRequested?.Invoke(this, Item);
+                return;
+            }
+
             FavoritesManager.Instance.ToggleFavorite(Item);
             UpdateFavoriteStatus();
             ShowNotice(Item.IsFavorite ? "Favorited ♥" : "Removed");
@@ -521,9 +579,42 @@ namespace WallSafe
             }
         }
 
+        private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (MenuRemoveFromFolder == null || MenuToggleFavorite == null) return;
+
+            bool inFolder = IsInCollectionFolder || !string.IsNullOrEmpty(Item?.Collection);
+            if (inFolder)
+            {
+                MenuRemoveFromFolder.Visibility = Visibility.Visible;
+                string colName = Item?.Collection ?? "";
+                MenuRemoveFromFolder.Header = !string.IsNullOrEmpty(colName)
+                    ? $"Remove from \u201c{colName}\u201d (keep in Favorites)"
+                    : "Remove from this Collection";
+                MenuToggleFavorite.Header = "Remove from Favorites Entirely";
+            }
+            else
+            {
+                MenuRemoveFromFolder.Visibility = Visibility.Collapsed;
+                MenuToggleFavorite.Header = Item?.IsFavorite == true ? "Remove from Favorites" : "Add to Favorites";
+            }
+        }
+
+        private void ContextMenu_RemoveFromFolder(object sender, RoutedEventArgs e)
+        {
+            if (Item == null) return;
+            FavoritesManager.Instance.AssignToCollection(Item, "");
+            ShowNotice("Removed from folder");
+            RemoveFromCollectionRequested?.Invoke(this, Item);
+        }
+
         private void ContextMenu_ToggleFavorite(object sender, RoutedEventArgs e)
         {
-            Favorite_Click(sender, e);
+            if (Item == null) return;
+            FavoritesManager.Instance.ToggleFavorite(Item);
+            UpdateFavoriteStatus();
+            ShowNotice(Item.IsFavorite ? "Favorited ♥" : "Removed from Favorites");
+            FavoriteToggled?.Invoke(this, Item);
         }
 
         private void ContextMenu_MoveToCollection(object sender, RoutedEventArgs e)

@@ -52,11 +52,12 @@
     </UserControl.Resources>
 
     <UserControl.ContextMenu>
-        <ContextMenu>
+        <ContextMenu Opened="ContextMenu_Opened">
             <MenuItem Header="Set as Desktop Wallpaper" Click="ContextMenu_SetWallpaper"/>
             <MenuItem Header="Set as Windows Lock Screen" Click="ContextMenu_SetLockScreen"/>
             <Separator/>
-            <MenuItem Header="Toggle Favorite" Click="ContextMenu_ToggleFavorite"/>
+            <MenuItem x:Name="MenuRemoveFromFolder" Header="Remove from this Collection" Click="ContextMenu_RemoveFromFolder" Visibility="Collapsed"/>
+            <MenuItem x:Name="MenuToggleFavorite" Header="Toggle Favorite" Click="ContextMenu_ToggleFavorite"/>
             <MenuItem Header="Move to Collection…" Click="ContextMenu_MoveToCollection"/>
             <MenuItem Header="Download Original (Full-Res)" Click="ContextMenu_Download"/>
             <Separator/>

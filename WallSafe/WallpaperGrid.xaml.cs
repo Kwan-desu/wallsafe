@@ -27,11 +27,21 @@ namespace WallSafe
             set => SetValue(CardHeightProperty, value);
         }
 
+        public static readonly DependencyProperty IsInCollectionFolderProperty =
+            DependencyProperty.Register(nameof(IsInCollectionFolder), typeof(bool), typeof(WallpaperGrid), new PropertyMetadata(false));
+
+        public bool IsInCollectionFolder
+        {
+            get => (bool)GetValue(IsInCollectionFolderProperty);
+            set => SetValue(IsInCollectionFolderProperty, value);
+        }
+
         public event EventHandler<PostItem>? WallpaperApplied;
         public event EventHandler<PostItem>? FavoriteToggled;
         public event EventHandler<PostItem>? DownloadCompleted;
         public event EventHandler<PostItem>? PreviewRequested;
         public event EventHandler<PostItem>? MoveToCollectionRequested;
+        public event EventHandler<PostItem>? RemoveFromCollectionRequested;
         public event EventHandler? LoadMoreRequested;
 
         private readonly ObservableCollection<PostItem> _posts = new();
@@ -222,6 +232,9 @@ namespace WallSafe
 
         private void Card_MoveToCollectionRequested(object? sender, PostItem e) =>
             MoveToCollectionRequested?.Invoke(this, e);
+
+        private void Card_RemoveFromCollectionRequested(object? sender, PostItem e) =>
+            RemoveFromCollectionRequested?.Invoke(this, e);
 
         private void LoadMore_Click(object sender, RoutedEventArgs e) =>
             TriggerLoadMore();

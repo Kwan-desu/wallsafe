@@ -139,20 +139,6 @@ namespace WallSafe
             };
             ctx.Items.Add(slideshowItem);
 
-            var taskbarItem = new ToolStripMenuItem("  Taskbar Transparency")
-            {
-                Checked = Settings.Instance.TaskbarTransparencyEnabled,
-                CheckOnClick = false
-            };
-            taskbarItem.Click += (_, _) =>
-            {
-                Settings.Instance.TaskbarTransparencyEnabled = !Settings.Instance.TaskbarTransparencyEnabled;
-                Settings.Instance.Save();
-                taskbarItem.Checked = Settings.Instance.TaskbarTransparencyEnabled;
-                TaskbarManager.Instance.ApplyFromSettings();
-            };
-            ctx.Items.Add(taskbarItem);
-
             ctx.Items.Add(new ToolStripSeparator());
             ctx.Items.Add("  Exit WallSafe", null, (_, _) => Shutdown());
 
@@ -160,7 +146,6 @@ namespace WallSafe
             ctx.Opening += (_, _) =>
             {
                 slideshowItem.Checked = Settings.Instance.SlideshowEnabled;
-                taskbarItem.Checked = Settings.Instance.TaskbarTransparencyEnabled;
             };
 
             // Clip the menu window to a rounded-rectangle region so the square window
@@ -192,9 +177,6 @@ namespace WallSafe
 
             // Register global panic hotkey
             HotkeyManager.Instance.ReRegister();
-
-            // Apply the merged taskbar-transparency appearance (TranslucentTB engine) if enabled.
-            try { TaskbarManager.Instance.ApplyFromSettings(); } catch { }
 
             // Start the Wi-Fi-triggered auto-wallpaper watcher if enabled.
             try { WifiWatcher.Instance.Start(); } catch { }
@@ -270,8 +252,6 @@ namespace WallSafe
         protected override void OnExit(ExitEventArgs e)
         {
             try { HotkeyManager.Instance.Dispose(); } catch { }
-            // Restore the taskbar to its default Windows appearance and stop the engine.
-            try { TaskbarManager.Instance.Dispose(); } catch { }
             try { WifiWatcher.Instance.Dispose(); } catch { }
             if (_trayIcon != null)
             {

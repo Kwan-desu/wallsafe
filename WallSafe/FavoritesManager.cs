@@ -262,6 +262,7 @@ namespace WallSafe
                 else
                 {
                     item.Collection = collection;
+                    post.Collection = collection;
                 }
             }
             SaveCollections();

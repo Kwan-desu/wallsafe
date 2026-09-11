@@ -95,7 +95,6 @@ namespace WallSafe
             UpdateSfwToggleVisuals();
             ApplySfwModeToFilters();
             ApplyHomeSectionsVisibility();
-            UpdateTaskbarQuickToggle();
 
             Loaded += async (_, _) =>
             {
@@ -271,30 +270,6 @@ namespace WallSafe
             try { WallpaperGridControl?.RefreshDensity(); } catch { }
         }
 
-        private void TaskbarQuickToggle_Click(object sender, RoutedEventArgs e)
-        {
-            Settings.Instance.TaskbarTransparencyEnabled = !Settings.Instance.TaskbarTransparencyEnabled;
-            Settings.Instance.Save();
-            TaskbarManager.Instance.ApplyFromSettings();
-            UpdateTaskbarQuickToggle();
-            ShowToast("✓", Settings.Instance.TaskbarTransparencyEnabled
-                ? "Taskbar Transparency On" : "Taskbar Transparency Off");
-        }
-
-        /// <summary>Reflect the taskbar-transparency on/off state in the top-bar quick toggle.</summary>
-        public void UpdateTaskbarQuickToggle()
-        {
-            if (TaskbarQuickIcon == null) return;
-            bool on = Settings.Instance.TaskbarTransparencyEnabled;
-            TaskbarQuickIcon.Fill = on
-                ? (System.Windows.Media.Brush)FindResource("AccentHoverBrush")
-                : (System.Windows.Media.Brush)FindResource("SubtextBrush");
-            if (TaskbarQuickToggle != null)
-                TaskbarQuickToggle.ToolTip = on
-                    ? "Taskbar Transparency: On (click to disable)"
-                    : "Taskbar Transparency: Off (click to enable)";
-        }
-
         private void RootBorder_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             // WindowChrome + DWM round the window corners; no manual corner clip required.
@@ -467,6 +442,7 @@ namespace WallSafe
                     break;
 
                 case ActiveSection.Explore:
+                    WallpaperGridControl.IsInCollectionFolder = false;
                     WallpaperGridControl.SetPosts(_cachedExplorePosts, canLoadMore: _cachedExplorePosts.Count >= 10);
                     CheckEmptyState(_cachedExplorePosts.Count, "No wallpapers found", "Try adjusting tags or content filters.");
                     if (StatusText != null) StatusText.Text = $"{_cachedExplorePosts.Count} wallpapers online  •  Page {_currentPage}";
@@ -474,6 +450,8 @@ namespace WallSafe
 
                 case ActiveSection.Favorites:
                     // "\u0001ALL" = every favorite; "" = Unsorted (uncategorized); else a specific collection.
+                    bool isFolder = !string.IsNullOrEmpty(_selectedCollection) && _selectedCollection != "\u0001ALL";
+                    WallpaperGridControl.IsInCollectionFolder = isFolder;
                     List<PostItem> favs;
                     if (_selectedCollection == "\u0001ALL")
                         favs = FavoritesManager.Instance.GetAllFavorites();
@@ -494,6 +472,7 @@ namespace WallSafe
                     break;
 
                 case ActiveSection.Downloaded:
+                    WallpaperGridControl.IsInCollectionFolder = false;
                     var downs = DownloadsManager.Instance.GetAllDownloads();
                     WallpaperGridControl.SetPosts(downs, canLoadMore: false);
                     CheckEmptyState(downs.Count, "No Downloaded Wallpapers", "Click 📥 on any wallpaper to download original high-res files.");
@@ -501,6 +480,7 @@ namespace WallSafe
                     break;
 
                 case ActiveSection.History:
+                    WallpaperGridControl.IsInCollectionFolder = false;
                     var hist = HistoryManager.Instance.GetAllHistory();
                     WallpaperGridControl.SetPosts(hist, canLoadMore: false);
                     if (HistoryCountBadgeText != null)
@@ -1323,6 +1303,13 @@ namespace WallSafe
             ShowToast("✓", string.IsNullOrEmpty(collection)
                 ? "Removed from collection"
                 : $"Added to \u201c{collection}\u201d");
+        }
+
+        private void WallpaperGrid_RemoveFromCollectionRequested(object? sender, PostItem item)
+        {
+            RebuildCollectionChips();
+            if (_currentSection == ActiveSection.Favorites) DisplayCurrentSection();
+            ShowToast("✓", "Removed from folder (kept in Favorites)");
         }
 
 

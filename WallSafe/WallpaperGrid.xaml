@@ -21,11 +21,13 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <local:WallpaperCard DataContext="{Binding}"
+                                             IsInCollectionFolder="{Binding IsInCollectionFolder, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type local:WallpaperGrid}}}"
                                              WallpaperApplied="Card_WallpaperApplied"
                                              FavoriteToggled="Card_FavoriteToggled"
                                              DownloadCompleted="Card_DownloadCompleted"
                                              PreviewRequested="Card_PreviewRequested"
-                                             MoveToCollectionRequested="Card_MoveToCollectionRequested"/>
+                                             MoveToCollectionRequested="Card_MoveToCollectionRequested"
+                                             RemoveFromCollectionRequested="Card_RemoveFromCollectionRequested"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -33,89 +33,6 @@ namespace WallSafe
                 DragMove();
         }
 
-        // ─────────────── Taskbar Appearance (merged TranslucentTB engine) ───────────────
-
-        /// <summary>Parse a #AARRGGBB or #RRGGBB hex string into a 0xAARRGGBB uint. Returns false if invalid.</summary>
-        private static bool TryParseArgb(string? text, out uint argb)
-        {
-            argb = 0;
-            if (string.IsNullOrWhiteSpace(text)) return false;
-            var hex = text.Trim().TrimStart('#');
-            if (hex.Length == 6) hex = "FF" + hex; // assume opaque if alpha omitted
-            if (hex.Length != 8) return false;
-            return uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
-                System.Globalization.CultureInfo.InvariantCulture, out argb);
-        }
-
-        private static void UpdateSwatch(System.Windows.Controls.Border? swatch, string? colorText)
-        {
-            if (swatch == null) return;
-            if (TryParseArgb(colorText, out uint argb))
-            {
-                var c = System.Windows.Media.Color.FromArgb(
-                    (byte)((argb >> 24) & 0xFF), (byte)((argb >> 16) & 0xFF),
-                    (byte)((argb >> 8) & 0xFF), (byte)(argb & 0xFF));
-                swatch.Background = new System.Windows.Media.SolidColorBrush(c);
-            }
-        }
-
-        /// <summary>Load one dynamic-state appearance into its controls.</summary>
-        private static void LoadStateAppearance(TaskbarStateAppearance? a,
-            System.Windows.Controls.CheckBox? chk, System.Windows.Controls.ComboBox? combo,
-            System.Windows.Controls.TextBox? colorBox, System.Windows.Controls.Border? swatch,
-            System.Windows.Controls.CheckBox? noTint = null)
-        {
-            a ??= new TaskbarStateAppearance();
-            if (chk != null) chk.IsChecked = a.Enabled;
-            if (combo != null) combo.SelectedIndex = System.Math.Clamp(a.AccentState, 0, 4);
-            if (colorBox != null) colorBox.Text = "#" + unchecked((uint)a.ColorArgb).ToString("X8");
-            if (noTint != null) noTint.IsChecked = a.NoTint;
-            if (colorBox != null) colorBox.IsEnabled = !(noTint?.IsChecked ?? false);
-            UpdateSwatch(swatch, colorBox?.Text);
-        }
-
-        /// <summary>Read one dynamic-state appearance from its controls back into settings.</summary>
-        private static void SaveStateAppearance(TaskbarStateAppearance a,
-            System.Windows.Controls.CheckBox? chk, System.Windows.Controls.ComboBox? combo,
-            System.Windows.Controls.TextBox? colorBox, System.Windows.Controls.CheckBox? noTint = null)
-        {
-            a.Enabled = chk?.IsChecked == true;
-            if (combo?.SelectedItem is ComboBoxItem item && item.Tag is string tag && int.TryParse(tag, out int sv))
-                a.AccentState = System.Math.Clamp(sv, 0, 4);
-            if (TryParseArgb(colorBox?.Text, out uint argb))
-                a.ColorArgb = unchecked((int)argb);
-            a.NoTint = noTint?.IsChecked == true;
-        }
-
-        /// <summary>Live-apply: persist all taskbar states from the UI and re-evaluate the engine.</summary>
-        private void TaskbarLiveApply_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing) return;
-
-            // Grey out the color box + swatch when "No tint" is active for that state.
-            if (StateDesktopColor != null) StateDesktopColor.IsEnabled = !(ChkStateDesktopNoTint?.IsChecked ?? false);
-            if (StateVisibleColor != null) StateVisibleColor.IsEnabled = !(ChkStateVisibleNoTint?.IsChecked ?? false);
-            if (StateMaximizedColor != null) StateMaximizedColor.IsEnabled = !(ChkStateMaximizedNoTint?.IsChecked ?? false);
-            if (StateStartColor != null) StateStartColor.IsEnabled = !(ChkStateStartNoTint?.IsChecked ?? false);
-
-            // Keep swatches in sync.
-            UpdateSwatch(StateDesktopSwatch, StateDesktopColor?.Text);
-            UpdateSwatch(StateVisibleSwatch, StateVisibleColor?.Text);
-            UpdateSwatch(StateMaximizedSwatch, StateMaximizedColor?.Text);
-            UpdateSwatch(StateStartSwatch, StateStartColor?.Text);
-
-            var s = Settings.Instance;
-            s.TaskbarTransparencyEnabled = ChkTaskbarEnabled?.IsChecked == true;
-            SaveStateAppearance(s.DesktopAppearance ??= new(), ChkStateDesktop, StateDesktopCombo, StateDesktopColor, ChkStateDesktopNoTint);
-            SaveStateAppearance(s.VisibleWindowAppearance ??= new(), ChkStateVisible, StateVisibleCombo, StateVisibleColor, ChkStateVisibleNoTint);
-            SaveStateAppearance(s.MaximizedWindowAppearance ??= new(), ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, ChkStateMaximizedNoTint);
-            SaveStateAppearance(s.StartOpenedAppearance ??= new(), ChkStateStart, StateStartCombo, StateStartColor, ChkStateStartNoTint);
-            s.Save();
-
-            TaskbarManager.Instance.ApplyFromSettings();
-            (Owner as MainWindow)?.UpdateTaskbarQuickToggle();
-        }
-
         // ─────────────── Interface: density + Mica ───────────────
 
         private void SlideshowInterval_Changed(object sender, SelectionChangedEventArgs e)
@@ -363,7 +280,6 @@ namespace WallSafe
             if (SecPanelSlideshow != null) SecPanelSlideshow.Visibility = Visibility.Collapsed;
             if (SecPanelSources != null) SecPanelSources.Visibility = Visibility.Collapsed;
             if (SecPanelGeneral != null) SecPanelGeneral.Visibility = Visibility.Collapsed;
-            if (SecPanelTaskbar != null) SecPanelTaskbar.Visibility = Visibility.Collapsed;
 
             if (NavSecHome?.IsChecked == true)
             {
@@ -394,12 +310,6 @@ namespace WallSafe
                 if (SecPanelGeneral != null) SecPanelGeneral.Visibility = Visibility.Visible;
                 if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "GENERAL & SYSTEM STORAGE";
                 if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Configure theme mode, Windows startup behavior, and local wallpaper cache.";
-            }
-            else if (NavSecTaskbar?.IsChecked == true)
-            {
-                if (SecPanelTaskbar != null) SecPanelTaskbar.Visibility = Visibility.Visible;
-                if (SectionHeaderTitle != null) SectionHeaderTitle.Text = "TASKBAR APPEARANCE";
-                if (SectionHeaderSubtitle != null) SectionHeaderSubtitle.Text = "Make the Windows taskbar translucent, blurred or acrylic with a custom tint color.";
             }
         }
 
@@ -557,16 +467,6 @@ namespace WallSafe
                 ThemeLightRadio.IsChecked = true;
             else
                 ThemeDarkRadio.IsChecked = true;
-
-            // Taskbar Appearance (merged TranslucentTB engine)
-            if (ChkTaskbarEnabled != null) ChkTaskbarEnabled.IsChecked = s.TaskbarTransparencyEnabled;
-            if (ChkTaskbarRestoreOnPanic != null)
-                ChkTaskbarRestoreOnPanic.IsChecked = s.TaskbarRestoreOnPanic;
-
-            LoadStateAppearance(s.DesktopAppearance, ChkStateDesktop, StateDesktopCombo, StateDesktopColor, StateDesktopSwatch, ChkStateDesktopNoTint);
-            LoadStateAppearance(s.VisibleWindowAppearance, ChkStateVisible, StateVisibleCombo, StateVisibleColor, StateVisibleSwatch, ChkStateVisibleNoTint);
-            LoadStateAppearance(s.MaximizedWindowAppearance, ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, StateMaximizedSwatch, ChkStateMaximizedNoTint);
-            LoadStateAppearance(s.StartOpenedAppearance, ChkStateStart, StateStartCombo, StateStartColor, StateStartSwatch, ChkStateStartNoTint);
 
             // Interface: grid density + Mica
             switch (s.CardDensity)
@@ -1059,14 +959,6 @@ namespace WallSafe
             }
             s.AllowAllSources = ChkAllowAllSources.IsChecked == true;
 
-            // Taskbar Appearance (merged TranslucentTB engine)
-            s.TaskbarTransparencyEnabled = ChkTaskbarEnabled?.IsChecked == true;
-            SaveStateAppearance(s.DesktopAppearance ??= new(), ChkStateDesktop, StateDesktopCombo, StateDesktopColor, ChkStateDesktopNoTint);
-            SaveStateAppearance(s.VisibleWindowAppearance ??= new(), ChkStateVisible, StateVisibleCombo, StateVisibleColor, ChkStateVisibleNoTint);
-            SaveStateAppearance(s.MaximizedWindowAppearance ??= new(), ChkStateMaximized, StateMaximizedCombo, StateMaximizedColor, ChkStateMaximizedNoTint);
-            SaveStateAppearance(s.StartOpenedAppearance ??= new(), ChkStateStart, StateStartCombo, StateStartColor, ChkStateStartNoTint);
-            s.TaskbarRestoreOnPanic = ChkTaskbarRestoreOnPanic?.IsChecked == true;
-
             // Interface: grid density + Mica
             if (DensityCompactRadio?.IsChecked == true) s.CardDensity = "compact";
             else if (DensityLargeRadio?.IsChecked == true) s.CardDensity = "large";
@@ -1074,9 +966,6 @@ namespace WallSafe
             s.WindowMicaEnabled = ChkWindowMica?.IsChecked == true;
 
             s.Save();
-
-            // Apply taskbar appearance right away.
-            TaskbarManager.Instance.ApplyFromSettings();
 
             // Restart the Wi-Fi auto-wallpaper watcher with the new settings.
             try { WifiWatcher.Instance.Start(); } catch { }
