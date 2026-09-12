@@ -621,6 +621,9 @@ namespace WallSafe
         /// <summary>Set the content rating mode directly (no cycling).</summary>
         private void SetRatingMode(ContentRatingMode mode)
         {
+            // Snapshot the user's configured filter options for the active mode before switching
+            SaveCurrentFilterProfile();
+
             Settings.Instance.RatingMode = mode;
             Settings.Instance.Save();
 
@@ -709,15 +712,11 @@ namespace WallSafe
                 if (SourceAll != null)
                     SourceAll.Visibility = allowAll ? Visibility.Visible : Visibility.Collapsed;
 
-                // When "All Sources" aggregation is enabled, it becomes the default active
-                // source whenever the rating mode is (re)applied. Users can still click a
-                // single source pill afterward to narrow the results for that session.
-                bool keepAll = allowAll;
-
                 if (mode == ContentRatingMode.SfwOnly)
                 {
                     SourceKonaNsfw.Visibility = Visibility.Collapsed;
                     SourceYande.Visibility = Visibility.Collapsed;
+                    SourceKonaSfw.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -725,14 +724,12 @@ namespace WallSafe
                         RatingBox.IsEnabled = false;
                         RatingBox.ToolTip = "Rating restricted strictly to SFW. (Switch to Custom mode to override).";
                     }
-
-                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
-                    else { SourceKonaSfw.IsChecked = true; _currentSource = "konasfw"; }
                 }
                 else if (mode == ContentRatingMode.Questionable)
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    SourceKonaSfw.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -740,14 +737,12 @@ namespace WallSafe
                         RatingBox.IsEnabled = false;
                         RatingBox.ToolTip = "Rating locked to Questionable. (Switch to Custom mode to override).";
                     }
-
-                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
-                    else { SourceYande.IsChecked = true; _currentSource = "yande"; }
                 }
                 else if (mode == ContentRatingMode.Explicit)
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    SourceKonaSfw.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -755,25 +750,29 @@ namespace WallSafe
                         RatingBox.IsEnabled = false;
                         RatingBox.ToolTip = "Rating locked to Explicit (NSFW). (Switch to Custom mode to override).";
                     }
-
-                    if (keepAll && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
-                    else { SourceYande.IsChecked = true; _currentSource = "yande"; }
                 }
                 else // ContentRatingMode.Custom
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    SourceKonaSfw.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
                         RatingBox.IsEnabled = true;
                         RatingBox.ToolTip = "Custom Profile Active: Content Rating is freely customizable and persists across sessions.";
                     }
-
-                    ApplySavedFilterProfileToUi();
                 }
 
+                // Rebuild custom pills so they exist when applying profile
                 RebuildCustomSourcePills();
+
+                // Apply the saved profile for this mode (source, sort, resolution, aspect ratio, and rating if Custom)
+                var prof = Settings.Instance.GetFilterProfileForMode(mode);
+                ApplyFilterProfileToUi(prof);
+
+                UpdateFilterBadge();
+                RebuildFilterChips();
             }
             finally
             {
@@ -783,13 +782,20 @@ namespace WallSafe
 
         public void ApplySavedFilterProfileToUi()
         {
-            var prof = Settings.Instance.SavedFilterProfile;
+            ApplyFilterProfileToUi(Settings.Instance.GetFilterProfileForMode(Settings.Instance.RatingMode));
+        }
+
+        public void ApplyFilterProfileToUi(FilterProfile? prof)
+        {
             if (prof == null) return;
 
             _isApplyingFilterProfile = true;
             try
             {
-                if (RatingBox != null && !string.IsNullOrEmpty(prof.RatingTag))
+                var mode = Settings.Instance.RatingMode;
+                bool allowAll = Settings.Instance.AllowAllSources;
+
+                if (mode == ContentRatingMode.Custom && RatingBox != null && !string.IsNullOrEmpty(prof.RatingTag))
                 {
                     for (int i = 0; i < RatingBox.Items.Count; i++)
                     {
@@ -800,6 +806,7 @@ namespace WallSafe
                         }
                     }
                 }
+
                 if (SortBox != null && !string.IsNullOrEmpty(prof.SortTag))
                 {
                     for (int i = 0; i < SortBox.Items.Count; i++)
@@ -811,21 +818,71 @@ namespace WallSafe
                         }
                     }
                 }
+
                 if (ResolutionBox != null && prof.ResolutionIndex >= 0 && prof.ResolutionIndex < ResolutionBox.Items.Count)
                 {
                     ResolutionBox.SelectedIndex = prof.ResolutionIndex;
                 }
+
                 if (AspectBox != null && prof.AspectIndex >= 0 && prof.AspectIndex < AspectBox.Items.Count)
                 {
                     AspectBox.SelectedIndex = prof.AspectIndex;
                 }
 
-                if (!string.IsNullOrEmpty(prof.Source))
+                bool sourceSelected = false;
+                if (prof.Source == "all" && allowAll && SourceAll != null && SourceAll.Visibility == Visibility.Visible)
                 {
-                    if (prof.Source == "all" && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
-                    else if (prof.Source == "konasfw" && SourceKonaSfw != null) { SourceKonaSfw.IsChecked = true; _currentSource = "konasfw"; }
-                    else if (prof.Source == "yande" && SourceYande != null) { SourceYande.IsChecked = true; _currentSource = "yande"; }
-                    else if (prof.Source == "konansfw" && SourceKonaNsfw != null) { SourceKonaNsfw.IsChecked = true; _currentSource = "konansfw"; }
+                    SourceAll.IsChecked = true;
+                    _currentSource = "all";
+                    sourceSelected = true;
+                }
+                else if (prof.Source == "konasfw" && SourceKonaSfw != null && SourceKonaSfw.Visibility == Visibility.Visible)
+                {
+                    SourceKonaSfw.IsChecked = true;
+                    _currentSource = "konasfw";
+                    sourceSelected = true;
+                }
+                else if (prof.Source == "yande" && SourceYande != null && SourceYande.Visibility == Visibility.Visible)
+                {
+                    SourceYande.IsChecked = true;
+                    _currentSource = "yande";
+                    sourceSelected = true;
+                }
+                else if (prof.Source == "konansfw" && SourceKonaNsfw != null && SourceKonaNsfw.Visibility == Visibility.Visible)
+                {
+                    SourceKonaNsfw.IsChecked = true;
+                    _currentSource = "konansfw";
+                    sourceSelected = true;
+                }
+                else if (SourcePillsPanel != null && !string.IsNullOrEmpty(prof.Source))
+                {
+                    var customPill = SourcePillsPanel.Children.OfType<RadioButton>()
+                        .FirstOrDefault(rb => (rb.Tag as string) == prof.Source && rb.Visibility == Visibility.Visible);
+                    if (customPill != null)
+                    {
+                        customPill.IsChecked = true;
+                        _currentSource = prof.Source;
+                        sourceSelected = true;
+                    }
+                }
+
+                if (!sourceSelected)
+                {
+                    if (allowAll && SourceAll != null && SourceAll.Visibility == Visibility.Visible)
+                    {
+                        SourceAll.IsChecked = true;
+                        _currentSource = "all";
+                    }
+                    else if (mode == ContentRatingMode.SfwOnly)
+                    {
+                        if (SourceKonaSfw != null) SourceKonaSfw.IsChecked = true;
+                        _currentSource = "konasfw";
+                    }
+                    else
+                    {
+                        if (SourceYande != null) SourceYande.IsChecked = true;
+                        _currentSource = "yande";
+                    }
                 }
             }
             finally
@@ -836,10 +893,26 @@ namespace WallSafe
 
         public void SaveCurrentFilterProfile()
         {
-            if (_isUpdatingFilters || _isApplyingFilterProfile || Settings.Instance.RatingMode != ContentRatingMode.Custom) return;
+            if (_isUpdatingFilters || _isApplyingFilterProfile) return;
 
-            var prof = Settings.Instance.SavedFilterProfile ??= new FilterProfile();
-            prof.RatingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string ?? "rating:s";
+            var mode = Settings.Instance.RatingMode;
+            var prof = Settings.Instance.GetFilterProfileForMode(mode);
+
+            if (mode == ContentRatingMode.Custom)
+            {
+                prof.RatingTag = ((ComboBoxItem?)RatingBox?.SelectedItem)?.Tag as string ?? "rating:s";
+            }
+            else
+            {
+                prof.RatingTag = mode switch
+                {
+                    ContentRatingMode.SfwOnly => "rating:s",
+                    ContentRatingMode.Questionable => "rating:q",
+                    ContentRatingMode.Explicit => "rating:e",
+                    _ => "rating:s"
+                };
+            }
+
             prof.SortTag = ((ComboBoxItem?)SortBox?.SelectedItem)?.Tag as string ?? "order:score";
             prof.ResolutionIndex = ResolutionBox?.SelectedIndex ?? 0;
             prof.AspectIndex = AspectBox?.SelectedIndex ?? 0;
@@ -910,6 +983,8 @@ namespace WallSafe
 
             var chips = new List<FilterChip>();
 
+            if (Settings.Instance.RatingMode == ContentRatingMode.Custom && RatingBox.SelectedIndex > 0 && RatingBox.SelectedItem is ComboBoxItem ratingItem)
+                chips.Add(new FilterChip { Label = "Rating: " + StripText(ratingItem.Content?.ToString()), Clear = () => RatingBox.SelectedIndex = 0 });
             if (SortBox.SelectedIndex > 0 && SortBox.SelectedItem is ComboBoxItem sortItem)
                 chips.Add(new FilterChip { Label = "Sort: " + StripText(sortItem.Content?.ToString()), Clear = () => SortBox.SelectedIndex = 0 });
             if (ResolutionBox.SelectedIndex > 0 && ResolutionBox.SelectedItem is ComboBoxItem resItem)
@@ -971,7 +1046,10 @@ namespace WallSafe
             _isUpdatingFilters = true;
             try
             {
-                // Rating stays governed by the rating mode; reset the other three.
+                if (Settings.Instance.RatingMode == ContentRatingMode.Custom)
+                {
+                    RatingBox.SelectedIndex = 0;
+                }
                 SortBox.SelectedIndex = 0;
                 ResolutionBox.SelectedIndex = 0;
                 AspectBox.SelectedIndex = 0;
@@ -1318,7 +1396,7 @@ namespace WallSafe
             if (RatingBox == null || SortBox == null || ResolutionBox == null || AspectBox == null) return;
 
             int activeCount = 0;
-            if (RatingBox.SelectedIndex > 0) activeCount++;
+            if (Settings.Instance.RatingMode == ContentRatingMode.Custom && RatingBox.SelectedIndex > 0) activeCount++;
             if (SortBox.SelectedIndex > 0) activeCount++;
             if (ResolutionBox.SelectedIndex > 0) activeCount++;
             if (AspectBox.SelectedIndex > 0) activeCount++;

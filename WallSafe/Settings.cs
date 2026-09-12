@@ -58,6 +58,20 @@ namespace WallSafe
         public bool CustomFilterProfileEnabled { get; set; } = false;
         public FilterProfile SavedFilterProfile { get; set; } = new();
 
+        // Remembered filter configurations per rating toggle mode
+        public FilterProfile SfwFilterProfile { get; set; } = new() { RatingTag = "rating:s", Source = "all" };
+        public FilterProfile QuestionableFilterProfile { get; set; } = new() { RatingTag = "rating:q", Source = "all" };
+        public FilterProfile ExplicitFilterProfile { get; set; } = new() { RatingTag = "rating:e", Source = "all" };
+
+        public FilterProfile GetFilterProfileForMode(ContentRatingMode mode) => mode switch
+        {
+            ContentRatingMode.SfwOnly => SfwFilterProfile ??= new() { RatingTag = "rating:s", Source = "all" },
+            ContentRatingMode.Questionable => QuestionableFilterProfile ??= new() { RatingTag = "rating:q", Source = "all" },
+            ContentRatingMode.Explicit => ExplicitFilterProfile ??= new() { RatingTag = "rating:e", Source = "all" },
+            ContentRatingMode.Custom => SavedFilterProfile ??= new() { RatingTag = "rating:s", Source = "all" },
+            _ => SavedFilterProfile ??= new()
+        };
+
         public bool AllowAllSources { get; set; } = true;
         public List<CustomSourceConfig> CustomSources { get; set; } = new();
         public List<SeriesCategoryItem> CustomCategories { get; set; } = new();

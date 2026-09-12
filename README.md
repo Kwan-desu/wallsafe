@@ -10,9 +10,10 @@ WallSafe is a sleek, modern Windows 11 desktop application crafted in WPF / .NET
 
 ## ✨ Key Features
 
-- **🌐 Multi-Source Booru Aggregation**
-  - Stream thousands of wallpapers from **konachan.net** (SFW), **konachan.com**, and **yande.re**.
+- **🌐 Multi-Source Booru Aggregation & Per-Mode Filter Memory**
+  - Stream thousands of wallpapers from **konachan.net** (SFW), **konachan.com**, and **yande.re**, plus "All Sources" multi-engine aggregation.
   - Add and manage custom Danbooru / Moebooru boards with SFW classification.
+  - **Per-Rating-Mode Filter Memory**: Remembers your customized filter choices (image source, sort order, resolution, aspect ratio, and custom rating) independently for each rating toggle mode (**SFW**, **Questionable**, **Explicit**, and **Custom**), restoring them seamlessly across switches and restarts.
   - Quick top-bar SFW / NSFW toggle to switch between safe browsing and full catalog.
 
 - **⚡ Instant In-Card Actions**
