@@ -577,7 +577,12 @@ namespace WallSafe
 
             if (SourceAll.IsChecked == true) _currentSource = "all";
             else if (SourceKonaSfw.IsChecked == true) _currentSource = "konasfw";
+            else if (SourceZerochan?.IsChecked == true) _currentSource = "zerochan";
+            else if (SourceSafebooru?.IsChecked == true) _currentSource = "safebooru";
+            else if (SourceWaifuIm?.IsChecked == true) _currentSource = "waifuim";
             else if (SourceYande.IsChecked == true) _currentSource = "yande";
+            else if (SourceGelbooru?.IsChecked == true) _currentSource = "gelbooru";
+            else if (SourceDanbooru?.IsChecked == true) _currentSource = "danbooru";
             else if (SourceKonaNsfw.IsChecked == true) _currentSource = "konansfw";
             else if (sender is RadioButton rb && rb.Tag is string customId) _currentSource = customId;
 
@@ -718,6 +723,13 @@ namespace WallSafe
                 {
                     SourceKonaNsfw.Visibility = Visibility.Collapsed;
                     SourceYande.Visibility = Visibility.Collapsed;
+                    if (SourceGelbooru != null) SourceGelbooru.Visibility = Visibility.Collapsed;
+                    if (SourceDanbooru != null) SourceDanbooru.Visibility = Visibility.Collapsed;
+
+                    SourceKonaSfw.Visibility = Visibility.Visible;
+                    if (SourceZerochan != null) SourceZerochan.Visibility = Visibility.Visible;
+                    if (SourceSafebooru != null) SourceSafebooru.Visibility = Visibility.Visible;
+                    if (SourceWaifuIm != null) SourceWaifuIm.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -733,6 +745,13 @@ namespace WallSafe
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    if (SourceGelbooru != null) SourceGelbooru.Visibility = Visibility.Visible;
+                    if (SourceDanbooru != null) SourceDanbooru.Visibility = Visibility.Visible;
+
+                    SourceKonaSfw.Visibility = Visibility.Visible;
+                    if (SourceZerochan != null) SourceZerochan.Visibility = Visibility.Visible;
+                    if (SourceSafebooru != null) SourceSafebooru.Visibility = Visibility.Visible;
+                    if (SourceWaifuIm != null) SourceWaifuIm.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -748,6 +767,13 @@ namespace WallSafe
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    if (SourceGelbooru != null) SourceGelbooru.Visibility = Visibility.Visible;
+                    if (SourceDanbooru != null) SourceDanbooru.Visibility = Visibility.Visible;
+
+                    SourceKonaSfw.Visibility = Visibility.Visible;
+                    if (SourceZerochan != null) SourceZerochan.Visibility = Visibility.Visible;
+                    if (SourceSafebooru != null) SourceSafebooru.Visibility = Visibility.Visible;
+                    if (SourceWaifuIm != null) SourceWaifuIm.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -763,6 +789,13 @@ namespace WallSafe
                 {
                     SourceKonaNsfw.Visibility = Visibility.Visible;
                     SourceYande.Visibility = Visibility.Visible;
+                    if (SourceGelbooru != null) SourceGelbooru.Visibility = Visibility.Visible;
+                    if (SourceDanbooru != null) SourceDanbooru.Visibility = Visibility.Visible;
+
+                    SourceKonaSfw.Visibility = Visibility.Visible;
+                    if (SourceZerochan != null) SourceZerochan.Visibility = Visibility.Visible;
+                    if (SourceSafebooru != null) SourceSafebooru.Visibility = Visibility.Visible;
+                    if (SourceWaifuIm != null) SourceWaifuIm.Visibility = Visibility.Visible;
 
                     if (RatingBox != null)
                     {
@@ -824,7 +857,12 @@ namespace WallSafe
                 {
                     if (prof.Source == "all" && SourceAll != null) { SourceAll.IsChecked = true; _currentSource = "all"; }
                     else if (prof.Source == "konasfw" && SourceKonaSfw != null) { SourceKonaSfw.IsChecked = true; _currentSource = "konasfw"; }
+                    else if (prof.Source == "zerochan" && SourceZerochan != null) { SourceZerochan.IsChecked = true; _currentSource = "zerochan"; }
+                    else if (prof.Source == "safebooru" && SourceSafebooru != null) { SourceSafebooru.IsChecked = true; _currentSource = "safebooru"; }
+                    else if (prof.Source == "waifuim" && SourceWaifuIm != null) { SourceWaifuIm.IsChecked = true; _currentSource = "waifuim"; }
                     else if (prof.Source == "yande" && SourceYande != null) { SourceYande.IsChecked = true; _currentSource = "yande"; }
+                    else if (prof.Source == "gelbooru" && SourceGelbooru != null) { SourceGelbooru.IsChecked = true; _currentSource = "gelbooru"; }
+                    else if (prof.Source == "danbooru" && SourceDanbooru != null) { SourceDanbooru.IsChecked = true; _currentSource = "danbooru"; }
                     else if (prof.Source == "konansfw" && SourceKonaNsfw != null) { SourceKonaNsfw.IsChecked = true; _currentSource = "konansfw"; }
                 }
             }
@@ -2708,9 +2746,14 @@ namespace WallSafe
             string sourceDisplayName = sourceKey switch
             {
                 "konasfw" => "konachan.net (SFW)",
+                "zerochan" => "Zerochan (SFW)",
+                "safebooru" => "Safebooru (SFW)",
+                "waifuim" => sfw ? "waifu.im (SFW)" : "waifu.im (Unrestricted)",
+                "gelbooru" => sfw ? "Gelbooru (SFW)" : "Gelbooru (Unrestricted)",
+                "danbooru" => sfw ? "Danbooru (SFW)" : "Danbooru (Unrestricted)",
                 "konansfw" => "konachan.com (Unrestricted)",
                 "yande" => sfw ? "yande.re (SFW)" : "yande.re (Unrestricted)",
-                "all" => sfw ? "konachan.net (SFW)" : "All Sources (Unrestricted)",
+                "all" => sfw ? "All Sources (SFW)" : "All Sources (Unrestricted)",
                 _ => sfw ? $"{sourceKey} (SFW)" : sourceKey
             };
 

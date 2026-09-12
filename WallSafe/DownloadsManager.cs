@@ -128,7 +128,11 @@ namespace WallSafe
                 string tempFile = $"{destination}.download";
                 try
                 {
-                    using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                    var refUri = ApiClient.GetReferrerForUrl(url);
+                    if (refUri != null) req.Headers.Referrer = refUri;
+
+                    using var response = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                     response.EnsureSuccessStatusCode();
 
                     var totalBytes = response.Content.Headers.ContentLength ?? -1L;

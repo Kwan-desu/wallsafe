@@ -301,10 +301,8 @@ namespace WallSafe
                     try
                     {
                         using var req = new HttpRequestMessage(HttpMethod.Get, fullUrl);
-                        if (fullUrl.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
-                            req.Headers.Referrer = new Uri("https://yande.re/");
-                        else if (fullUrl.Contains("konachan", StringComparison.OrdinalIgnoreCase))
-                            req.Headers.Referrer = new Uri("https://konachan.net/");
+                        var refUri = ApiClient.GetReferrerForUrl(fullUrl);
+                        if (refUri != null) req.Headers.Referrer = refUri;
 
                         using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
                         if (resp.IsSuccessStatusCode)
@@ -322,10 +320,8 @@ namespace WallSafe
                         try
                         {
                             using var fallbackReq = new HttpRequestMessage(HttpMethod.Get, post.BestImageUrl);
-                            if (post.BestImageUrl.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
-                                fallbackReq.Headers.Referrer = new Uri("https://yande.re/");
-                            else if (post.BestImageUrl.Contains("konachan", StringComparison.OrdinalIgnoreCase))
-                                fallbackReq.Headers.Referrer = new Uri("https://konachan.net/");
+                            var fallbackRef = ApiClient.GetReferrerForUrl(post.BestImageUrl);
+                            if (fallbackRef != null) fallbackReq.Headers.Referrer = fallbackRef;
 
                             using var fallbackResp = await _http.SendAsync(fallbackReq, HttpCompletionOption.ResponseHeadersRead);
                             fallbackResp.EnsureSuccessStatusCode();

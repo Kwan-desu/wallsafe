@@ -559,10 +559,10 @@
                                          <ComboBox x:Name="RatingModeCombo" Background="{DynamicResource CardBgBrush}"
                                                    Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                                    Margin="0,0,0,10">
-                                             <ComboBoxItem Content="Safe Only (SFW) — konachan.net &amp; safe sources" Tag="0"/>
-                                             <ComboBoxItem Content="Questionable — Mild / Suggestive / Ecchi" Tag="1"/>
-                                             <ComboBoxItem Content="Explicit (NSFW) — Unrestricted 18+ content" Tag="2"/>
-                                             <ComboBoxItem x:Name="ComboItemCustom" Content="Custom — Free filter configuration &amp; saved profile" Tag="3"/>
+                                              <ComboBoxItem Content="Safe Only (SFW) — Zerochan, Safebooru, waifu.im &amp; konachan.net" Tag="0"/>
+                                              <ComboBoxItem Content="Questionable — Gelbooru, yande.re &amp; suggestive art" Tag="1"/>
+                                              <ComboBoxItem Content="Explicit (NSFW) — Unrestricted 18+ content (All sources)" Tag="2"/>
+                                              <ComboBoxItem x:Name="ComboItemCustom" Content="Custom — Free filter configuration &amp; saved profile" Tag="3"/>
                                          </ComboBox>
 
                                          <CheckBox x:Name="ChkCustomFilterProfile" Content="Enable 'Custom' Mode in Content Rating Toggle"

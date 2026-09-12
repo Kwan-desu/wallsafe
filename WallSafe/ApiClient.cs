@@ -25,8 +25,26 @@ namespace WallSafe
         {
             ["yande"] = "https://yande.re",
             ["konasfw"] = "https://konachan.net",
-            ["konansfw"] = "https://konachan.com"
+            ["konansfw"] = "https://konachan.com",
+            ["zerochan"] = "https://www.zerochan.net",
+            ["safebooru"] = "https://safebooru.org",
+            ["gelbooru"] = "https://gelbooru.com",
+            ["danbooru"] = "https://danbooru.donmai.us",
+            ["waifuim"] = "https://api.waifu.im"
         };
+
+        public static Uri? GetReferrerForUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            if (url.Contains("zerochan.net", StringComparison.OrdinalIgnoreCase)) return new Uri("https://www.zerochan.net/");
+            if (url.Contains("yande.re", StringComparison.OrdinalIgnoreCase)) return new Uri("https://yande.re/");
+            if (url.Contains("konachan", StringComparison.OrdinalIgnoreCase)) return new Uri("https://konachan.net/");
+            if (url.Contains("safebooru.org", StringComparison.OrdinalIgnoreCase)) return new Uri("https://safebooru.org/");
+            if (url.Contains("gelbooru.com", StringComparison.OrdinalIgnoreCase)) return new Uri("https://gelbooru.com/");
+            if (url.Contains("danbooru.donmai.us", StringComparison.OrdinalIgnoreCase)) return new Uri("https://danbooru.donmai.us/");
+            if (url.Contains("waifu.im", StringComparison.OrdinalIgnoreCase)) return new Uri("https://waifu.im/");
+            return null;
+        }
 
         public static string ResolveBaseUrl(string source)
         {
@@ -76,6 +94,9 @@ namespace WallSafe
                 if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
                 {
                     targetSources.Add("konasfw");
+                    targetSources.Add("zerochan");
+                    targetSources.Add("safebooru");
+                    targetSources.Add("waifuim");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && cs.IsSfw && !string.IsNullOrWhiteSpace(cs.BaseUrl))
@@ -85,7 +106,11 @@ namespace WallSafe
                 else if (Settings.Instance.RatingMode == ContentRatingMode.Questionable)
                 {
                     targetSources.Add("konasfw");
+                    targetSources.Add("zerochan");
+                    targetSources.Add("safebooru");
                     targetSources.Add("yande");
+                    targetSources.Add("gelbooru");
+                    targetSources.Add("waifuim");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && !string.IsNullOrWhiteSpace(cs.BaseUrl))
@@ -96,15 +121,20 @@ namespace WallSafe
                 {
                     targetSources.Add("yande");
                     targetSources.Add("konasfw");
+                    targetSources.Add("zerochan");
+                    targetSources.Add("safebooru");
+                    targetSources.Add("gelbooru");
+                    targetSources.Add("danbooru");
+                    targetSources.Add("waifuim");
+                    targetSources.Add("konansfw");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && !string.IsNullOrWhiteSpace(cs.BaseUrl))
                             targetSources.Add(cs.Id);
                     }
-                    targetSources.Add("konansfw");
                 }
 
-                int perSourceLimit = Math.Max(limit, 16);
+                int perSourceLimit = Math.Max(limit / Math.Max(1, targetSources.Count) + 6, 12);
                 var tasks = targetSources.Select(src => FetchSingleSourcePostsAsync(src, tags, page, perSourceLimit, ct));
                 var results = await Task.WhenAll(tasks);
 
@@ -139,6 +169,29 @@ namespace WallSafe
                 source = "konasfw";
             }
 
+            // Route to dedicated API fetchers
+            if (source.Equals("zerochan", StringComparison.OrdinalIgnoreCase))
+            {
+                return await FetchZerochanPostsAsync(tags, page, limit, ct);
+            }
+            if (source.Equals("safebooru", StringComparison.OrdinalIgnoreCase))
+            {
+                return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+            }
+            if (source.Equals("gelbooru", StringComparison.OrdinalIgnoreCase))
+            {
+                return await FetchGelbooruPostsAsync(tags, page, limit, ct);
+            }
+            if (source.Equals("danbooru", StringComparison.OrdinalIgnoreCase))
+            {
+                return await FetchDanbooruPostsAsync(tags, page, limit, ct);
+            }
+            if (source.Equals("waifuim", StringComparison.OrdinalIgnoreCase))
+            {
+                return await FetchWaifuImPostsAsync(tags, page, limit, ct);
+            }
+
+            // Standard Moebooru fetcher (yande.re, konachan.net, konachan.com, custom moebooru)
             // Sanitize tags according to active rating mode
             if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
             {
@@ -238,6 +291,563 @@ namespace WallSafe
                 {
                     try { return await FetchSingleSourcePostsAsync("yande", tags, page, limit, ct); } catch { }
                 }
+                return new List<PostItem>();
+            }
+        }
+
+        private async Task<List<PostItem>> FetchZerochanPostsAsync(
+            string tags, int page, int limit, CancellationToken ct)
+        {
+            try
+            {
+                // Strip booru-specific tags like rating:s, order:score, etc.
+                var cleanTagList = new List<string>();
+                if (!string.IsNullOrWhiteSpace(tags))
+                {
+                    foreach (var part in tags.Split(new[] { ' ', '+' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (part.StartsWith("rating:", StringComparison.OrdinalIgnoreCase) ||
+                            part.StartsWith("order:", StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        cleanTagList.Add(part);
+                    }
+                }
+
+                string url;
+                if (cleanTagList.Count > 0)
+                {
+                    string tagParam = Uri.EscapeDataString(string.Join(" ", cleanTagList));
+                    url = $"https://www.zerochan.net/{tagParam}?json&p={page}&l={limit}";
+                }
+                else
+                {
+                    url = $"https://www.zerochan.net/?json&p={page}&l={limit}";
+                }
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Referrer = new Uri("https://www.zerochan.net/");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!resp.IsSuccessStatusCode) return new List<PostItem>();
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var root = JObject.Parse(json);
+                var items = root["items"] as JArray;
+                if (items == null || items.Count == 0) return new List<PostItem>();
+
+                var result = new List<PostItem>();
+                foreach (var token in items)
+                {
+                    if (token is not JObject obj) continue;
+                    int id = obj["id"]?.Value<int>() ?? 0;
+                    if (id == 0) continue;
+
+                    int width = obj["width"]?.Value<int>() ?? 0;
+                    int height = obj["height"]?.Value<int>() ?? 0;
+                    string tag = obj["tag"]?.Value<string>() ?? "";
+                    string thumbnail = obj["thumbnail"]?.Value<string>() ?? "";
+
+                    var tagTokens = obj["tags"] as JArray;
+                    string allTags = tagTokens != null ? string.Join(" ", tagTokens.Select(t => t.ToString())) : tag;
+
+                    string escapedTag = Uri.EscapeDataString(tag).Replace("%20", ".");
+                    string sampleUrl = $"https://s1.zerochan.net/{escapedTag}.600.{id}.jpg";
+                    string fileUrl = $"https://static.zerochan.net/{escapedTag}.full.{id}.jpg";
+                    string previewUrl = !string.IsNullOrEmpty(thumbnail) ? thumbnail : sampleUrl;
+
+                    var post = new PostItem
+                    {
+                        Id = id,
+                        Source = "zerochan",
+                        PreviewUrl = previewUrl,
+                        SampleUrl = sampleUrl,
+                        FileUrl = fileUrl,
+                        Width = width,
+                        Height = height,
+                        Rating = "s", // Zerochan is strictly safe
+                        Score = 0,
+                        Tags = allTags,
+                        Author = tag,
+                        SourceUrl = $"https://www.zerochan.net/{id}",
+                        IsFavorite = FavoritesManager.Instance.IsFavorite(id, "zerochan")
+                    };
+
+                    if (DownloadsManager.Instance.IsDownloaded(id, "zerochan", out var localPath))
+                    {
+                        post.IsDownloaded = true;
+                        post.LocalPath = localPath;
+                    }
+
+                    result.Add(post);
+                }
+
+                return result;
+            }
+            catch
+            {
+                return new List<PostItem>();
+            }
+        }
+
+        private async Task<List<PostItem>> FetchSafebooruPostsAsync(
+            string tags, int page, int limit, CancellationToken ct)
+        {
+            try
+            {
+                string cleanTags = tags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("rating:q", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("rating:s", "", StringComparison.OrdinalIgnoreCase).Trim();
+                string formatted = FormatTagQuery(cleanTags);
+                int pid = Math.Max(0, page - 1);
+                string url = string.IsNullOrEmpty(formatted)
+                    ? $"https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&pid={pid}&limit={limit}"
+                    : $"https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags={formatted}&pid={pid}&limit={limit}";
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Referrer = new Uri("https://safebooru.org/");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!resp.IsSuccessStatusCode) return new List<PostItem>();
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var arr = JArray.Parse(json);
+
+                var result = new List<PostItem>();
+                foreach (var token in arr)
+                {
+                    if (token is not JObject obj) continue;
+                    int id = obj["id"]?.Value<int>() ?? 0;
+                    if (id == 0) continue;
+
+                    string directory = obj["directory"]?.Value<string>() ?? "";
+                    string image = obj["image"]?.Value<string>() ?? "";
+                    int width = obj["width"]?.Value<int>() ?? 0;
+                    int height = obj["height"]?.Value<int>() ?? 0;
+                    string tagStr = obj["tags"]?.Value<string>() ?? "";
+                    string owner = obj["owner"]?.Value<string>() ?? "safebooru";
+
+                    string previewUrl = obj["preview_url"]?.Value<string>() ?? $"https://safebooru.org/thumbnails/{directory}/thumbnail_{image}";
+                    string sampleUrl = obj["sample_url"]?.Value<string>() ?? $"https://safebooru.org/images/{directory}/{image}";
+                    string fileUrl = obj["file_url"]?.Value<string>() ?? $"https://safebooru.org/images/{directory}/{image}";
+
+                    if (previewUrl.StartsWith("//")) previewUrl = "https:" + previewUrl;
+                    if (sampleUrl.StartsWith("//")) sampleUrl = "https:" + sampleUrl;
+                    if (fileUrl.StartsWith("//")) fileUrl = "https:" + fileUrl;
+
+                    var post = new PostItem
+                    {
+                        Id = id,
+                        Source = "safebooru",
+                        PreviewUrl = previewUrl,
+                        SampleUrl = sampleUrl,
+                        FileUrl = fileUrl,
+                        Width = width,
+                        Height = height,
+                        Rating = "s", // Safebooru is 100% safe
+                        Score = obj["score"]?.Value<int?>() ?? 0,
+                        Tags = tagStr,
+                        Author = owner,
+                        SourceUrl = $"https://safebooru.org/index.php?page=post&s=view&id={id}",
+                        IsFavorite = FavoritesManager.Instance.IsFavorite(id, "safebooru")
+                    };
+
+                    if (DownloadsManager.Instance.IsDownloaded(id, "safebooru", out var localPath))
+                    {
+                        post.IsDownloaded = true;
+                        post.LocalPath = localPath;
+                    }
+
+                    result.Add(post);
+                }
+
+                return result;
+            }
+            catch
+            {
+                return new List<PostItem>();
+            }
+        }
+
+        private async Task<List<PostItem>> FetchGelbooruPostsAsync(
+            string tags, int page, int limit, CancellationToken ct)
+        {
+            try
+            {
+                var ratingMode = Settings.Instance.RatingMode;
+                string gelTags = tags;
+
+                if (ratingMode == ContentRatingMode.SfwOnly)
+                {
+                    gelTags = gelTags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace("rating:q", "", StringComparison.OrdinalIgnoreCase);
+                    if (!gelTags.Contains("rating:general", StringComparison.OrdinalIgnoreCase) && !gelTags.Contains("rating:s", StringComparison.OrdinalIgnoreCase))
+                    {
+                        gelTags = (gelTags + " rating:general").Trim();
+                    }
+                }
+                else if (ratingMode == ContentRatingMode.Questionable)
+                {
+                    gelTags = gelTags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase);
+                    if (!gelTags.Contains("rating:sensitive", StringComparison.OrdinalIgnoreCase) && !gelTags.Contains("rating:q", StringComparison.OrdinalIgnoreCase))
+                    {
+                        gelTags = (gelTags + " rating:sensitive").Trim();
+                    }
+                }
+
+                string formatted = FormatTagQuery(gelTags);
+                int pid = Math.Max(0, page - 1);
+                string url = string.IsNullOrEmpty(formatted)
+                    ? $"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&pid={pid}&limit={limit}"
+                    : $"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags={formatted}&pid={pid}&limit={limit}";
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Referrer = new Uri("https://gelbooru.com/");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    if (ratingMode == ContentRatingMode.SfwOnly)
+                    {
+                        return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+                    }
+                    return new List<PostItem>();
+                }
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                JArray arr;
+                if (json.TrimStart().StartsWith("["))
+                {
+                    arr = JArray.Parse(json);
+                }
+                else
+                {
+                    var root = JObject.Parse(json);
+                    arr = root["post"] as JArray ?? new JArray();
+                }
+
+                var result = new List<PostItem>();
+                foreach (var token in arr)
+                {
+                    if (token is not JObject obj) continue;
+                    int id = obj["id"]?.Value<int>() ?? 0;
+                    if (id == 0) continue;
+
+                    string rawRating = obj["rating"]?.Value<string>()?.ToLowerInvariant() ?? "general";
+                    string rating = rawRating switch
+                    {
+                        "general" or "safe" or "s" => "s",
+                        "sensitive" or "questionable" or "q" => "q",
+                        "explicit" or "e" => "e",
+                        _ => "s"
+                    };
+
+                    if (ratingMode == ContentRatingMode.SfwOnly && rating != "s") continue;
+                    if (ratingMode == ContentRatingMode.Questionable && rating == "e") continue;
+
+                    string directory = obj["directory"]?.Value<string>() ?? "";
+                    string image = obj["image"]?.Value<string>() ?? "";
+                    int width = obj["width"]?.Value<int>() ?? 0;
+                    int height = obj["height"]?.Value<int>() ?? 0;
+                    string tagStr = obj["tags"]?.Value<string>() ?? "";
+                    string owner = obj["owner"]?.Value<string>() ?? "gelbooru";
+
+                    string fileUrl = obj["file_url"]?.Value<string>() ?? $"https://gelbooru.com/images/{directory}/{image}";
+                    string sampleUrl = obj["sample_url"]?.Value<string>() ?? fileUrl;
+                    string previewUrl = obj["preview_url"]?.Value<string>() ?? $"https://gelbooru.com/thumbnails/{directory}/thumbnail_{image}";
+
+                    if (previewUrl.StartsWith("//")) previewUrl = "https:" + previewUrl;
+                    if (sampleUrl.StartsWith("//")) sampleUrl = "https:" + sampleUrl;
+                    if (fileUrl.StartsWith("//")) fileUrl = "https:" + fileUrl;
+
+                    var post = new PostItem
+                    {
+                        Id = id,
+                        Source = "gelbooru",
+                        PreviewUrl = previewUrl,
+                        SampleUrl = sampleUrl,
+                        FileUrl = fileUrl,
+                        Width = width,
+                        Height = height,
+                        Rating = rating,
+                        Score = obj["score"]?.Value<int?>() ?? 0,
+                        Tags = tagStr,
+                        Author = owner,
+                        SourceUrl = $"https://gelbooru.com/index.php?page=post&s=view&id={id}",
+                        IsFavorite = FavoritesManager.Instance.IsFavorite(id, "gelbooru")
+                    };
+
+                    if (DownloadsManager.Instance.IsDownloaded(id, "gelbooru", out var localPath))
+                    {
+                        post.IsDownloaded = true;
+                        post.LocalPath = localPath;
+                    }
+
+                    result.Add(post);
+                }
+
+                return result;
+            }
+            catch
+            {
+                if (Settings.Instance.RatingMode == ContentRatingMode.SfwOnly)
+                {
+                    return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+                }
+                return new List<PostItem>();
+            }
+        }
+
+        private async Task<List<PostItem>> FetchDanbooruPostsAsync(
+            string tags, int page, int limit, CancellationToken ct)
+        {
+            try
+            {
+                var ratingMode = Settings.Instance.RatingMode;
+                string danTags = tags;
+                if (ratingMode == ContentRatingMode.SfwOnly)
+                {
+                    danTags = danTags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace("rating:q", "", StringComparison.OrdinalIgnoreCase);
+                    if (!danTags.Contains("rating:g", StringComparison.OrdinalIgnoreCase))
+                    {
+                        danTags = (danTags + " rating:g").Trim();
+                    }
+                }
+                else if (ratingMode == ContentRatingMode.Questionable)
+                {
+                    danTags = danTags.Replace("rating:e", "", StringComparison.OrdinalIgnoreCase);
+                    if (!danTags.Contains("rating:s", StringComparison.OrdinalIgnoreCase) && !danTags.Contains("rating:q", StringComparison.OrdinalIgnoreCase))
+                    {
+                        danTags = (danTags + " rating:s,q").Trim();
+                    }
+                }
+
+                string formatted = FormatTagQuery(danTags);
+                string url = string.IsNullOrEmpty(formatted)
+                    ? $"https://danbooru.donmai.us/posts.json?page={page}&limit={limit}"
+                    : $"https://danbooru.donmai.us/posts.json?tags={formatted}&page={page}&limit={limit}";
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Referrer = new Uri("https://danbooru.donmai.us/");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+                }
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var arr = JArray.Parse(json);
+
+                var result = new List<PostItem>();
+                foreach (var token in arr)
+                {
+                    if (token is not JObject obj) continue;
+                    int id = obj["id"]?.Value<int>() ?? 0;
+                    if (id == 0) continue;
+
+                    string rawRating = obj["rating"]?.Value<string>()?.ToLowerInvariant() ?? "g";
+                    string rating = rawRating switch
+                    {
+                        "g" => "s",
+                        "s" or "q" => "q",
+                        "e" => "e",
+                        _ => "s"
+                    };
+
+                    if (ratingMode == ContentRatingMode.SfwOnly && rating != "s") continue;
+                    if (ratingMode == ContentRatingMode.Questionable && rating == "e") continue;
+
+                    string fileUrl = obj["file_url"]?.Value<string>() ?? obj["large_file_url"]?.Value<string>() ?? "";
+                    string sampleUrl = obj["large_file_url"]?.Value<string>() ?? fileUrl;
+                    string previewUrl = obj["preview_file_url"]?.Value<string>() ?? sampleUrl;
+
+                    if (string.IsNullOrEmpty(fileUrl) && string.IsNullOrEmpty(previewUrl)) continue;
+
+                    int width = obj["image_width"]?.Value<int>() ?? 0;
+                    int height = obj["image_height"]?.Value<int>() ?? 0;
+                    string tagStr = obj["tag_string"]?.Value<string>() ?? "";
+                    string author = obj["tag_string_artist"]?.Value<string>() ?? "danbooru";
+
+                    var post = new PostItem
+                    {
+                        Id = id,
+                        Source = "danbooru",
+                        PreviewUrl = previewUrl,
+                        SampleUrl = sampleUrl,
+                        FileUrl = fileUrl,
+                        Width = width,
+                        Height = height,
+                        Rating = rating,
+                        Score = obj["score"]?.Value<int?>() ?? 0,
+                        Tags = tagStr,
+                        Author = author,
+                        SourceUrl = $"https://danbooru.donmai.us/posts/{id}",
+                        IsFavorite = FavoritesManager.Instance.IsFavorite(id, "danbooru")
+                    };
+
+                    if (DownloadsManager.Instance.IsDownloaded(id, "danbooru", out var localPath))
+                    {
+                        post.IsDownloaded = true;
+                        post.LocalPath = localPath;
+                    }
+
+                    result.Add(post);
+                }
+
+                if (result.Count == 0 && ratingMode == ContentRatingMode.SfwOnly)
+                {
+                    return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+                }
+
+                return result;
+            }
+            catch
+            {
+                return await FetchSafebooruPostsAsync(tags, page, limit, ct);
+            }
+        }
+
+        private async Task<List<PostItem>> FetchWaifuImPostsAsync(
+            string tags, int page, int limit, CancellationToken ct)
+        {
+            var ratingMode = Settings.Instance.RatingMode;
+            bool isNsfw = ratingMode == ContentRatingMode.Explicit;
+
+            try
+            {
+                string url = $"https://api.waifu.im/search?many=true&is_nsfw={(isNsfw ? "true" : "false")}&per_page={Math.Min(limit, 30)}";
+                if (!string.IsNullOrWhiteSpace(tags))
+                {
+                    var cleanTag = tags.Replace("rating:s", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("rating:q", "", StringComparison.OrdinalIgnoreCase)
+                                       .Replace("rating:e", "", StringComparison.OrdinalIgnoreCase).Trim();
+                    if (!string.IsNullOrEmpty(cleanTag))
+                    {
+                        url += $"&included_tags={Uri.EscapeDataString(cleanTag.Replace(' ', '-'))}";
+                    }
+                }
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Referrer = new Uri("https://waifu.im/");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var json = await resp.Content.ReadAsStringAsync(ct);
+                    if (json.TrimStart().StartsWith("{"))
+                    {
+                        var root = JObject.Parse(json);
+                        var images = root["images"] as JArray;
+                        if (images != null && images.Count > 0)
+                        {
+                            var result = new List<PostItem>();
+                            foreach (var token in images)
+                            {
+                                if (token is not JObject obj) continue;
+                                int id = obj["image_id"]?.Value<int>() ?? Math.Abs((obj["signature"]?.Value<string>() ?? Guid.NewGuid().ToString()).GetHashCode());
+                                string fileUrl = obj["url"]?.Value<string>() ?? "";
+                                string previewUrl = obj["preview_url"]?.Value<string>() ?? fileUrl;
+                                int width = obj["width"]?.Value<int>() ?? 0;
+                                int height = obj["height"]?.Value<int>() ?? 0;
+                                bool nsfw = obj["is_nsfw"]?.Value<bool>() ?? isNsfw;
+                                string rating = nsfw ? "e" : "s";
+
+                                var tagsArr = obj["tags"] as JArray;
+                                string tagStr = tagsArr != null ? string.Join(" ", tagsArr.Select(t => t["name"]?.ToString())) : "waifu";
+
+                                var post = new PostItem
+                                {
+                                    Id = id,
+                                    Source = "waifuim",
+                                    PreviewUrl = previewUrl,
+                                    SampleUrl = fileUrl,
+                                    FileUrl = fileUrl,
+                                    Width = width,
+                                    Height = height,
+                                    Rating = rating,
+                                    Score = 0,
+                                    Tags = tagStr,
+                                    Author = obj["source"]?.Value<string>() ?? "waifu.im",
+                                    SourceUrl = fileUrl,
+                                    IsFavorite = FavoritesManager.Instance.IsFavorite(id, "waifuim")
+                                };
+
+                                if (DownloadsManager.Instance.IsDownloaded(id, "waifuim", out var localPath))
+                                {
+                                    post.IsDownloaded = true;
+                                    post.LocalPath = localPath;
+                                }
+
+                                result.Add(post);
+                            }
+
+                            if (result.Count > 0) return result;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // High-reliability fallback to nekos.best if waifu.im is challenged by Cloudflare or fails
+            return await FetchNekosBestFallbackAsync(limit, ct);
+        }
+
+        private async Task<List<PostItem>> FetchNekosBestFallbackAsync(int limit, CancellationToken ct)
+        {
+            try
+            {
+                int amount = Math.Clamp(limit, 1, 20);
+                string url = $"https://nekos.best/api/v2/neko?amount={amount}";
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.UserAgent.ParseAdd("WallSafe/2.5.4");
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                if (!resp.IsSuccessStatusCode) return new List<PostItem>();
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var root = JObject.Parse(json);
+                var results = root["results"] as JArray;
+                if (results == null) return new List<PostItem>();
+
+                var list = new List<PostItem>();
+                foreach (var token in results)
+                {
+                    if (token is not JObject obj) continue;
+                    string fileUrl = obj["url"]?.Value<string>() ?? "";
+                    if (string.IsNullOrEmpty(fileUrl)) continue;
+
+                    int id = Math.Abs(fileUrl.GetHashCode());
+                    int width = obj["dimensions"]?["width"]?.Value<int>() ?? 0;
+                    int height = obj["dimensions"]?["height"]?.Value<int>() ?? 0;
+                    string artist = obj["artist_name"]?.Value<string>() ?? "Anime Artist";
+                    string sourceUrl = obj["source_url"]?.Value<string>() ?? fileUrl;
+
+                    var post = new PostItem
+                    {
+                        Id = id,
+                        Source = "waifuim",
+                        PreviewUrl = fileUrl,
+                        SampleUrl = fileUrl,
+                        FileUrl = fileUrl,
+                        Width = width,
+                        Height = height,
+                        Rating = "s", // nekos.best /neko endpoint is 100% SFW
+                        Score = 100,
+                        Tags = $"anime neko {artist.Replace(' ', '_')}",
+                        Author = artist,
+                        SourceUrl = sourceUrl,
+                        IsFavorite = FavoritesManager.Instance.IsFavorite(id, "waifuim")
+                    };
+
+                    if (DownloadsManager.Instance.IsDownloaded(id, "waifuim", out var localPath))
+                    {
+                        post.IsDownloaded = true;
+                        post.LocalPath = localPath;
+                    }
+
+                    list.Add(post);
+                }
+
+                return list;
+            }
+            catch
+            {
                 return new List<PostItem>();
             }
         }
@@ -456,7 +1066,12 @@ namespace WallSafe
         {
             var ratingMode = Settings.Instance.RatingMode;
             bool sfw = ratingMode == ContentRatingMode.SfwOnly;
-            string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
+            string targetSource = (sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("zerochan", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("safebooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("gelbooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("danbooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("waifuim", StringComparison.OrdinalIgnoreCase))
                 ? (sfw ? "konasfw" : "yande")
                 : (sfw && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 
@@ -508,7 +1123,12 @@ namespace WallSafe
 
             var ratingMode = Settings.Instance.RatingMode;
             bool sfw = ratingMode == ContentRatingMode.SfwOnly;
-            string targetSource = sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase)
+            string targetSource = (sourceKey.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("zerochan", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("safebooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("gelbooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("danbooru", StringComparison.OrdinalIgnoreCase) ||
+                                   sourceKey.Equals("waifuim", StringComparison.OrdinalIgnoreCase))
                 ? (sfw ? "konasfw" : "yande")
                 : (sfw && (sourceKey == "konansfw" || sourceKey == "yande") ? "konasfw" : sourceKey);
 

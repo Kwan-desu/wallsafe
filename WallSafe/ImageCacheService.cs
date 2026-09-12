@@ -130,13 +130,10 @@ namespace WallSafe
                             try
                             {
                                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                                if (url.Contains("yande.re", StringComparison.OrdinalIgnoreCase))
+                                var referrer = ApiClient.GetReferrerForUrl(url);
+                                if (referrer != null)
                                 {
-                                    request.Headers.Referrer = new Uri("https://yande.re/");
-                                }
-                                else if (url.Contains("konachan", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    request.Headers.Referrer = new Uri("https://konachan.net/");
+                                    request.Headers.Referrer = referrer;
                                 }
 
                                 using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);

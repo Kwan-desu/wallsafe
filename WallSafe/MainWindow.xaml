@@ -490,7 +490,22 @@
                         <RadioButton x:Name="SourceKonaSfw" Content="konachan.net (SFW)"
                                      Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
                                      Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceZerochan" Content="Zerochan (SFW)"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceSafebooru" Content="Safebooru (SFW)"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceWaifuIm" Content="waifu.im"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
                         <RadioButton x:Name="SourceYande" Content="yande.re"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceGelbooru" Content="Gelbooru"
+                                     Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
+                                     Checked="Source_Changed"/>
+                        <RadioButton x:Name="SourceDanbooru" Content="Danbooru"
                                      Style="{StaticResource FilterPillStyle}" Margin="0,0,6,6"
                                      Checked="Source_Changed"/>
                         <RadioButton x:Name="SourceKonaNsfw" Content="konachan.com (18+)"
