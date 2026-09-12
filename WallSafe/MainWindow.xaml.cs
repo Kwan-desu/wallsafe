@@ -891,7 +891,15 @@ namespace WallSafe
             if (SourcePillsPanel == null) return;
 
             var toRemove = SourcePillsPanel.Children.OfType<RadioButton>()
-                .Where(rb => rb != SourceAll && rb != SourceKonaSfw && rb != SourceYande && rb != SourceKonaNsfw)
+                .Where(rb => rb != SourceAll &&
+                             rb != SourceKonaSfw &&
+                             rb != SourceZerochan &&
+                             rb != SourceSafebooru &&
+                             rb != SourceWaifuIm &&
+                             rb != SourceYande &&
+                             rb != SourceGelbooru &&
+                             rb != SourceDanbooru &&
+                             rb != SourceKonaNsfw)
                 .ToList();
 
             foreach (var rb in toRemove)

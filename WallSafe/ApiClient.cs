@@ -96,7 +96,6 @@ namespace WallSafe
                     targetSources.Add("konasfw");
                     targetSources.Add("zerochan");
                     targetSources.Add("safebooru");
-                    targetSources.Add("waifuim");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && cs.IsSfw && !string.IsNullOrWhiteSpace(cs.BaseUrl))
@@ -109,8 +108,6 @@ namespace WallSafe
                     targetSources.Add("zerochan");
                     targetSources.Add("safebooru");
                     targetSources.Add("yande");
-                    targetSources.Add("gelbooru");
-                    targetSources.Add("waifuim");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
                         if (cs.Enabled && !string.IsNullOrWhiteSpace(cs.BaseUrl))
@@ -123,9 +120,6 @@ namespace WallSafe
                     targetSources.Add("konasfw");
                     targetSources.Add("zerochan");
                     targetSources.Add("safebooru");
-                    targetSources.Add("gelbooru");
-                    targetSources.Add("danbooru");
-                    targetSources.Add("waifuim");
                     targetSources.Add("konansfw");
                     foreach (var cs in Settings.Instance.CustomSources)
                     {
@@ -135,20 +129,46 @@ namespace WallSafe
                 }
 
                 int perSourceLimit = Math.Max(limit / Math.Max(1, targetSources.Count) + 6, 12);
-                var tasks = targetSources.Select(src => FetchSingleSourcePostsAsync(src, tags, page, perSourceLimit, ct));
-                var results = await Task.WhenAll(tasks);
+                var tasks = targetSources.Select(src => FetchSingleSourcePostsAsync(src, tags, page, perSourceLimit, ct)).ToList();
+
+                // Ultra-fast response: wait for all fast sources, capped at 2.0s so UI never hangs
+                var allTask = Task.WhenAll(tasks);
+                var timeoutTask = Task.Delay(2000, ct);
+                await Task.WhenAny(allTask, timeoutTask);
 
                 var merged = new List<PostItem>();
                 var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var list in results)
+                foreach (var t in tasks)
                 {
-                    foreach (var post in list)
+                    if (t.IsCompletedSuccessfully && t.Result != null)
                     {
-                        string key = !string.IsNullOrEmpty(post.PreviewUrl) ? post.PreviewUrl : post.BestImageUrl;
-                        if (!string.IsNullOrEmpty(key) && seenUrls.Add(key))
+                        foreach (var post in t.Result)
                         {
-                            merged.Add(post);
+                            string key = !string.IsNullOrEmpty(post.PreviewUrl) ? post.PreviewUrl : post.BestImageUrl;
+                            if (!string.IsNullOrEmpty(key) && seenUrls.Add(key))
+                            {
+                                merged.Add(post);
+                            }
+                        }
+                    }
+                }
+
+                if (merged.Count == 0 && !allTask.IsCompleted)
+                {
+                    try { await allTask; } catch { }
+                    foreach (var t in tasks)
+                    {
+                        if (t.IsCompletedSuccessfully && t.Result != null)
+                        {
+                            foreach (var post in t.Result)
+                            {
+                                string key = !string.IsNullOrEmpty(post.PreviewUrl) ? post.PreviewUrl : post.BestImageUrl;
+                                if (!string.IsNullOrEmpty(key) && seenUrls.Add(key))
+                                {
+                                    merged.Add(post);
+                                }
+                            }
                         }
                     }
                 }
@@ -498,9 +518,12 @@ namespace WallSafe
                     ? $"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&pid={pid}&limit={limit}"
                     : $"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&tags={formatted}&pid={pid}&limit={limit}";
 
+                using var quickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                quickCts.CancelAfter(TimeSpan.FromSeconds(2.5));
+
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Referrer = new Uri("https://gelbooru.com/");
-                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, quickCts.Token);
                 if (!resp.IsSuccessStatusCode)
                 {
                     if (ratingMode == ContentRatingMode.SfwOnly)
@@ -510,7 +533,7 @@ namespace WallSafe
                     return new List<PostItem>();
                 }
 
-                var json = await resp.Content.ReadAsStringAsync(ct);
+                var json = await resp.Content.ReadAsStringAsync(quickCts.Token);
                 JArray arr;
                 if (json.TrimStart().StartsWith("["))
                 {
@@ -624,15 +647,18 @@ namespace WallSafe
                     ? $"https://danbooru.donmai.us/posts.json?page={page}&limit={limit}"
                     : $"https://danbooru.donmai.us/posts.json?tags={formatted}&page={page}&limit={limit}";
 
+                using var quickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                quickCts.CancelAfter(TimeSpan.FromSeconds(2.5));
+
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Referrer = new Uri("https://danbooru.donmai.us/");
-                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, quickCts.Token);
                 if (!resp.IsSuccessStatusCode)
                 {
                     return await FetchSafebooruPostsAsync(tags, page, limit, ct);
                 }
 
-                var json = await resp.Content.ReadAsStringAsync(ct);
+                var json = await resp.Content.ReadAsStringAsync(quickCts.Token);
                 var arr = JArray.Parse(json);
 
                 var result = new List<PostItem>();
@@ -724,12 +750,15 @@ namespace WallSafe
                     }
                 }
 
+                using var quickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                quickCts.CancelAfter(TimeSpan.FromSeconds(1.5));
+
                 using var req = new HttpRequestMessage(HttpMethod.Get, url);
                 req.Headers.Referrer = new Uri("https://waifu.im/");
-                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, quickCts.Token);
                 if (resp.IsSuccessStatusCode)
                 {
-                    var json = await resp.Content.ReadAsStringAsync(ct);
+                    var json = await resp.Content.ReadAsStringAsync(quickCts.Token);
                     if (json.TrimStart().StartsWith("{"))
                     {
                         var root = JObject.Parse(json);
