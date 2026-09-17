@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WallSafeWinUI.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent">
+
+    <ScrollViewer>
+        <StackPanel Margin="24,12,24,24" Spacing="4" MaxWidth="1000">
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}" Margin="4,0,0,4" />
+            <TextBlock Text="Every change applies immediately." Style="{StaticResource BodyTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="4,0,0,8" />
+
+            <!-- Personalization -->
+            <TextBlock Text="Personalization" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBox x:Name="UserNameBox" Header="Your name" PlaceholderText="Shown in the dashboard greeting"
+                             MaxLength="40" TextChanged="UserName_Changed" />
+                    <ToggleSwitch x:Name="GreetingSwitch" Header="Show welcome greeting on Home" Toggled="Greeting_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <TextBlock Text="Appearance" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="App theme" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Light, Dark, or follow Windows." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <ComboBox x:Name="ThemeCombo" Grid.Column="1" Width="180" VerticalAlignment="Center" SelectionChanged="Theme_Changed">
+                        <ComboBoxItem Content="Light" Tag="Light" />
+                        <ComboBoxItem Content="Dark" Tag="Dark" />
+                        <ComboBoxItem Content="Use system setting" Tag="System" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Window backdrop" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Mica, Mica Alt, Acrylic, or none." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <ComboBox x:Name="BackdropCombo" Grid.Column="1" Width="180" VerticalAlignment="Center" SelectionChanged="Backdrop_Changed">
+                        <ComboBoxItem Content="Mica" Tag="Mica" />
+                        <ComboBoxItem Content="Mica Alt" Tag="MicaAlt" />
+                        <ComboBoxItem Content="Acrylic" Tag="Acrylic" />
+                        <ComboBoxItem Content="None" Tag="None" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- Panic hotkey -->
+            <TextBlock Text="Panic hotkey &amp; stealth" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock x:Name="HotkeyLabel" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="RecordHotkeyBtn" Content="Record shortcut" Click="RecordHotkey_Click" MinWidth="160" />
+                        <TextBlock x:Name="RecordHint" VerticalAlignment="Center"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="Up to 3 keys, e.g. Ctrl + Shift + W" />
+                    </StackPanel>
+                    <ToggleSwitch x:Name="PanicHide" Header="Hide WallSafe on panic" Toggled="Panic_Toggled" />
+                    <ToggleSwitch x:Name="PanicMinimize" Header="Show desktop (minimize all)" Toggled="Panic_Toggled" />
+                    <ToggleSwitch x:Name="PanicMute" Header="Mute system audio" Toggled="Panic_Toggled" />
+                    <ToggleSwitch x:Name="PanicRestore" Header="Second press restores previous wallpaper" Toggled="Panic_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- Safe wallpaper -->
+            <TextBlock Text="Safe wallpaper" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock x:Name="SafeWpText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <Button Content="Choose safe wallpaper…" Click="PickSafeWallpaper_Click" />
+                </StackPanel>
+            </Border>
+
+            <!-- Slideshow -->
+            <TextBlock Text="Slideshow" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="12">
+                    <ToggleSwitch x:Name="SlideshowSwitch" Header="Enable slideshow" Toggled="Slideshow_Toggled" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <NumberBox x:Name="IntervalBox" Header="Interval (minutes)" Width="180"
+                                   Minimum="0.1" Maximum="1440" SmallChange="0.5" LargeChange="5"
+                                   SpinButtonPlacementMode="Compact"
+                                   ValueChanged="Interval_ValueChanged" />
+                        <ComboBox x:Name="SlideshowSourceCombo" Header="Source" Width="160" SelectionChanged="Slideshow_Config">
+                            <ComboBoxItem Content="Favorites" Tag="favorites" />
+                            <ComboBoxItem Content="Downloads" Tag="downloads" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="Quick set:" VerticalAlignment="Center"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Button Content="30s" Click="IntervalPreset_Click" Tag="0.5" />
+                        <Button Content="1m" Click="IntervalPreset_Click" Tag="1" />
+                        <Button Content="5m" Click="IntervalPreset_Click" Tag="5" />
+                        <Button Content="15m" Click="IntervalPreset_Click" Tag="15" />
+                        <Button Content="1h" Click="IntervalPreset_Click" Tag="60" />
+                    </StackPanel>
+                    <TextBlock x:Name="IntervalHint" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Startup -->
+            <TextBlock Text="Startup" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <ToggleSwitch x:Name="AutoStart" Header="Launch with Windows" Toggled="AutoStart_Toggled" />
+                    <ToggleSwitch x:Name="StartMinimized" Header="Start minimized in tray" Toggled="StartMin_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- Downloads folder -->
+            <TextBlock Text="Downloads" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock x:Name="DownloadFolderText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                    <Button Content="Change folder…" Click="PickDownloadFolder_Click" />
+                </StackPanel>
+            </Border>
+
+            <!-- Wi-Fi auto wallpaper -->
+            <TextBlock Text="Wi-Fi auto-wallpaper" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <ToggleSwitch x:Name="WifiSwitch" Header="Apply a safe wallpaper on certain Wi-Fi networks" Toggled="Wifi_Toggled" />
+                    <TextBox x:Name="WifiSsidBox" Header="Trigger SSIDs (comma or newline separated)"
+                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" TextChanged="Wifi_TextChanged" />
+                    <ToggleSwitch x:Name="WifiRestore" Header="Restore previous wallpaper on disconnect" Toggled="Wifi_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- Location auto wallpaper -->
+            <TextBlock Text="Location auto-wallpaper" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <ToggleSwitch x:Name="LocationSwitch" Header="Apply a safe wallpaper inside a chosen area" Toggled="Location_Toggled" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBox x:Name="LatBox" Header="Latitude" Width="150" TextChanged="Location_TextChanged" />
+                        <TextBox x:Name="LonBox" Header="Longitude" Width="150" TextChanged="Location_TextChanged" />
+                        <TextBox x:Name="RadiusBox" Header="Radius (m)" Width="120" TextChanged="Location_TextChanged" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="UseCurrentLocationBtn" Content="Use current location" Click="UseCurrentLocation_Click" />
+                        <TextBlock x:Name="LocationStatus" VerticalAlignment="Center"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <ToggleSwitch x:Name="LocationRestore" Header="Restore previous wallpaper on leaving the area" Toggled="Location_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- Content discretion -->
+            <TextBlock Text="Content discretion" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <ToggleSwitch x:Name="DiscretionSwitch" Header="Blur sensitive thumbnails" Toggled="Discretion_Toggled" />
+                    <TextBox x:Name="BlacklistBox" Header="Tag blacklist (space separated)" TextChanged="Blacklist_Changed" />
+                </StackPanel>
+            </Border>
+
+            <!-- Home dashboard sections -->
+            <TextBlock Text="Home dashboard" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Choose which sections appear on the Home page."
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <ToggleSwitch x:Name="HomeStatsToggle" Header="Overview statistics strip" Toggled="Home_Toggled" />
+                    <ToggleSwitch x:Name="HomeHero" Header="Spotlight banner" Toggled="Home_Toggled" />
+                    <ToggleSwitch x:Name="HomeQuick" Header="Quick controls strip" Toggled="Home_Toggled" />
+                    <ToggleSwitch x:Name="HomeTrending" Header="Trending this week" Toggled="Home_Toggled" />
+                    <ToggleSwitch x:Name="HomeFranchises" Header="Popular universes &amp; franchises" Toggled="Home_Toggled" />
+                    <ToggleSwitch x:Name="HomeShelf" Header="Your quick shelf (favorites)" Toggled="Home_Toggled" />
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <TextBlock Text="About" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <Border Style="{StaticResource WallSafeCardStyle}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="WallSafe (WinUI 3)" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="Version 3.0.0 · Rebuilt on Windows App SDK with Fluent 11 design." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

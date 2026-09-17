@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WallSafeWinUI.Views.FavoritesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WallSafeWinUI.Controls"
+    xmlns:services="using:WallSafeWinUI.Services"
+    xmlns:animations="using:Microsoft.UI.Xaml.Media.Animation"
+    Background="Transparent">
+
+    <Grid Margin="24,12,24,0" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header + collections expander (the "v") -->
+        <StackPanel Grid.Row="0" Spacing="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Favorites" Style="{StaticResource TitleTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="New collection" Click="NewCollection_Click" VerticalAlignment="Center" />
+            </Grid>
+
+            <Expander x:Name="CollectionsExpander" IsExpanded="True"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      Margin="0,4,0,0">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8B7;" FontSize="16" />
+                        <TextBlock x:Name="CollectionsHeaderText" Text="Collections" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Expander.Header>
+                <!-- Folder cards; drop targets for drag-and-drop from the grid -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollMode="Enabled" Padding="0,4">
+                    <ItemsControl x:Name="FolderList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="12" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="services:FolderCardVM">
+                                <Grid Width="160" Height="120" CornerRadius="12"
+                                      AllowDrop="True" Tag="{x:Bind Name}"
+                                      DragEnter="Folder_DragEnter" DragLeave="Folder_DragLeave"
+                                      Drop="Folder_Drop" Tapped="Folder_Tapped"
+                                      Background="{ThemeResource WallSafeAcrylicCardBrush}"
+                                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                                    <Image Stretch="UniformToFill" Opacity="0.55"
+                                           controls:CachedImage.SourceUrl="{x:Bind Cover}"
+                                           controls:CachedImage.DecodeWidth="320" />
+                                    <Border>
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Offset="0" Color="#33000000" />
+                                                <GradientStop Offset="1" Color="#CC000000" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Bottom" Padding="12" Spacing="2">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="18" Foreground="White" HorizontalAlignment="Left" />
+                                        <TextBlock Text="{x:Bind DisplayName}" FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind CountText}" FontSize="11" Foreground="#CCFFFFFF" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Expander>
+        </StackPanel>
+
+        <!-- Active-collection toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <TextBlock x:Name="ActiveCollectionText" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+            <Button x:Name="RenameBtn" Content="Rename" Click="Rename_Click" Visibility="Collapsed" />
+            <Button x:Name="DeleteBtn" Content="Delete" Click="Delete_Click" Visibility="Collapsed" />
+            <TextBlock Text="Tip: drag a wallpaper onto a folder to move it."
+                       Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <!-- Wallpaper grid -->
+        <Grid Grid.Row="2">
+            <GridView x:Name="Grid" SelectionMode="None" Padding="0,0,0,24"
+                      CanDragItems="True" AllowDrop="False"
+                      SizeChanged="Grid_SizeChanged"
+                      DragItemsStarting="Grid_DragItemsStarting"
+                      ItemContainerStyle="{StaticResource WallSafeGridViewItemStyle}"
+                      ContainerContentChanging="Grid_ContainerContentChanging">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="services:PostItem">
+                        <controls:WallpaperCard HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="6" />
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate><ItemsWrapGrid x:Name="WrapGrid" Orientation="Horizontal" /></ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+            </GridView>
+
+            <StackPanel x:Name="EmptyState" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                <FontIcon Glyph="&#xEB51;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="No favorites here yet. Tap the heart on any wallpaper."
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

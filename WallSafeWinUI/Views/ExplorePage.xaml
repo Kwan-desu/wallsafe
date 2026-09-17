@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="WallSafeWinUI.Views.ExplorePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WallSafeWinUI.Controls"
+    xmlns:services="using:WallSafeWinUI.Services"
+    Background="Transparent">
+
+    <Grid Margin="24,12,24,0" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Explore" Style="{StaticResource TitleTextBlockStyle}"
+                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+
+        <!-- Filter bar -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+            <AutoSuggestBox x:Name="SearchBox" Width="360" PlaceholderText="Search tags, series, characters…"
+                            QueryIcon="Find"
+                            TextChanged="SearchBox_TextChanged"
+                            SuggestionChosen="SearchBox_SuggestionChosen"
+                            QuerySubmitted="SearchBox_QuerySubmitted">
+                <AutoSuggestBox.ItemTemplate>
+                    <DataTemplate x:DataType="services:TagSuggestion">
+                        <Grid ColumnSpacing="10" Padding="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                    Background="{ThemeResource WallSafeAccentBrush}">
+                                <TextBlock Text="{x:Bind CategoryName}" FontSize="10" Foreground="White" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{x:Bind DisplayText}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay}" FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </Grid>
+                    </DataTemplate>
+                </AutoSuggestBox.ItemTemplate>
+            </AutoSuggestBox>
+            <ComboBox x:Name="SourceCombo" Header="" MinWidth="150" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="All sources" Tag="all" IsSelected="True" />
+                <ComboBoxItem Content="Konachan (SFW)" Tag="konasfw" />
+                <ComboBoxItem Content="Konachan.com" Tag="konansfw" />
+                <ComboBoxItem Content="yande.re" Tag="yande" />
+            </ComboBox>
+            <ComboBox x:Name="SortCombo" MinWidth="140" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="Top score" Tag="order:score" IsSelected="True" />
+                <ComboBoxItem Content="Newest" Tag="" />
+            </ComboBox>
+            <ComboBox x:Name="ResCombo" MinWidth="130" SelectionChanged="Filter_Changed">
+                <ComboBoxItem Content="Any resolution" Tag="0" IsSelected="True" />
+                <ComboBoxItem Content="1080p+" Tag="1920" />
+                <ComboBoxItem Content="2K+" Tag="2560" />
+                <ComboBoxItem Content="4K+" Tag="3840" />
+            </ComboBox>
+            <ToggleButton x:Name="WallpaperOnlyToggle" Content="Wallpaper only" VerticalAlignment="Bottom"
+                          Click="WallpaperOnly_Click" ToolTipService.ToolTip="Show only landscape wallpaper-friendly images" />
+            <Button Content="Refresh" Click="Refresh_Click" VerticalAlignment="Bottom" />
+        </StackPanel>
+
+        <!-- Grid -->
+        <Grid Grid.Row="2">
+            <GridView x:Name="Grid" IsItemClickEnabled="False"
+                      SelectionMode="None" Padding="0,0,0,24"
+                      SizeChanged="Grid_SizeChanged"
+                      ItemContainerStyle="{StaticResource WallSafeGridViewItemStyle}"
+                      ContainerContentChanging="Grid_ContainerContentChanging">
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="services:PostItem">
+                        <controls:WallpaperCard HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="6" />
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid x:Name="WrapGrid" Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+            </GridView>
+
+            <ProgressRing x:Name="Loader" Width="36" Height="36"
+                          VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                          Margin="0,0,0,16" IsActive="False" />
+
+            <StackPanel x:Name="EmptyState" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                <FontIcon Glyph="&#xE721;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="No wallpapers found. Try different filters."
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

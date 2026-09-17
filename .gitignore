@@ -35,3 +35,10 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 *.bak
+*.zip
+*.exe
+*.apk
+apk_extracted/
+wallsafe-android/
+installer/bin/
+installer/obj/

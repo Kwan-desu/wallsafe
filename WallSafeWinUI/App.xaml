@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="WallSafeWinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:media="using:Microsoft.UI.Xaml.Media">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <ResourceDictionary.ThemeDictionaries>
+
+                <!-- ============================= LIGHT ============================= -->
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="LayerFillColorDefault">#0A000000</Color>
+                    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+                    <Color x:Key="SolidBackgroundFillColorBase">#F3F3F3</Color>
+                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+                    <Color x:Key="CardStrokeColorDefault">#22000000</Color>
+                    <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
+                    <Color x:Key="WallSafeAccent">#4F46E5</Color>
+                    <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{StaticResource WallSafeAccent}" />
+                    <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="#B3000000" />
+
+                    <!-- In-app acrylic surfaces (frosted glass over the window backdrop) -->
+                    <media:AcrylicBrush x:Key="WallSafeAcrylicCardBrush"
+                                        TintColor="#FFFFFF" TintOpacity="0.55" TintLuminosityOpacity="0.85"
+                                        FallbackColor="#F6F6F8" />
+                    <media:AcrylicBrush x:Key="WallSafePaneAcrylicBrush"
+                                        TintColor="#FFFFFF" TintOpacity="0.4" TintLuminosityOpacity="0.8"
+                                        FallbackColor="#F0F0F3" />
+                    <media:AcrylicBrush x:Key="WallSafeBarAcrylicBrush"
+                                        TintColor="#FFFFFF" TintOpacity="0.35" TintLuminosityOpacity="0.75"
+                                        FallbackColor="#F3F3F5" />
+
+                    <!-- Route the NavigationView pane material to acrylic -->
+                    <media:AcrylicBrush x:Key="NavigationViewDefaultPaneBackground"
+                                        TintColor="#FFFFFF" TintOpacity="0.4" TintLuminosityOpacity="0.8"
+                                        FallbackColor="#F0F0F3" />
+                    <media:AcrylicBrush x:Key="NavigationViewExpandedPaneBackground"
+                                        TintColor="#FFFFFF" TintOpacity="0.4" TintLuminosityOpacity="0.8"
+                                        FallbackColor="#F0F0F3" />
+                </ResourceDictionary>
+
+                <!-- ============================= DARK ============================== -->
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="LayerFillColorDefault">#12FFFFFF</Color>
+                    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+                    <Color x:Key="SolidBackgroundFillColorBase">#1C202B</Color>
+                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+                    <Color x:Key="CardStrokeColorDefault">#26FFFFFF</Color>
+                    <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
+                    <Color x:Key="WallSafeAccent">#818CF8</Color>
+                    <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{StaticResource WallSafeAccent}" />
+                    <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="#CC000000" />
+
+                    <!-- In-app acrylic surfaces -->
+                    <media:AcrylicBrush x:Key="WallSafeAcrylicCardBrush"
+                                        TintColor="#1B1F2A" TintOpacity="0.5" TintLuminosityOpacity="0.72"
+                                        FallbackColor="#232838" />
+                    <media:AcrylicBrush x:Key="WallSafePaneAcrylicBrush"
+                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#161922" />
+                    <media:AcrylicBrush x:Key="WallSafeBarAcrylicBrush"
+                                        TintColor="#12151E" TintOpacity="0.4" TintLuminosityOpacity="0.65"
+                                        FallbackColor="#181B24" />
+
+                    <!-- Route the NavigationView pane material to acrylic -->
+                    <media:AcrylicBrush x:Key="NavigationViewDefaultPaneBackground"
+                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#161922" />
+                    <media:AcrylicBrush x:Key="NavigationViewExpandedPaneBackground"
+                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#161922" />
+                </ResourceDictionary>
+
+                <!-- =========================== HIGH CONTRAST ======================== -->
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{ThemeResource SystemColorButtonTextColor}" />
+                    <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <!-- Materials collapse to solid system colors under High Contrast. -->
+                    <SolidColorBrush x:Key="WallSafeAcrylicCardBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="WallSafePaneAcrylicBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="WallSafeBarAcrylicBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                </ResourceDictionary>
+
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{ThemeResource SystemAccentColor}" />
+
+            <!-- Geometry tokens -->
+            <CornerRadius x:Key="WallSafeCardCornerRadius">10</CornerRadius>
+            <CornerRadius x:Key="WallSafeControlCornerRadius">6</CornerRadius>
+            <x:Double x:Key="WallSafeCardSpacing">6</x:Double>
+            <x:Double x:Key="WallSafeSectionMaxWidth">1400</x:Double>
+
+            <!-- Section header style -->
+            <Style x:Key="WallSafeSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="Margin" Value="4,24,0,8" />
+                <Setter Property="FontSize" Value="15" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Style>
+
+            <!-- Acrylic settings-card container style -->
+            <Style x:Key="WallSafeCardStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="{StaticResource WallSafeCardCornerRadius}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="Background" Value="{ThemeResource WallSafeAcrylicCardBrush}" />
+                <Setter Property="Padding" Value="18" />
+            </Style>
+
+            <!-- GridViewItem style that strips the default selection chrome and
+                 tight padding, so wallpaper cards butt up cleanly with an even gap. -->
+            <Style x:Key="WallSafeGridViewItemStyle" TargetType="GridViewItem">
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Stretch" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+            </Style>
+
+            <!-- Segmented RadioButton (pill) for the rating-mode selector -->
+            <Style x:Key="WallSafeSegmentStyle" TargetType="RadioButton">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Padding" Value="14,5" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Root" CornerRadius="6" Padding="{TemplateBinding Padding}"
+                                    Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                                <ContentPresenter x:Name="Content"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed" />
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource WallSafeAccentBrush}" />
+                                                <Setter Target="Content.Foreground" Value="White" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="Indeterminate" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>
