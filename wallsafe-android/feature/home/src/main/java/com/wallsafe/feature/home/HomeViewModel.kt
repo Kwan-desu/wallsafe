@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wallsafe.core.data.repository.BooruRepository
+import com.wallsafe.core.data.repository.DownloadsRepository
 import com.wallsafe.core.data.repository.FavoritesRepository
 import com.wallsafe.core.data.repository.SettingsRepository
 import com.wallsafe.core.model.ContentRatingMode
@@ -25,6 +26,7 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val booruRepository: BooruRepository,
     private val favoritesRepository: FavoritesRepository,
+    private val downloadsRepository: DownloadsRepository,
     private val settingsRepository: SettingsRepository,
     private val wallpaperEngine: WallpaperEngine,
     private val downloadManager: DownloadManager
@@ -36,7 +38,16 @@ class HomeViewModel @Inject constructor(
 
     init {
         observeFavorites()
+        observeDownloads()
         observeSettings()
+    }
+
+    private fun observeDownloads() {
+        viewModelScope.launch {
+            downloadsRepository.getDownloads().collect { downloads ->
+                _uiState.update { it.copy(downloadsCount = downloads.size) }
+            }
+        }
     }
 
     private fun observeSettings() {
@@ -79,6 +90,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.isGreetingNameEnabled.collect { enabled ->
                 _uiState.update { it.copy(isGreetingNameEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.appliedWallpapersCount.collect { count ->
+                _uiState.update { it.copy(appliedCount = count) }
             }
         }
         viewModelScope.launch {
@@ -128,7 +144,15 @@ class HomeViewModel @Inject constructor(
                 // Load popular series in the background without blocking the UI
                 launch {
                     val popular = booruRepository.getPopularSeries("yande", 10)
-                    _uiState.update { it.copy(popularSeries = popular) }
+                    val topPick = popular.firstOrNull()?.name ?: "Wuthering Waves"
+                    val topTag = popular.firstOrNull()?.tag ?: "wuthering_waves"
+                    _uiState.update { 
+                        it.copy(
+                            popularSeries = popular,
+                            topPickTitle = topPick,
+                            topPickTag = topTag
+                        ) 
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
@@ -161,7 +185,8 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         recentFavorites = posts,
-                        favoriteKeys = favKeys
+                        favoriteKeys = favKeys,
+                        favoritesCount = favKeys.size
                     ) 
                 }
             }
@@ -237,7 +262,10 @@ class HomeViewModel @Inject constructor(
             if (posts.isNotEmpty()) {
                 val randomPost = posts.random()
                 val url = randomPost.sampleUrl ?: randomPost.fileUrl ?: randomPost.previewUrl
-                wallpaperEngine.applyWallpaper(context, url, WallpaperManager.FLAG_SYSTEM)
+                val success = wallpaperEngine.applyWallpaper(context, url, WallpaperManager.FLAG_SYSTEM)
+                if (success) {
+                    settingsRepository.incrementAppliedCount()
+                }
             }
         }
     }
@@ -259,7 +287,10 @@ class HomeViewModel @Inject constructor(
     private fun applyWallpaper(post: PostItem) {
         viewModelScope.launch {
             val url = post.sampleUrl ?: post.fileUrl ?: post.previewUrl
-            wallpaperEngine.applyWallpaper(context, url, WallpaperManager.FLAG_SYSTEM)
+            val success = wallpaperEngine.applyWallpaper(context, url, WallpaperManager.FLAG_SYSTEM)
+            if (success) {
+                settingsRepository.incrementAppliedCount()
+            }
         }
     }
 

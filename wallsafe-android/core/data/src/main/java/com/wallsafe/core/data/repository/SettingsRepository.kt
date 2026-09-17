@@ -20,6 +20,7 @@ interface SettingsRepository {
     val userName: Flow<String>
     val isGreetingNameEnabled: Flow<Boolean>
     val hasPromptedForName: Flow<Boolean>
+    val appliedWallpapersCount: Flow<Int>
 
     val isPanicModeEnabled: Flow<Boolean>
     val panicTriggerType: Flow<String>
@@ -47,6 +48,7 @@ interface SettingsRepository {
     suspend fun setUserName(name: String)
     suspend fun setIsGreetingNameEnabled(enabled: Boolean)
     suspend fun setHasPromptedForName(prompted: Boolean)
+    suspend fun incrementAppliedCount()
 
     suspend fun setPanicModeEnabled(enabled: Boolean)
     suspend fun setPanicTriggerType(type: String)
@@ -79,6 +81,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val userName: Flow<String> = preferences.userName
     override val isGreetingNameEnabled: Flow<Boolean> = preferences.isGreetingNameEnabled
     override val hasPromptedForName: Flow<Boolean> = preferences.hasPromptedForName
+    override val appliedWallpapersCount: Flow<Int> = preferences.appliedWallpapersCount
 
     override val isPanicModeEnabled: Flow<Boolean> = preferences.isPanicModeEnabled
     override val panicTriggerType: Flow<String> = preferences.panicTriggerType
@@ -106,6 +109,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setUserName(name: String) { preferences.setUserName(name) }
     override suspend fun setIsGreetingNameEnabled(enabled: Boolean) { preferences.setIsGreetingNameEnabled(enabled) }
     override suspend fun setHasPromptedForName(prompted: Boolean) { preferences.setHasPromptedForName(prompted) }
+    override suspend fun incrementAppliedCount() { preferences.incrementAppliedCount() }
 
     override suspend fun setPanicModeEnabled(enabled: Boolean) { preferences.setPanicModeEnabled(enabled) }
     override suspend fun setPanicTriggerType(type: String) { preferences.setPanicTriggerType(type) }

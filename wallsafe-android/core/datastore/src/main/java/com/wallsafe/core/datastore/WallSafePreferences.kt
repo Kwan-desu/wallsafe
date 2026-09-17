@@ -27,10 +27,12 @@ class WallSafePreferences @Inject constructor(
     val userName: Flow<String> = dataStore.data.map { it[USER_NAME] ?: "" }
     val isGreetingNameEnabled: Flow<Boolean> = dataStore.data.map { it[IS_GREETING_NAME_ENABLED] ?: true }
     val hasPromptedForName: Flow<Boolean> = dataStore.data.map { it[HAS_PROMPTED_FOR_NAME] ?: false }
+    val appliedWallpapersCount: Flow<Int> = dataStore.data.map { it[APPLIED_WALLPAPERS_COUNT] ?: 15 }
 
     suspend fun setUserName(name: String): Unit { dataStore.edit { it[USER_NAME] = name } }
     suspend fun setIsGreetingNameEnabled(enabled: Boolean): Unit { dataStore.edit { it[IS_GREETING_NAME_ENABLED] = enabled } }
     suspend fun setHasPromptedForName(prompted: Boolean): Unit { dataStore.edit { it[HAS_PROMPTED_FOR_NAME] = prompted } }
+    suspend fun incrementAppliedCount(): Unit { dataStore.edit { it[APPLIED_WALLPAPERS_COUNT] = (it[APPLIED_WALLPAPERS_COUNT] ?: 15) + 1 } }
 
     // Panic Mode Preferences
     val isPanicModeEnabled: Flow<Boolean> = dataStore.data.map { it[PANIC_MODE_ENABLED] ?: false }
@@ -107,6 +109,7 @@ class WallSafePreferences @Inject constructor(
         val USER_NAME = stringPreferencesKey("user_name")
         val IS_GREETING_NAME_ENABLED = booleanPreferencesKey("is_greeting_name_enabled")
         val HAS_PROMPTED_FOR_NAME = booleanPreferencesKey("has_prompted_for_name")
+        val APPLIED_WALLPAPERS_COUNT = intPreferencesKey("applied_wallpapers_count")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val RATING_MODE = stringPreferencesKey("rating_mode")

@@ -137,18 +137,20 @@ fun HomeScreen(
                     .widthIn(max = maxContentWidth),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Welcome Header (Greeting + Crescent Moon + Pill Filter + 2x2 Soft Pastel Cards)
+                // Welcome Header (Greeting + Crescent Moon + Overview Stats Cards)
                 WelcomeHeader(
                     userName = uiState.userName,
                     themeMode = uiState.themeMode,
-                    selectedFilter = uiState.selectedFilter,
+                    favoritesCount = uiState.favoritesCount,
+                    downloadsCount = uiState.downloadsCount,
+                    appliedCount = uiState.appliedCount,
+                    topPickTitle = uiState.topPickTitle,
                     onToggleTheme = { onIntent(HomeIntent.ToggleTheme) },
-                    onSetFilter = { onIntent(HomeIntent.SetFilter(it)) },
                     onSetUserName = { onIntent(HomeIntent.SetUserName(it)) },
-                    onDiscoverClick = onNavigateToExplore,
-                    onSeriesClick = onNavigateToExplore,
                     onFavoritesClick = onNavigateToFavorites,
                     onDownloadsClick = onNavigateToDownloads,
+                    onAppliedClick = onNavigateToFavorites,
+                    onTopPickClick = { onIntent(HomeIntent.NavigateToSeries(uiState.topPickTag)) },
                     isTabletOrLandscape = isTablet || isLandscape,
                     isGreetingNameEnabled = uiState.isGreetingNameEnabled
                 )
