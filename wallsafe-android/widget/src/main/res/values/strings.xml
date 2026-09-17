@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="panic_widget_name">Panic Safe</string>
+    <string name="panic_widget_description">One-tap emergency action to mute audio and set safe neutral wallpaper</string>
+    <string name="favorite_widget_name">Favorite Wallpaper</string>
+    <string name="favorite_widget_description">Browse and one-tap enable your favorite wallpapers right from your home screen</string>
+    <string name="widget_btn_shuffle">Shuffle</string>
+    <string name="widget_btn_apply">Apply</string>
+    <string name="widget_btn_panic">Panic</string>
+    <string name="widget_status_safe">SAFE</string>
+    <string name="widget_status_active">ACTIVE</string>
+</resources>

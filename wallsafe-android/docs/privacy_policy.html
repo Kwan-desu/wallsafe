@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WallSafe - Privacy Policy</title>
+    <style>
+        :root {
+            --bg-color: #0F1117;
+            --surface-color: #1A1D27;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --accent-color: #6366F1;
+            --border-color: #2E3446;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin: 0;
+            padding: 24px 16px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--surface-color);
+            padding: 32px 28px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        h1, h2, h3 {
+            color: #FFFFFF;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 12px;
+        }
+        h2 {
+            font-size: 1.35rem;
+            margin-top: 28px;
+            color: #CBD5E1;
+        }
+        p, li {
+            color: var(--text-secondary);
+            font-size: 0.98rem;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95rem;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #12141C;
+            color: #FFFFFF;
+        }
+        td {
+            color: var(--text-secondary);
+        }
+        .badge {
+            display: inline-block;
+            background: #22C55E22;
+            color: #22C55E;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: #64748B;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Privacy Policy for WallSafe</h1>
+    <p><strong>Effective Date:</strong> September 14, 2026 &nbsp;|&nbsp; <span class="badge">Zero Tracking</span></p>
+
+    <p>WallSafe is a privacy-first anime wallpaper manager and viewer designed with discretion, local-first architecture, and complete respect for user privacy. This document outlines how WallSafe operates and why it does not collect your personal data.</p>
+
+    <h2>1. Zero Personal Data Collection</h2>
+    <p><strong>WallSafe does not collect, record, transmit, sell, or profile your personal data.</strong></p>
+    <ul>
+        <li><strong>No Account Required:</strong> You do not need to register, log in, or provide any personal details to use WallSafe.</li>
+        <li><strong>No Analytics or Ads:</strong> WallSafe contains zero third-party analytics SDKs, advertising beacons, or telemetry.</li>
+        <li><strong>No Data Brokers:</strong> We never track your behavior or sell your information.</li>
+    </ul>
+
+    <h2>2. On-Device, Local-First Storage</h2>
+    <p>All your activity in WallSafe is stored exclusively on your physical device:</p>
+    <ul>
+        <li><strong>Favorites & Collections:</strong> Saved in a secure on-device SQLite database.</li>
+        <li><strong>Downloaded Wallpapers:</strong> Stored locally in your device's photo storage or application directory.</li>
+        <li><strong>Preferences:</strong> Stored on-device via Android Jetpack DataStore.</li>
+        <li><strong>Cache:</strong> Temporary image cache can be purged at any time in Settings.</li>
+    </ul>
+
+    <h2>3. Android Permissions Disclosed</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Permission</th>
+                <th>Purpose</th>
+                <th>Handling</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>INTERNET</code></td>
+                <td>Fetches wallpapers from public APIs.</td>
+                <td>Direct encrypted HTTPS queries; no personal data sent.</td>
+            </tr>
+            <tr>
+                <td><code>SET_WALLPAPER</code></td>
+                <td>Applies wallpapers to Home/Lock screen.</td>
+                <td>Processed strictly on-device via Android WallpaperManager.</td>
+            </tr>
+            <tr>
+                <td><code>VIBRATE</code></td>
+                <td>Provides haptic feedback on actions.</td>
+                <td>Executed locally via VibratorManager.</td>
+            </tr>
+            <tr>
+                <td><code>POST_NOTIFICATIONS</code></td>
+                <td>Notifies user when wallpaper download finishes.</td>
+                <td>Handled locally on-device via NotificationManager.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>4. Children's Privacy</h2>
+    <p>WallSafe does not knowingly collect personal data from children under 13 (or under 16 in the EU). The app defaults to Safe for Work (SFW) content filtering.</p>
+
+    <h2>5. Contact Us</h2>
+    <p>If you have any questions regarding this Privacy Policy, please contact us at:</p>
+    <p><strong>Email:</strong> <a href="mailto:support@wallsafe.app" style="color: var(--accent-color);">support@wallsafe.app</a><br>
+    <strong>Project Repository:</strong> <a href="https://github.com/Kwan-desu/wallsafe" style="color: var(--accent-color);">https://github.com/Kwan-desu/wallsafe</a></p>
+
+    <div class="footer">
+        &copy; 2026 WallSafe. Open Source &amp; Privacy-First.
+    </div>
+</div>
+</body>
+</html>

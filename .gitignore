@@ -39,6 +39,10 @@ Desktop.ini
 *.exe
 *.apk
 apk_extracted/
-wallsafe-android/
+wallsafe-android/.gradle/
+wallsafe-android/**/build/
+wallsafe-android/local.properties
+wallsafe-android/.idea/
+wallsafe-android/*.log
 installer/bin/
 installer/obj/

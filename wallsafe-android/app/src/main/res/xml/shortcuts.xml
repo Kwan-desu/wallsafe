@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="safe_mode"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_secure"
+        android:shortcutShortLabel="@string/shortcut_safe_mode_short"
+        android:shortcutLongLabel="@string/shortcut_safe_mode_long">
+        <intent
+            android:action="com.wallsafe.action.PANIC"
+            android:targetPackage="com.wallsafe"
+            android:targetClass="com.wallsafe.MainActivity" />
+    </shortcut>
+</shortcuts>
