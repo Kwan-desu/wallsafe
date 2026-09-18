@@ -28,20 +28,31 @@ namespace WallSafeWinUI.Controls
         public static int GetDecodeWidth(DependencyObject o) => (int)o.GetValue(DecodeWidthProperty);
         public static void SetDecodeWidth(DependencyObject o, int v) => o.SetValue(DecodeWidthProperty, v);
 
+        public static readonly DependencyProperty IsBlurredProperty =
+            DependencyProperty.RegisterAttached("IsBlurred", typeof(bool), typeof(CachedImage),
+                new PropertyMetadata(false, OnSourceUrlChanged));
+
+        public static bool GetIsBlurred(DependencyObject o) => (bool)o.GetValue(IsBlurredProperty);
+        public static void SetIsBlurred(DependencyObject o, bool v) => o.SetValue(IsBlurredProperty, v);
+
         private static async void OnSourceUrlChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is not Image image) return;
-            string? url = e.NewValue as string;
+            string? url = GetSourceUrl(image);
             if (string.IsNullOrEmpty(url)) { image.Source = null; return; }
 
             try
             {
-                string path = await ImageCacheService.Instance.GetCachedImagePathAsync(url);
+                bool isBlurred = GetIsBlurred(image);
+                string path = isBlurred
+                    ? await ImageCacheService.Instance.GetCachedBlurredImagePathAsync(url)
+                    : await ImageCacheService.Instance.GetCachedImagePathAsync(url);
+
                 if (GetSourceUrl(image) != url) return; // URL changed while loading
 
                 var bmp = new BitmapImage();
                 int decodeWidth = GetDecodeWidth(image);
-                if (decodeWidth > 0) bmp.DecodePixelWidth = decodeWidth;
+                if (decodeWidth > 0 && !isBlurred) bmp.DecodePixelWidth = decodeWidth;
 
                 if (File.Exists(path))
                 {

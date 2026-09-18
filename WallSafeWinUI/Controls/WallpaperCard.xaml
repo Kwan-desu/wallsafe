@@ -28,11 +28,11 @@
             <!-- Normal sharp thumbnail (revealed on hover or when discretion is off) -->
             <Image x:Name="Thumb" Stretch="UniformToFill" controls:CachedImage.DecodeWidth="640" />
 
-            <!-- Frosted bokeh blurred image layer (active when discretion mode is on) -->
-            <Image x:Name="BlurredThumb" Stretch="UniformToFill" controls:CachedImage.DecodeWidth="12" Opacity="0" />
+            <!-- Genuine photographic Gaussian StackBlurred image layer (active when discretion mode is on) -->
+            <Image x:Name="BlurredThumb" Stretch="UniformToFill" controls:CachedImage.IsBlurred="True" Opacity="0" />
 
             <!-- Soft frosted veil over blur for smooth, aesthetic look -->
-            <Border x:Name="BlurVeil" Background="#28000000" Opacity="0" IsHitTestVisible="False" />
+            <Border x:Name="BlurVeil" Background="#15000000" Opacity="0" IsHitTestVisible="False" />
 
             <!-- Rating badge -->
             <Border x:Name="RatingBadge" HorizontalAlignment="Left" VerticalAlignment="Top"
