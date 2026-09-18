@@ -48,21 +48,25 @@ namespace WallSafeWinUI.Controls
         {
             if (!_isDiscretionActive)
             {
+                Thumb.Opacity = 1.0;
                 BlurredThumb.Opacity = 0.0;
                 BlurVeil.Opacity = 0.0;
                 return;
             }
 
+            double targetThumbOpacity = revealed ? 1.0 : 0.0;
             double targetBlurOpacity = revealed ? 0.0 : 1.0;
 
             if (animate)
             {
                 double duration = revealed ? 280 : 220;
+                AnimateOpacity(Thumb, targetThumbOpacity, duration);
                 AnimateOpacity(BlurredThumb, targetBlurOpacity, duration);
                 AnimateOpacity(BlurVeil, targetBlurOpacity, duration);
             }
             else
             {
+                Thumb.Opacity = targetThumbOpacity;
                 BlurredThumb.Opacity = targetBlurOpacity;
                 BlurVeil.Opacity = targetBlurOpacity;
             }
