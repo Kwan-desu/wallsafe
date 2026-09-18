@@ -49,32 +49,32 @@
                 <ResourceDictionary x:Key="Dark">
                     <Color x:Key="LayerFillColorDefault">#12FFFFFF</Color>
                     <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
-                    <Color x:Key="SolidBackgroundFillColorBase">#1C202B</Color>
+                    <Color x:Key="SolidBackgroundFillColorBase">#121214</Color>
                     <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
                     <Color x:Key="CardStrokeColorDefault">#26FFFFFF</Color>
                     <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
-                    <Color x:Key="WallSafeAccent">#818CF8</Color>
+                    <Color x:Key="WallSafeAccent">#6366F1</Color>
                     <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{StaticResource WallSafeAccent}" />
                     <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="#CC000000" />
 
-                    <!-- In-app acrylic surfaces -->
+                    <!-- In-app acrylic surfaces (neutral dark tones matching app body) -->
                     <media:AcrylicBrush x:Key="WallSafeAcrylicCardBrush"
-                                        TintColor="#1B1F2A" TintOpacity="0.5" TintLuminosityOpacity="0.72"
-                                        FallbackColor="#232838" />
+                                        TintColor="#1A1A1E" TintOpacity="0.5" TintLuminosityOpacity="0.72"
+                                        FallbackColor="#1E1E22" />
                     <media:AcrylicBrush x:Key="WallSafePaneAcrylicBrush"
-                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
-                                        FallbackColor="#161922" />
+                                        TintColor="#121214" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#141416" />
                     <media:AcrylicBrush x:Key="WallSafeBarAcrylicBrush"
-                                        TintColor="#12151E" TintOpacity="0.4" TintLuminosityOpacity="0.65"
-                                        FallbackColor="#181B24" />
+                                        TintColor="#121214" TintOpacity="0.4" TintLuminosityOpacity="0.65"
+                                        FallbackColor="#121214" />
 
                     <!-- Route the NavigationView pane material to acrylic -->
                     <media:AcrylicBrush x:Key="NavigationViewDefaultPaneBackground"
-                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
-                                        FallbackColor="#161922" />
+                                        TintColor="#121214" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#141416" />
                     <media:AcrylicBrush x:Key="NavigationViewExpandedPaneBackground"
-                                        TintColor="#12151E" TintOpacity="0.45" TintLuminosityOpacity="0.7"
-                                        FallbackColor="#161922" />
+                                        TintColor="#121214" TintOpacity="0.45" TintLuminosityOpacity="0.7"
+                                        FallbackColor="#141416" />
                 </ResourceDictionary>
 
                 <!-- =========================== HIGH CONTRAST ======================== -->
@@ -132,15 +132,18 @@
             <!-- Segmented RadioButton (pill) for the rating-mode selector -->
             <Style x:Key="WallSafeSegmentStyle" TargetType="RadioButton">
                 <Setter Property="MinWidth" Value="0" />
-                <Setter Property="Padding" Value="14,5" />
-                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Height" Value="22" />
+                <Setter Property="Padding" Value="9,0" />
+                <Setter Property="FontSize" Value="11" />
                 <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+                <Setter Property="FocusVisualMargin" Value="0" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="RadioButton">
-                            <Border x:Name="Root" CornerRadius="6" Padding="{TemplateBinding Padding}"
-                                    Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                            <Border x:Name="Root" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                                    Background="Transparent" BorderThickness="0">
                                 <ContentPresenter x:Name="Content"
                                                   Content="{TemplateBinding Content}"
                                                   Foreground="{TemplateBinding Foreground}"
@@ -160,7 +163,6 @@
                                         <VisualState x:Name="Checked">
                                             <VisualState.Setters>
                                                 <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
-                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource WallSafeAccentBrush}" />
                                                 <Setter Target="Content.Foreground" Value="White" />
                                             </VisualState.Setters>
                                         </VisualState>

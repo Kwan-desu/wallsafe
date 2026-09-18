@@ -13,40 +13,31 @@
             PointerEntered="RootCard_PointerEntered" PointerExited="RootCard_PointerExited">
         <Border.Resources>
             <Style TargetType="Button" x:Key="CardActionButtonStyle">
-                <Setter Property="Width" Value="36" />
-                <Setter Property="Height" Value="36" />
+                <Setter Property="Width" Value="30" />
+                <Setter Property="Height" Value="30" />
                 <Setter Property="Padding" Value="0" />
-                <Setter Property="CornerRadius" Value="10" />
-                <Setter Property="Background" Value="#66000000" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Background" Value="#73000000" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="BorderBrush" Value="#33FFFFFF" />
+                <Setter Property="BorderBrush" Value="#2BFFFFFF" />
                 <Setter Property="Foreground" Value="White" />
             </Style>
         </Border.Resources>
 
         <Grid>
-            <!-- Thumbnail (fills the card, clipped by the Border's CornerRadius) -->
+            <!-- Normal sharp thumbnail (revealed on hover or when discretion is off) -->
             <Image x:Name="Thumb" Stretch="UniformToFill" controls:CachedImage.DecodeWidth="640" />
 
-            <!-- Discretion privacy blur overlay -->
-            <Border x:Name="BlurOverlay" Background="#F218181B" Visibility="Collapsed">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                    <Border Width="42" Height="42" CornerRadius="21" Background="#26FFFFFF"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xED1A;" FontSize="20" Foreground="#F0FFFFFF"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="Sensitive Content" FontSize="12" FontWeight="SemiBold"
-                               Foreground="#E0FFFFFF" HorizontalAlignment="Center" />
-                    <TextBlock Text="Hover to reveal" FontSize="10"
-                               Foreground="#90FFFFFF" HorizontalAlignment="Center" />
-                </StackPanel>
-            </Border>
+            <!-- Frosted bokeh blurred image layer (active when discretion mode is on) -->
+            <Image x:Name="BlurredThumb" Stretch="UniformToFill" controls:CachedImage.DecodeWidth="12" Opacity="0" />
+
+            <!-- Soft frosted veil over blur for smooth, aesthetic look -->
+            <Border x:Name="BlurVeil" Background="#28000000" Opacity="0" IsHitTestVisible="False" />
 
             <!-- Rating badge -->
             <Border x:Name="RatingBadge" HorizontalAlignment="Left" VerticalAlignment="Top"
-                    Margin="10" CornerRadius="7" Padding="8,3">
-                <TextBlock x:Name="RatingText" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                    Margin="8" CornerRadius="6" Padding="7,2">
+                <TextBlock x:Name="RatingText" FontSize="10.5" FontWeight="SemiBold" Foreground="White" />
             </Border>
 
             <!-- Bottom gradient + info + actions -->
@@ -58,28 +49,28 @@
                         <GradientStop Offset="1" Color="#E6000000" />
                     </LinearGradientBrush>
                 </Grid.Background>
-                <StackPanel Padding="12,26,12,12" Spacing="8">
-                    <TextBlock x:Name="ResText" FontSize="12" FontWeight="SemiBold" Foreground="#F0FFFFFF" />
-                    <StackPanel x:Name="ActionBar" Orientation="Horizontal" Spacing="8" Opacity="0.85">
+                <StackPanel Padding="10,22,10,10" Spacing="6">
+                    <TextBlock x:Name="ResText" FontSize="11" FontWeight="SemiBold" Foreground="#F0FFFFFF" />
+                    <StackPanel x:Name="ActionBar" Orientation="Horizontal" Spacing="6" Opacity="0.85">
                         <Button Style="{StaticResource CardActionButtonStyle}"
                                 ToolTipService.ToolTip="View full image" Click="View_Click">
-                            <FontIcon Glyph="&#xE8A7;" FontSize="16" />
+                            <FontIcon Glyph="&#xE8A7;" FontSize="13" />
                         </Button>
                         <Button x:Name="FavBtn" Style="{StaticResource CardActionButtonStyle}"
                                 ToolTipService.ToolTip="Favorite" Click="Fav_Click">
-                            <FontIcon x:Name="FavIcon" Glyph="&#xEB51;" FontSize="16" />
+                            <FontIcon x:Name="FavIcon" Glyph="&#xEB51;" FontSize="13" />
                         </Button>
                         <Button Style="{StaticResource CardActionButtonStyle}"
                                 ToolTipService.ToolTip="Apply wallpaper" Click="Apply_Click">
-                            <FontIcon Glyph="&#xE7F4;" FontSize="16" />
+                            <FontIcon Glyph="&#xE7F4;" FontSize="13" />
                         </Button>
                         <Button x:Name="DownloadBtn" Style="{StaticResource CardActionButtonStyle}"
                                 ToolTipService.ToolTip="Download" Click="Download_Click">
-                            <FontIcon Glyph="&#xE896;" FontSize="16" />
+                            <FontIcon Glyph="&#xE896;" FontSize="13" />
                         </Button>
                         <Button Style="{StaticResource CardActionButtonStyle}"
                                 ToolTipService.ToolTip="Open source in browser" Click="Source_Click">
-                            <FontIcon Glyph="&#xE774;" FontSize="16" />
+                            <FontIcon Glyph="&#xE774;" FontSize="13" />
                         </Button>
                     </StackPanel>
                 </StackPanel>

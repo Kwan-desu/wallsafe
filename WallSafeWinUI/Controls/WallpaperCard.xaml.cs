@@ -34,34 +34,57 @@ namespace WallSafeWinUI.Controls
             if (post == null) return;
 
             CachedImage.SetSourceUrl(Thumb, post.PreviewUrl);
+            CachedImage.SetSourceUrl(BlurredThumb, post.PreviewUrl);
             ResText.Text = post.ResolutionText;
             RatingText.Text = post.RatingDisplay;
             RatingBadge.Background = new SolidColorBrush(ParseColor(post.RatingBadgeBackground));
             FavIcon.Glyph = post.IsFavorite ? "\uEB52" : "\uEB51";
 
             _isDiscretionActive = Settings.Instance.DiscretionBlur && post.Rating != "s";
-            ApplyDiscretionState(revealed: false);
+            ApplyDiscretionState(revealed: false, animate: false);
         }
 
-        private void ApplyDiscretionState(bool revealed)
+        private void ApplyDiscretionState(bool revealed, bool animate = false)
         {
             if (!_isDiscretionActive)
             {
-                BlurOverlay.Visibility = Visibility.Collapsed;
-                Thumb.Opacity = 1.0;
+                BlurredThumb.Opacity = 0.0;
+                BlurVeil.Opacity = 0.0;
                 return;
             }
 
-            if (revealed)
+            double targetBlurOpacity = revealed ? 0.0 : 1.0;
+
+            if (animate)
             {
-                BlurOverlay.Visibility = Visibility.Collapsed;
-                Thumb.Opacity = 1.0;
+                double duration = revealed ? 280 : 220;
+                AnimateOpacity(BlurredThumb, targetBlurOpacity, duration);
+                AnimateOpacity(BlurVeil, targetBlurOpacity, duration);
             }
             else
             {
-                BlurOverlay.Visibility = Visibility.Visible;
-                Thumb.Opacity = 0.05;
+                BlurredThumb.Opacity = targetBlurOpacity;
+                BlurVeil.Opacity = targetBlurOpacity;
             }
+        }
+
+        private static void AnimateOpacity(UIElement element, double targetOpacity, double durationMs)
+        {
+            var anim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                To = targetOpacity,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EnableDependentAnimation = true,
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+                {
+                    EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut
+                }
+            };
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, element);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "Opacity");
+            sb.Children.Add(anim);
+            sb.Begin();
         }
 
         private static Windows.UI.Color ParseColor(string hex)
@@ -99,14 +122,14 @@ namespace WallSafeWinUI.Controls
         {
             ActionBar.Opacity = 1.0;
             if (_isDiscretionActive)
-                ApplyDiscretionState(revealed: true);
+                ApplyDiscretionState(revealed: true, animate: true);
         }
 
         private void RootCard_PointerExited(object sender, PointerRoutedEventArgs e)
         {
             ActionBar.Opacity = 0.85;
             if (_isDiscretionActive)
-                ApplyDiscretionState(revealed: false);
+                ApplyDiscretionState(revealed: false, animate: true);
         }
 
         private void Fav_Click(object sender, RoutedEventArgs e)

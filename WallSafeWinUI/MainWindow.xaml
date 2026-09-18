@@ -11,10 +11,10 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Custom acrylic title bar -->
-        <Border Grid.Row="0" Background="{ThemeResource WallSafeBarAcrylicBrush}"
+        <!-- Custom acrylic title bar (seamless transparent background) -->
+        <Border Grid.Row="0" Background="Transparent"
                 BorderThickness="0,0,0,1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-            <Grid x:Name="AppTitleBar" Height="44" Background="Transparent">
+            <Grid x:Name="AppTitleBar" Height="40" Background="Transparent">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -22,26 +22,26 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <FontIcon Grid.Column="0" Glyph="&#xE72E;" FontSize="16" Margin="16,0,0,0"
+                <FontIcon Grid.Column="0" Glyph="&#xE72E;" FontSize="15" Margin="16,0,0,0"
                           VerticalAlignment="Center" Foreground="{ThemeResource WallSafeAccentBrush}" />
 
                 <TextBlock Grid.Column="1" Text="WallSafe"
-                           FontWeight="SemiBold" FontSize="13"
-                           Margin="12,0,0,0" VerticalAlignment="Center"
+                           FontWeight="SemiBold" FontSize="12.5"
+                           Margin="10,0,0,0" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
 
                 <!-- TitleBar Action Controls -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="0,0,152,0" VerticalAlignment="Center">
-                    <!-- Quick Slideshow Flyout Button -->
-                    <Button x:Name="SlideshowBtn" Padding="8,5" CornerRadius="8"
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="0,0,148,0" VerticalAlignment="Center">
+                    <!-- Quick Slideshow Flyout Button (compact sleek pill) -->
+                    <Button x:Name="SlideshowBtn" Height="26" Padding="7,1" CornerRadius="6"
                             Background="{ThemeResource WallSafeAcrylicCardBrush}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             ToolTipService.ToolTip="Wallpaper Slideshow auto-rotation settings and toggle">
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="13" Foreground="{ThemeResource WallSafeAccentBrush}" />
-                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                            <FontIcon Glyph="&#xE70D;" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="11" Foreground="{ThemeResource WallSafeAccentBrush}" />
+                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="11" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                            <FontIcon Glyph="&#xE70D;" FontSize="7" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button.Flyout>
                             <Flyout Placement="Bottom">
@@ -71,11 +71,11 @@
                         </Button.Flyout>
                     </Button>
 
-                    <!-- 3-mode rating selector (SFW / Questionable / Explicit) -->
-                    <Border CornerRadius="8" Padding="3"
+                    <!-- 3-mode rating selector (SFW / Questionable / Explicit) (compact sleek pill) -->
+                    <Border Height="26" CornerRadius="6" Padding="2"
                             Background="{ThemeResource WallSafeAcrylicCardBrush}"
                             BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="1">
                             <RadioButton x:Name="ModeSfw" GroupName="RatingMode" Content="SFW"
                                          Style="{StaticResource WallSafeSegmentStyle}"
                                          Checked="RatingMode_Checked" Tag="SfwOnly" />
