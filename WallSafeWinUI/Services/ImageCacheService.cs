@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml.Media;
 
 namespace WallSafeWinUI.Services
 {
@@ -25,6 +27,7 @@ namespace WallSafeWinUI.Services
         private readonly HttpClient _http;
         private readonly ConcurrentDictionary<string, Task<string>> _inFlightDownloads = new();
         private readonly ConcurrentDictionary<string, Task<string>> _inFlightBlur = new();
+        private readonly ConcurrentDictionary<string, ImageSource> _memoryBlurCache = new();
         private readonly SemaphoreSlim _downloadThrottle = new(16, 16);
         private long _totalCacheSizeBytes = -1;
 
@@ -218,6 +221,62 @@ namespace WallSafeWinUI.Services
                 catch { return string.Empty; }
                 finally { _inFlightBlur.TryRemove(imageUrl, out _); }
             });
+        }
+
+        public async Task<ImageSource?> GetBlurredBitmapSourceAsync(string sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+                return null;
+
+            if (_memoryBlurCache.TryGetValue(sourcePath, out var cached))
+                return cached;
+
+            try
+            {
+                using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var memStream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                await fileStream.CopyToAsync(memStream.AsStreamForWrite());
+                memStream.Seek(0);
+
+                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(memStream);
+                uint origW = decoder.PixelWidth;
+                uint origH = decoder.PixelHeight;
+                if (origW == 0 || origH == 0) return null;
+
+                uint targetW = 160;
+                uint targetH = Math.Max(10, (origH * targetW) / origW);
+
+                var transform = new Windows.Graphics.Imaging.BitmapTransform
+                {
+                    ScaledWidth = targetW,
+                    ScaledHeight = targetH,
+                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Fant
+                };
+
+                var pixelData = await decoder.GetPixelDataAsync(
+                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                    transform,
+                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
+                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
+
+                byte[] pixels = pixelData.DetachPixelData();
+                FastBlur.ProcessBgra(pixels, (int)targetW, (int)targetH, radius: 7);
+
+                var wb = new Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap((int)targetW, (int)targetH);
+                using (var pixelStream = wb.PixelBuffer.AsStream())
+                {
+                    await pixelStream.WriteAsync(pixels, 0, pixels.Length);
+                }
+                wb.Invalidate();
+
+                _memoryBlurCache[sourcePath] = wb;
+                return wb;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public void ClearCache()

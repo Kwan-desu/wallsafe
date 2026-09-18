@@ -44,19 +44,27 @@ namespace WallSafeWinUI.Controls
             try
             {
                 bool isBlurred = GetIsBlurred(image);
-                string path = isBlurred
-                    ? await ImageCacheService.Instance.GetCachedBlurredImagePathAsync(url)
-                    : await ImageCacheService.Instance.GetCachedImagePathAsync(url);
+                string path = await ImageCacheService.Instance.GetCachedImagePathAsync(url);
+                if (GetSourceUrl(image) != url) return;
 
-                if (GetSourceUrl(image) != url) return; // URL changed while loading
+                if (isBlurred)
+                {
+                    if (File.Exists(path))
+                    {
+                        var blurSource = await ImageCacheService.Instance.GetBlurredBitmapSourceAsync(path);
+                        if (GetSourceUrl(image) == url && blurSource != null)
+                            image.Source = blurSource;
+                    }
+                    return;
+                }
 
                 var bmp = new BitmapImage();
                 int decodeWidth = GetDecodeWidth(image);
-                if (decodeWidth > 0 && !isBlurred) bmp.DecodePixelWidth = decodeWidth;
+                if (decodeWidth > 0) bmp.DecodePixelWidth = decodeWidth;
 
                 if (File.Exists(path))
                 {
-                    using var stream = File.OpenRead(path);
+                    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     await bmp.SetSourceAsync(stream.AsRandomAccessStream());
                 }
                 else
