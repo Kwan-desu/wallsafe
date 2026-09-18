@@ -37,6 +37,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\ASUS\Documents\radom-ai-coded-shit\WallSafe\WallSafeWinUI\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\WallSafeWinUI.pri"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\ASUS\Documents\radom-ai-coded-shit\WallSafe\WallSafeWinUI\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\WallSafeWinUI.pri"; DestName: "resources.pri"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\WallSafe.ico"

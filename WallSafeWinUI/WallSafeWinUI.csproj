@@ -50,4 +50,9 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="CopyPriToPublishFolder" AfterTargets="Publish">
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pri" DestinationFolder="$(PublishDir)" Condition="Exists('$(TargetDir)$(TargetName).pri')" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pri" DestinationFiles="$(PublishDir)resources.pri" Condition="Exists('$(TargetDir)$(TargetName).pri')" />
+  </Target>
+
 </Project>
