@@ -1,5 +1,5 @@
 #define MyAppName "WallSafe"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "3.1.0"
 #define MyAppPublisher "WallSafe Team"
 #define MyAppURL "https://github.com/Kwan-desu/wallsafe"
 #define MyAppExeName "WallSafeWinUI.exe"
@@ -18,7 +18,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=WallSafe-v3.0.0-Setup
+OutputBaseFilename=WallSafe-v3.1.0-Setup
 OutputDir=C:\Users\ASUS\Documents\radom-ai-coded-shit\WallSafe
 SetupIconFile=C:\Users\ASUS\Documents\radom-ai-coded-shit\WallSafe\WallSafeWinUI\Assets\WallSafe.ico
 UninstallDisplayIcon={app}\Assets\WallSafe.ico

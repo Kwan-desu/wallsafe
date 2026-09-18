@@ -28,10 +28,19 @@
             <!-- Thumbnail (fills the card, clipped by the Border's CornerRadius) -->
             <Image x:Name="Thumb" Stretch="UniformToFill" controls:CachedImage.DecodeWidth="640" />
 
-            <!-- Discretion blur overlay -->
-            <Border x:Name="BlurOverlay" Background="#CC101010" Visibility="Collapsed">
-                <FontIcon Glyph="&#xE7B3;" FontSize="30" Foreground="#AAFFFFFF"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <!-- Discretion privacy blur overlay -->
+            <Border x:Name="BlurOverlay" Background="#F218181B" Visibility="Collapsed">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                    <Border Width="42" Height="42" CornerRadius="21" Background="#26FFFFFF"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xED1A;" FontSize="20" Foreground="#F0FFFFFF"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Sensitive Content" FontSize="12" FontWeight="SemiBold"
+                               Foreground="#E0FFFFFF" HorizontalAlignment="Center" />
+                    <TextBlock Text="Hover to reveal" FontSize="10"
+                               Foreground="#90FFFFFF" HorizontalAlignment="Center" />
+                </StackPanel>
             </Border>
 
             <!-- Rating badge -->

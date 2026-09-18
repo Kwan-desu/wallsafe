@@ -43,12 +43,16 @@ Designed natively for Windows 11, WallSafe features a modern **Windows App** das
 - **Panic Trigger Tracker**: Tracks how many times emergency safe wallpaper has been invoked, displayed directly on your Home dashboard.
 - **Concealment Actions**: Optional auto-minimize all windows (`Win+D` simulation) and master desktop mute.
 
-### 🔄 Automated Slideshow Engine
-- Automatically cycle through your favorite or downloaded wallpapers.
-- Configurable rotation intervals (seconds, minutes, hours) with multi-monitor targeting support.
+### 🔄 Automated Slideshow Engine & Title-Bar Quick Control
+- **Title-Bar Slideshow Control**: One-click toggle directly in the top title bar showing live status (`Slideshow: On` / `Slideshow: Off`).
+- **Quick Settings Flyout**: Configure rotation intervals (30s, 1m, 5m, 15m, 30m, 1h), choose wallpaper source (Favorites or Downloads), and skip to next wallpaper with one tap.
 
-### 🚀 Windows Startup & Background Tray Mode
-- Option to auto-launch WallSafe on Windows boot via registry integration.
+### 🛡️ Discretion Mode & Privacy Shield
+- **Genuine Privacy Concealment**: Sensitive (Questionable/Explicit) thumbnails are completely veiled behind an opaque frosted privacy shield (`Thumb.Opacity = 0.05` + frosted overlay).
+- **Hover-to-Reveal**: Hovering smoothly unveils the card; moving away instantly conceals it.
+
+### 🚀 Windows Startup, Background Tray Mode & In-App OTA Updates
+- **In-App OTA Updates**: Built-in GitHub update engine under *Settings → About & Updates*. Checks GitHub releases directly, verifies versions, and downloads & installs updates with 1 click.
 - **Start in Background / System Tray**: Silently loads into the system tray and aggressively compacts process memory (`AppSuspensionManager`) without popping up windows.
 
 ---
@@ -59,8 +63,8 @@ Download the latest version from the **[Releases](https://github.com/Kwan-desu/w
 
 | Package | Description | Recommended For |
 | :--- | :--- | :--- |
-| **`WallSafe-v3.0.0-Setup.exe`** | **Standalone Windows Installer**: Installs to `%LOCALAPPDATA%\Programs\WallSafe`, creates Desktop & Start Menu shortcuts, and integrates with Windows Settings Apps. | Most users (one-click setup) |
-| **`WallSafe-v3.0.0-win-x64-portable.zip`** | **Self-Contained Portable Archive**: Extract anywhere (or on a USB flash drive) and run `WallSafeWinUI.exe` directly without installation. | Portable / USB drive users |
+| **`WallSafe-v3.1.0-Setup.exe`** | **Standalone Inno Setup Wizard**: Installs to `%LOCALAPPDATA%\Programs\WallSafe` (or custom drive like `D:\WallSafe`), creates Desktop & Start Menu shortcuts, and integrates with Windows Settings Apps. | Most users (one-click setup) |
+| **`WallSafe-v3.1.0-win-x64-portable.zip`** | **Self-Contained Portable Archive**: Extract anywhere (or on a USB flash drive) and run `WallSafeWinUI.exe` directly without installation. | Portable / USB drive users |
 
 ---
 

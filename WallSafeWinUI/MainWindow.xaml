@@ -30,23 +30,64 @@
                            Margin="12,0,0,0" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
 
-                <!-- 3-mode rating selector (SFW / Questionable / Explicit) -->
-                <Border Grid.Column="3" Margin="0,0,152,0" VerticalAlignment="Center"
-                        CornerRadius="8" Padding="3"
-                        Background="{ThemeResource WallSafeAcrylicCardBrush}"
-                        BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <StackPanel Orientation="Horizontal" Spacing="2">
-                        <RadioButton x:Name="ModeSfw" GroupName="RatingMode" Content="SFW"
-                                     Style="{StaticResource WallSafeSegmentStyle}"
-                                     Checked="RatingMode_Checked" Tag="SfwOnly" />
-                        <RadioButton x:Name="ModeQuestionable" GroupName="RatingMode" Content="Questionable"
-                                     Style="{StaticResource WallSafeSegmentStyle}"
-                                     Checked="RatingMode_Checked" Tag="Questionable" />
-                        <RadioButton x:Name="ModeExplicit" GroupName="RatingMode" Content="Explicit"
-                                     Style="{StaticResource WallSafeSegmentStyle}"
-                                     Checked="RatingMode_Checked" Tag="Explicit" />
-                    </StackPanel>
-                </Border>
+                <!-- TitleBar Action Controls -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="0,0,152,0" VerticalAlignment="Center">
+                    <!-- Quick Slideshow Flyout Button -->
+                    <Button x:Name="SlideshowBtn" Padding="8,5" CornerRadius="8"
+                            Background="{ThemeResource WallSafeAcrylicCardBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            ToolTipService.ToolTip="Wallpaper Slideshow auto-rotation settings and toggle">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="13" Foreground="{ThemeResource WallSafeAccentBrush}" />
+                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                            <FontIcon Glyph="&#xE70D;" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom">
+                                <StackPanel Width="270" Spacing="12">
+                                    <TextBlock Text="Wallpaper Slideshow" FontWeight="SemiBold" FontSize="15" />
+                                    <ToggleSwitch x:Name="FlyoutSlideshowSwitch" Header="Auto-rotate wallpapers" Toggled="FlyoutSlideshow_Toggled" />
+                                    <ComboBox x:Name="FlyoutSourceCombo" Header="Source" HorizontalAlignment="Stretch" SelectionChanged="FlyoutSource_Changed">
+                                        <ComboBoxItem Content="Favorites collection" Tag="favorites" />
+                                        <ComboBoxItem Content="Downloads folder" Tag="downloads" />
+                                    </ComboBox>
+                                    <ComboBox x:Name="FlyoutIntervalCombo" Header="Rotation interval" HorizontalAlignment="Stretch" SelectionChanged="FlyoutInterval_Changed">
+                                        <ComboBoxItem Content="30 seconds" Tag="30s" />
+                                        <ComboBoxItem Content="1 minute" Tag="1m" />
+                                        <ComboBoxItem Content="5 minutes" Tag="5m" />
+                                        <ComboBoxItem Content="15 minutes" Tag="15m" />
+                                        <ComboBoxItem Content="30 minutes" Tag="30m" />
+                                        <ComboBoxItem Content="1 hour" Tag="1h" />
+                                    </ComboBox>
+                                    <Button HorizontalAlignment="Stretch" Click="FlyoutNext_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE893;" FontSize="14" />
+                                            <TextBlock Text="Next wallpaper now" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <!-- 3-mode rating selector (SFW / Questionable / Explicit) -->
+                    <Border CornerRadius="8" Padding="3"
+                            Background="{ThemeResource WallSafeAcrylicCardBrush}"
+                            BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <RadioButton x:Name="ModeSfw" GroupName="RatingMode" Content="SFW"
+                                         Style="{StaticResource WallSafeSegmentStyle}"
+                                         Checked="RatingMode_Checked" Tag="SfwOnly" />
+                            <RadioButton x:Name="ModeQuestionable" GroupName="RatingMode" Content="Questionable"
+                                         Style="{StaticResource WallSafeSegmentStyle}"
+                                         Checked="RatingMode_Checked" Tag="Questionable" />
+                            <RadioButton x:Name="ModeExplicit" GroupName="RatingMode" Content="Explicit"
+                                         Style="{StaticResource WallSafeSegmentStyle}"
+                                         Checked="RatingMode_Checked" Tag="Explicit" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
 

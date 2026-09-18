@@ -39,6 +39,8 @@ namespace WallSafeWinUI
             }
             _suppressToggleEvent = false;
 
+            SyncSlideshowUi();
+
             ContentFrame.Navigate(typeof(HomePage));
 
             try
@@ -191,6 +193,100 @@ namespace WallSafeWinUI
             Settings.Instance.RatingMode = mode;
             Settings.Instance.Save();
             AppEvents.RaiseRatingModeChanged(mode);
+        }
+
+        // ── Slideshow TitleBar Control ──
+        private void SyncSlideshowUi()
+        {
+            var s = Settings.Instance;
+            bool enabled = s.SlideshowEnabled;
+            SlideshowLabel.Text = enabled ? "Slideshow: On" : "Slideshow: Off";
+            SlideshowIcon.Glyph = enabled ? "\uE768" : "\uE71A";
+
+            _suppressToggleEvent = true;
+            FlyoutSlideshowSwitch.IsOn = enabled;
+
+            string src = s.SlideshowSource?.ToLowerInvariant() ?? "favorites";
+            foreach (var item in FlyoutSourceCombo.Items)
+            {
+                if (item is ComboBoxItem cbi && (cbi.Tag as string) == src)
+                {
+                    FlyoutSourceCombo.SelectedItem = cbi;
+                    break;
+                }
+            }
+
+            int sec = s.SlideshowIntervalSeconds;
+            int min = s.SlideshowIntervalMinutes;
+            string targetTag = "15m";
+            if (sec == 30) targetTag = "30s";
+            else if (min == 1 && sec == 0) targetTag = "1m";
+            else if (min == 5) targetTag = "5m";
+            else if (min == 15) targetTag = "15m";
+            else if (min == 30) targetTag = "30m";
+            else if (min >= 60) targetTag = "1h";
+
+            foreach (var item in FlyoutIntervalCombo.Items)
+            {
+                if (item is ComboBoxItem cbi && (cbi.Tag as string) == targetTag)
+                {
+                    FlyoutIntervalCombo.SelectedItem = cbi;
+                    break;
+                }
+            }
+            _suppressToggleEvent = false;
+        }
+
+        private void FlyoutSlideshow_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_suppressToggleEvent) return;
+            var s = Settings.Instance;
+            s.SlideshowEnabled = FlyoutSlideshowSwitch.IsOn;
+            s.Save();
+
+            if (s.SlideshowEnabled)
+                WallpaperManager.Instance.StartSlideshowFromSettings(advanceImmediately: true);
+            else
+                WallpaperManager.Instance.StopSlideshow();
+
+            SyncSlideshowUi();
+        }
+
+        private void FlyoutSource_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressToggleEvent) return;
+            if (FlyoutSourceCombo.SelectedItem is ComboBoxItem cbi && cbi.Tag is string tag)
+            {
+                Settings.Instance.SlideshowSource = tag;
+                Settings.Instance.Save();
+                WallpaperManager.Instance.ResetSlideshowQueue();
+            }
+        }
+
+        private void FlyoutInterval_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressToggleEvent) return;
+            if (FlyoutIntervalCombo.SelectedItem is ComboBoxItem cbi && cbi.Tag is string tag)
+            {
+                var s = Settings.Instance;
+                switch (tag)
+                {
+                    case "30s": s.SlideshowIntervalSeconds = 30; s.SlideshowIntervalMinutes = 0; break;
+                    case "1m": s.SlideshowIntervalSeconds = 0; s.SlideshowIntervalMinutes = 1; break;
+                    case "5m": s.SlideshowIntervalSeconds = 0; s.SlideshowIntervalMinutes = 5; break;
+                    case "15m": s.SlideshowIntervalSeconds = 0; s.SlideshowIntervalMinutes = 15; break;
+                    case "30m": s.SlideshowIntervalSeconds = 0; s.SlideshowIntervalMinutes = 30; break;
+                    case "1h": s.SlideshowIntervalSeconds = 0; s.SlideshowIntervalMinutes = 60; break;
+                }
+                s.Save();
+                if (s.SlideshowEnabled)
+                    WallpaperManager.Instance.StartSlideshowFromSettings();
+            }
+        }
+
+        private void FlyoutNext_Click(object sender, RoutedEventArgs e)
+        {
+            WallpaperManager.Instance.NextSlideshowWallpaper();
         }
 
         // ── DWM interop ───────────────────────────────────────────

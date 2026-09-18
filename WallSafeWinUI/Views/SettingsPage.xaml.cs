@@ -406,5 +406,84 @@ namespace WallSafeWinUI.Views
             var file = await picker.PickSingleFileAsync();
             return file?.Path;
         }
+
+        // ── OTA Updates ──
+        private UpdateInfo? _latestUpdateInfo;
+
+        private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            CheckUpdateBtn.IsEnabled = false;
+            UpdateLoader.Visibility = Visibility.Visible;
+            UpdateLoader.IsActive = true;
+            UpdateStatusText.Text = "Checking GitHub for updates...";
+            UpdateAvailableCard.Visibility = Visibility.Collapsed;
+
+            try
+            {
+                var info = await UpdateService.CheckForUpdateAsync();
+                _latestUpdateInfo = info;
+
+                if (info.IsUpdateAvailable)
+                {
+                    UpdateStatusText.Text = $"Update available: v{info.LatestVersionString}!";
+                    UpdateTitleText.Text = info.ReleaseTitle;
+                    UpdateNotesText.Text = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? "New performance and feature updates." : info.ReleaseNotes;
+                    InstallUpdateBtn.Visibility = string.IsNullOrEmpty(info.DownloadUrl) ? Visibility.Collapsed : Visibility.Visible;
+                    UpdateAvailableCard.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    UpdateStatusText.Text = $"You're up to date! WallSafe v{info.CurrentVersion} is the latest version.";
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText.Text = $"Check failed: {ex.Message}";
+            }
+            finally
+            {
+                UpdateLoader.IsActive = false;
+                UpdateLoader.Visibility = Visibility.Collapsed;
+                CheckUpdateBtn.IsEnabled = true;
+            }
+        }
+
+        private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            if (_latestUpdateInfo == null || string.IsNullOrEmpty(_latestUpdateInfo.DownloadUrl))
+                return;
+
+            InstallUpdateBtn.IsEnabled = false;
+            UpdateProgressBar.Visibility = Visibility.Visible;
+            UpdateProgressBar.Value = 0;
+            UpdateStatusText.Text = "Downloading update package...";
+
+            var progress = new Progress<double>(p =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    UpdateProgressBar.Value = p;
+                    UpdateStatusText.Text = $"Downloading update: {(int)(p * 100)}%...";
+                });
+            });
+
+            try
+            {
+                await UpdateService.DownloadAndInstallUpdateAsync(_latestUpdateInfo.DownloadUrl, progress);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText.Text = $"Installation failed: {ex.Message}";
+                InstallUpdateBtn.IsEnabled = true;
+                UpdateProgressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void ViewRelease_Click(object sender, RoutedEventArgs e)
+        {
+            string url = _latestUpdateInfo?.ReleaseUrl ?? "https://github.com/Kwan-desu/wallsafe/releases";
+            try { await Windows.System.Launcher.LaunchUriAsync(new Uri(url)); }
+            catch { }
+        }
     }
 }

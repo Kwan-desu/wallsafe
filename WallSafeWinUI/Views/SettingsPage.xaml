@@ -186,12 +186,47 @@
                 </StackPanel>
             </Border>
 
-            <!-- About -->
-            <TextBlock Text="About" Style="{StaticResource WallSafeSectionHeaderStyle}" />
+            <!-- About & Updates -->
+            <TextBlock Text="About &amp; Updates" Style="{StaticResource WallSafeSectionHeaderStyle}" />
             <Border Style="{StaticResource WallSafeCardStyle}">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="WallSafe (WinUI 3)" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                    <TextBlock Text="Version 3.0.0 · Rebuilt on Windows App SDK with Fluent 11 design." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="WallSafe (WinUI 3)" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Version 3.1.0 · Rebuilt on Windows App SDK 1.6 with Fluent 11 design." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <!-- Update Status and Action -->
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Button x:Name="CheckUpdateBtn" Click="CheckUpdate_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                                <TextBlock Text="Check for updates" />
+                            </StackPanel>
+                        </Button>
+                        <ProgressRing x:Name="UpdateLoader" IsActive="False" Visibility="Collapsed" Width="20" Height="20" />
+                        <TextBlock x:Name="UpdateStatusText" VerticalAlignment="Center" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <!-- Update details card when update is found -->
+                    <Border x:Name="UpdateAvailableCard" Visibility="Collapsed"
+                            Background="{ThemeResource LayerFillColorDefaultBrush}"
+                            CornerRadius="8" Padding="14,12" BorderThickness="1"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="UpdateTitleText" FontWeight="SemiBold" FontSize="14" Foreground="{ThemeResource WallSafeAccentBrush}" />
+                            <TextBlock x:Name="UpdateNotesText" FontSize="12" TextWrapping="Wrap" MaxHeight="120" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <ProgressBar x:Name="UpdateProgressBar" Visibility="Collapsed" Maximum="1" Value="0" />
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button x:Name="InstallUpdateBtn" Style="{StaticResource AccentButtonStyle}" Click="InstallUpdate_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE896;" FontSize="14" />
+                                        <TextBlock Text="Download &amp; Install" />
+                                    </StackPanel>
+                                </Button>
+                                <HyperlinkButton x:Name="ViewReleaseLink" Content="View release on GitHub ›" Click="ViewRelease_Click" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </StackPanel>

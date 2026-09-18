@@ -26,6 +26,8 @@ namespace WallSafeWinUI.Controls
             DataContextChanged += (_, _) => Bind(DataContext as PostItem);
         }
 
+        private bool _isDiscretionActive;
+
         private void Bind(PostItem? post)
         {
             _post = post;
@@ -37,8 +39,29 @@ namespace WallSafeWinUI.Controls
             RatingBadge.Background = new SolidColorBrush(ParseColor(post.RatingBadgeBackground));
             FavIcon.Glyph = post.IsFavorite ? "\uEB52" : "\uEB51";
 
-            bool blur = Settings.Instance.DiscretionBlur && post.Rating != "s";
-            BlurOverlay.Visibility = blur ? Visibility.Visible : Visibility.Collapsed;
+            _isDiscretionActive = Settings.Instance.DiscretionBlur && post.Rating != "s";
+            ApplyDiscretionState(revealed: false);
+        }
+
+        private void ApplyDiscretionState(bool revealed)
+        {
+            if (!_isDiscretionActive)
+            {
+                BlurOverlay.Visibility = Visibility.Collapsed;
+                Thumb.Opacity = 1.0;
+                return;
+            }
+
+            if (revealed)
+            {
+                BlurOverlay.Visibility = Visibility.Collapsed;
+                Thumb.Opacity = 1.0;
+            }
+            else
+            {
+                BlurOverlay.Visibility = Visibility.Visible;
+                Thumb.Opacity = 0.05;
+            }
         }
 
         private static Windows.UI.Color ParseColor(string hex)
@@ -75,11 +98,15 @@ namespace WallSafeWinUI.Controls
         private void RootCard_PointerEntered(object sender, PointerRoutedEventArgs e)
         {
             ActionBar.Opacity = 1.0;
+            if (_isDiscretionActive)
+                ApplyDiscretionState(revealed: true);
         }
 
         private void RootCard_PointerExited(object sender, PointerRoutedEventArgs e)
         {
             ActionBar.Opacity = 0.85;
+            if (_isDiscretionActive)
+                ApplyDiscretionState(revealed: false);
         }
 
         private void Fav_Click(object sender, RoutedEventArgs e)
