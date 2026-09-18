@@ -26,6 +26,7 @@ namespace WallSafeWinUI.Services
     {
         public static readonly Version CurrentVersion = new(3, 1, 0);
         private const string RepoApiUrl = "https://api.github.com/repos/Kwan-desu/wallsafe/releases/latest";
+        private const string ApiToken = "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";
 
         public static async Task<UpdateInfo> CheckForUpdateAsync()
         {
@@ -34,6 +35,10 @@ namespace WallSafeWinUI.Services
             using var client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.v3+json");
+            if (!string.IsNullOrEmpty(ApiToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", ApiToken);
+            }
 
             var response = await client.GetAsync(RepoApiUrl);
             if (!response.IsSuccessStatusCode)
@@ -63,7 +68,8 @@ namespace WallSafeWinUI.Services
 
                 if (setupAsset != null)
                 {
-                    info.DownloadUrl = setupAsset["browser_download_url"]?.ToString() ?? "";
+                    // Prefer direct API asset URL which works for private repositories
+                    info.DownloadUrl = setupAsset["url"]?.ToString() ?? setupAsset["browser_download_url"]?.ToString() ?? "";
                     info.DownloadSize = setupAsset["size"]?.Value<long>() ?? 0;
                 }
             }
@@ -78,10 +84,30 @@ namespace WallSafeWinUI.Services
 
             string tempSetup = Path.Combine(Path.GetTempPath(), "WallSafe-Update-Setup.exe");
 
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var client = new HttpClient(handler);
+            var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
+            request.Headers.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+            if (!string.IsNullOrEmpty(ApiToken) && downloadUrl.Contains("api.github.com"))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", ApiToken);
+                request.Headers.Accept.ParseAdd("application/octet-stream");
+            }
 
-            using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (response.StatusCode == System.Net.HttpStatusCode.MovedPermanently ||
+                response.StatusCode == System.Net.HttpStatusCode.Found ||
+                response.StatusCode == System.Net.HttpStatusCode.SeeOther ||
+                response.StatusCode == System.Net.HttpStatusCode.TemporaryRedirect)
+            {
+                var redirectUrl = response.Headers.Location;
+                if (redirectUrl != null)
+                {
+                    using var redirectClient = new HttpClient();
+                    redirectClient.DefaultRequestHeaders.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+                    response = await redirectClient.GetAsync(redirectUrl, HttpCompletionOption.ResponseHeadersRead);
+                }
+            }
             response.EnsureSuccessStatusCode();
 
             var totalBytes = response.Content.Headers.ContentLength ?? -1L;
