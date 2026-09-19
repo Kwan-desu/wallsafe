@@ -110,8 +110,7 @@ namespace WallSafeWinUI.Views
                 if (!loading)
                 {
                     EmptyState.Visibility = (_items != null && _items.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
-                    if (Grid.ItemsPanelRoot is ItemsWrapGrid wrap)
-                        GridLayoutHelper.FitColumns(wrap, Grid.ActualWidth - Grid.Padding.Left - Grid.Padding.Right);
+                    GridLayoutHelper.UpdateLayout(Grid);
                 }
             });
         }
@@ -184,10 +183,11 @@ namespace WallSafeWinUI.Views
 
         private void Refresh_Click(object sender, RoutedEventArgs e) => Reload();
 
+        private bool _layoutDone;
+
         private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (Grid.ItemsPanelRoot is ItemsWrapGrid wrap)
-                GridLayoutHelper.FitColumns(wrap, Grid.ActualWidth - Grid.Padding.Left - Grid.Padding.Right);
+            GridLayoutHelper.UpdateLayout(Grid);
         }
 
         private void Grid_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -196,6 +196,11 @@ namespace WallSafeWinUI.Views
             {
                 card.PreviewRequested -= OnCardPreview;
                 card.PreviewRequested += OnCardPreview;
+            }
+            if (!_layoutDone)
+            {
+                _layoutDone = true;
+                GridLayoutHelper.UpdateLayout(Grid);
             }
         }
 

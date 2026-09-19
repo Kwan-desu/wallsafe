@@ -4,6 +4,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using WallSafeWinUI.Services;
 using WallSafeWinUI.Views;
 
@@ -30,16 +31,13 @@ namespace WallSafeWinUI
             ThemeService.ApplyBackdrop(this, Settings.Instance.WindowMicaEnabled ? Settings.Instance.BackdropMaterial : "None");
             SetImmersiveDarkTitleBar(IsEffectiveDark());
 
-            _suppressToggleEvent = true;
-            switch (Settings.Instance.RatingMode)
-            {
-                case ContentRatingMode.Questionable: ModeQuestionable.IsChecked = true; break;
-                case ContentRatingMode.Explicit: ModeExplicit.IsChecked = true; break;
-                default: ModeSfw.IsChecked = true; break;
-            }
-            _suppressToggleEvent = false;
+            SyncRatingModeUi();
+            RootGrid.Loaded += (_, _) => SyncRatingModeUi();
+            AppEvents.RatingModeChanged += _ => SyncRatingModeUi();
 
             SyncSlideshowUi();
+            SyncDiscretionUi();
+            AppEvents.DiscretionBlurChanged += _ => SyncDiscretionUi();
 
             ContentFrame.Navigate(typeof(HomePage));
 
@@ -179,6 +177,24 @@ namespace WallSafeWinUI
             }
         }
 
+        private void SyncRatingModeUi()
+        {
+            _suppressToggleEvent = true;
+            switch (Settings.Instance.RatingMode)
+            {
+                case ContentRatingMode.Questionable:
+                    ModeQuestionable.IsChecked = true;
+                    break;
+                case ContentRatingMode.Explicit:
+                    ModeExplicit.IsChecked = true;
+                    break;
+                default:
+                    ModeSfw.IsChecked = true;
+                    break;
+            }
+            _suppressToggleEvent = false;
+        }
+
         private void RatingMode_Checked(object sender, RoutedEventArgs e)
         {
             if (_suppressToggleEvent) return;
@@ -202,6 +218,29 @@ namespace WallSafeWinUI
             bool enabled = s.SlideshowEnabled;
             SlideshowLabel.Text = enabled ? "Slideshow: On" : "Slideshow: Off";
             SlideshowIcon.Glyph = enabled ? "\uE768" : "\uE71A";
+
+            var accentBrush = (Brush)Application.Current.Resources["WallSafeAccentBrush"];
+            var cardBrush = (Brush)Application.Current.Resources["WallSafeAcrylicCardBrush"];
+            var borderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+            var textPrimary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+            var textSecondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+
+            if (enabled)
+            {
+                SlideshowBtn.Background = accentBrush;
+                SlideshowBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                SlideshowLabel.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                SlideshowIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                SlideshowChevron.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
+            }
+            else
+            {
+                SlideshowBtn.Background = cardBrush;
+                SlideshowBtn.BorderBrush = borderBrush;
+                SlideshowLabel.Foreground = textPrimary;
+                SlideshowIcon.Foreground = textSecondary;
+                SlideshowChevron.Foreground = textSecondary;
+            }
 
             _suppressToggleEvent = true;
             FlyoutSlideshowSwitch.IsOn = enabled;
@@ -287,6 +326,44 @@ namespace WallSafeWinUI
         private void FlyoutNext_Click(object sender, RoutedEventArgs e)
         {
             WallpaperManager.Instance.NextSlideshowWallpaper();
+        }
+
+        // ── Discretion Blur TitleBar Control ──
+        private void SyncDiscretionUi()
+        {
+            bool enabled = Settings.Instance.DiscretionBlur;
+            TitleDiscretionLabel.Text = enabled ? "Blur: On" : "Blur: Off";
+            TitleDiscretionIcon.Glyph = enabled ? "\uED1A" : "\uF78D";
+
+            var accentBrush = (Brush)Application.Current.Resources["WallSafeAccentBrush"];
+            var cardBrush = (Brush)Application.Current.Resources["WallSafeAcrylicCardBrush"];
+            var borderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+            var textPrimary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+            var textSecondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+
+            if (enabled)
+            {
+                TitleDiscretionBtn.Background = accentBrush;
+                TitleDiscretionBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+                TitleDiscretionLabel.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                TitleDiscretionIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+            }
+            else
+            {
+                TitleDiscretionBtn.Background = cardBrush;
+                TitleDiscretionBtn.BorderBrush = borderBrush;
+                TitleDiscretionLabel.Foreground = textPrimary;
+                TitleDiscretionIcon.Foreground = textSecondary;
+            }
+        }
+
+        private void TitleDiscretionBtn_Click(object sender, RoutedEventArgs e)
+        {
+            bool nowEnabled = !Settings.Instance.DiscretionBlur;
+            Settings.Instance.DiscretionBlur = nowEnabled;
+            Settings.Instance.Save();
+            SyncDiscretionUi();
+            AppEvents.RaiseDiscretionBlurChanged(nowEnabled);
         }
 
         // ── DWM interop ───────────────────────────────────────────

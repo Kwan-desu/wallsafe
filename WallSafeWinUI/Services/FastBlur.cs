@@ -188,7 +188,7 @@ namespace WallSafeWinUI.Services
                     pix[p + 2] = (byte)dv[rsum]; // R
                     pix[p + 1] = (byte)dv[gsum]; // G
                     pix[p]     = (byte)dv[bsum]; // B
-                    pix[p + 3] = (byte)dv[asum]; // A
+                    pix[p + 3] = 255;            // A (force 100% solid opacity)
 
                     rsum -= routsum;
                     gsum -= goutsum;

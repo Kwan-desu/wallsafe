@@ -39,39 +39,65 @@ namespace WallSafeWinUI.Controls
         {
             if (d is not Image image) return;
             string? url = GetSourceUrl(image);
-            if (string.IsNullOrEmpty(url)) { image.Source = null; return; }
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                image.Source = null;
+                return;
+            }
+
+            var dispatcher = image.DispatcherQueue;
+            bool isBlurred = GetIsBlurred(image);
+            int decodeWidth = GetDecodeWidth(image);
 
             try
             {
-                bool isBlurred = GetIsBlurred(image);
-                string path = await ImageCacheService.Instance.GetCachedImagePathAsync(url);
-                if (GetSourceUrl(image) != url) return;
-
+                string filePath;
                 if (isBlurred)
                 {
-                    if (File.Exists(path))
-                    {
-                        var blurSource = await ImageCacheService.Instance.GetBlurredBitmapSourceAsync(path);
-                        if (GetSourceUrl(image) == url && blurSource != null)
-                            image.Source = blurSource;
-                    }
-                    return;
-                }
-
-                var bmp = new BitmapImage();
-                int decodeWidth = GetDecodeWidth(image);
-                if (decodeWidth > 0) bmp.DecodePixelWidth = decodeWidth;
-
-                if (File.Exists(path))
-                {
-                    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    await bmp.SetSourceAsync(stream.AsRandomAccessStream());
+                    filePath = await ImageCacheService.Instance.GetCachedBlurredImagePathAsync(url);
                 }
                 else
                 {
-                    bmp.UriSource = new Uri(url);
+                    filePath = await ImageCacheService.Instance.GetCachedImagePathAsync(url);
                 }
-                if (GetSourceUrl(image) == url) image.Source = bmp;
+
+                if (string.IsNullOrEmpty(filePath)) return;
+
+                void SetImageSource()
+                {
+                    try
+                    {
+                        if (GetSourceUrl(image) != url) return;
+
+                        var bmp = new BitmapImage();
+                        if (decodeWidth > 0 && !isBlurred)
+                            bmp.DecodePixelWidth = decodeWidth;
+
+                        if (File.Exists(filePath))
+                        {
+                            bmp.UriSource = new Uri(filePath);
+                        }
+                        else if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri))
+                        {
+                            bmp.UriSource = uri;
+                        }
+
+                        if (GetSourceUrl(image) == url)
+                        {
+                            image.Source = bmp;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (dispatcher != null && !dispatcher.HasThreadAccess)
+                {
+                    dispatcher.TryEnqueue(SetImageSource);
+                }
+                else
+                {
+                    SetImageSource();
+                }
             }
             catch { }
         }

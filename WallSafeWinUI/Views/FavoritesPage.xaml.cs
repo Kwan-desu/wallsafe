@@ -251,6 +251,11 @@ namespace WallSafeWinUI.Views
                 card.RightTapped -= Card_RightTapped;
                 card.RightTapped += Card_RightTapped;
             }
+            if (!_layoutDone)
+            {
+                _layoutDone = true;
+                GridLayoutHelper.UpdateLayout(Grid);
+            }
         }
 
         private void Card_RightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -288,10 +293,11 @@ namespace WallSafeWinUI.Views
 
         private void OnCardPreview(PostItem post) => _ = PreviewDialog.ShowAsync(XamlRoot, post);
 
+        private bool _layoutDone;
+
         private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (Grid.ItemsPanelRoot is ItemsWrapGrid wrap)
-                GridLayoutHelper.FitColumns(wrap, Grid.ActualWidth - Grid.Padding.Left - Grid.Padding.Right);
+            GridLayoutHelper.UpdateLayout(Grid);
         }
     }
 }

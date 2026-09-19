@@ -3,6 +3,7 @@
     x:Class="WallSafeWinUI.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:WallSafeWinUI.Controls"
     Background="Transparent">
 
     <ScrollViewer>
@@ -60,7 +61,7 @@
                 <StackPanel Spacing="10">
                     <TextBlock x:Name="HotkeyLabel" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="RecordHotkeyBtn" Content="Record shortcut" Click="RecordHotkey_Click" MinWidth="160" />
+                        <Button x:Name="RecordHotkeyBtn" Content="Record shortcut" Click="RecordHotkey_Click" MinWidth="200" />
                         <TextBlock x:Name="RecordHint" VerticalAlignment="Center"
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -78,7 +79,7 @@
             <Border Style="{StaticResource WallSafeCardStyle}">
                 <StackPanel Spacing="8">
                     <TextBlock x:Name="SafeWpText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    <Button Content="Choose safe wallpaper…" Click="PickSafeWallpaper_Click" />
+                    <Button Content="Choose safe wallpaper…" Click="PickSafeWallpaper_Click" HorizontalAlignment="Left" MinWidth="200" />
                 </StackPanel>
             </Border>
 
@@ -126,7 +127,7 @@
             <Border Style="{StaticResource WallSafeCardStyle}">
                 <StackPanel Spacing="8">
                     <TextBlock x:Name="DownloadFolderText" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                    <Button Content="Change folder…" Click="PickDownloadFolder_Click" />
+                    <Button Content="Change folder…" Click="PickDownloadFolder_Click" HorizontalAlignment="Left" MinWidth="200" />
                 </StackPanel>
             </Border>
 
@@ -152,7 +153,7 @@
                         <TextBox x:Name="RadiusBox" Header="Radius (m)" Width="120" TextChanged="Location_TextChanged" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="UseCurrentLocationBtn" Content="Use current location" Click="UseCurrentLocation_Click" />
+                        <Button x:Name="UseCurrentLocationBtn" Content="Use current location" Click="UseCurrentLocation_Click" MinWidth="200" />
                         <TextBlock x:Name="LocationStatus" VerticalAlignment="Center"
                                    Style="{StaticResource CaptionTextBlockStyle}"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -166,6 +167,18 @@
             <Border Style="{StaticResource WallSafeCardStyle}">
                 <StackPanel Spacing="10">
                     <ToggleSwitch x:Name="DiscretionSwitch" Header="Blur sensitive thumbnails" Toggled="Discretion_Toggled" />
+                    <StackPanel Spacing="6">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Blur strength" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <TextBlock x:Name="BlurStrengthDesc" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <TextBlock x:Name="BlurStrengthValue" Grid.Column="1" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{ThemeResource WallSafeAccentBrush}" />
+                        </Grid>
+                        <Slider x:Name="BlurStrengthSlider" Minimum="3" Maximum="18" StepFrequency="1"
+                                SnapsTo="StepValues" ValueChanged="BlurStrength_Changed" />
+                    </StackPanel>
                     <TextBox x:Name="BlacklistBox" Header="Tag blacklist (space separated)" TextChanged="Blacklist_Changed" />
                 </StackPanel>
             </Border>
@@ -197,7 +210,7 @@
 
                     <!-- Update Status and Action -->
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <Button x:Name="CheckUpdateBtn" Click="CheckUpdate_Click">
+                        <Button x:Name="CheckUpdateBtn" Click="CheckUpdate_Click" MinWidth="200">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE72C;" FontSize="14" />
                                 <TextBlock Text="Check for updates" />

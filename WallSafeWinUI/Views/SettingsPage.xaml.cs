@@ -9,7 +9,7 @@ namespace WallSafeWinUI.Views
 {
     public sealed partial class SettingsPage : Page
     {
-        private bool _loading;
+        private bool _loading = true;
 
         public SettingsPage()
         {
@@ -60,6 +60,8 @@ namespace WallSafeWinUI.Views
 
             DiscretionSwitch.IsOn = s.DiscretionBlur;
             BlacklistBox.Text = s.TagBlacklist;
+            BlurStrengthSlider.Value = s.BlurStrength;
+            UpdateBlurStrengthLabel(s.BlurStrength);
 
             HomeStatsToggle.IsOn = s.ShowHomeStats;
             HomeHero.IsOn = s.ShowHomeHero;
@@ -374,6 +376,7 @@ namespace WallSafeWinUI.Views
             if (_loading) return;
             Settings.Instance.DiscretionBlur = DiscretionSwitch.IsOn;
             Settings.Instance.Save();
+            AppEvents.RaiseDiscretionBlurChanged(DiscretionSwitch.IsOn);
         }
 
         private void Blacklist_Changed(object sender, TextChangedEventArgs e)
@@ -381,6 +384,29 @@ namespace WallSafeWinUI.Views
             if (_loading) return;
             Settings.Instance.TagBlacklist = BlacklistBox.Text;
             Settings.Instance.Save();
+        }
+
+        private void BlurStrength_Changed(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (_loading) return;
+            int val = (int)e.NewValue;
+            Settings.Instance.BlurStrength = val;
+            Settings.Instance.Save();
+            UpdateBlurStrengthLabel(val);
+            AppEvents.RaiseDiscretionBlurChanged(Settings.Instance.DiscretionBlur);
+        }
+
+        private void UpdateBlurStrengthLabel(int value)
+        {
+            string desc = value switch
+            {
+                <= 5 => "Subtle",
+                <= 8 => "Balanced",
+                <= 12 => "Heavy",
+                _ => "Maximum"
+            };
+            if (BlurStrengthDesc != null) BlurStrengthDesc.Text = $"Controls how much sensitive thumbnails are blurred ({desc})";
+            if (BlurStrengthValue != null) BlurStrengthValue.Text = $"{value}";
         }
 
         // ── Home dashboard sections ──

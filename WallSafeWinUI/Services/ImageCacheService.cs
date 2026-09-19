@@ -27,7 +27,6 @@ namespace WallSafeWinUI.Services
         private readonly HttpClient _http;
         private readonly ConcurrentDictionary<string, Task<string>> _inFlightDownloads = new();
         private readonly ConcurrentDictionary<string, Task<string>> _inFlightBlur = new();
-        private readonly ConcurrentDictionary<string, ImageSource> _memoryBlurCache = new();
         private readonly SemaphoreSlim _downloadThrottle = new(16, 16);
         private long _totalCacheSizeBytes = -1;
 
@@ -53,8 +52,17 @@ namespace WallSafeWinUI.Services
                 try
                 {
                     var di = new DirectoryInfo(_cacheFolder);
-                    long total = di.Exists ? di.GetFiles().Sum(fi => fi.Length) : 0;
-                    Interlocked.Exchange(ref _totalCacheSizeBytes, total);
+                    if (di.Exists)
+                    {
+                        // Clean up any stale temp files and obsolete v1 blur files
+                        foreach (var f in di.GetFiles("*.tmp"))
+                            try { f.Delete(); } catch { }
+                        foreach (var f in di.GetFiles("*_blur.jpg"))
+                            try { f.Delete(); } catch { }
+
+                        long total = di.GetFiles().Sum(fi => fi.Length);
+                        Interlocked.Exchange(ref _totalCacheSizeBytes, total);
+                    }
                 }
                 catch { Interlocked.Exchange(ref _totalCacheSizeBytes, 0); }
             });
@@ -144,7 +152,8 @@ namespace WallSafeWinUI.Services
             if (string.IsNullOrWhiteSpace(imageUrl)) return Task.FromResult(string.Empty);
 
             string baseHashedName = GetHashedFileName(imageUrl);
-            string blurFileName = Path.GetFileNameWithoutExtension(baseHashedName) + "_blur.jpg";
+            int strength = Math.Clamp(Settings.Instance.BlurStrength, 3, 18);
+            string blurFileName = Path.GetFileNameWithoutExtension(baseHashedName) + $"_blur_s{strength}.jpg";
             string blurredPath = Path.Combine(_cacheFolder, blurFileName);
 
             if (File.Exists(blurredPath) && new FileInfo(blurredPath).Length > 0)
@@ -161,17 +170,13 @@ namespace WallSafeWinUI.Services
                     if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
                         return string.Empty;
 
-                    using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    var memStream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                    await fileStream.CopyToAsync(memStream.AsStreamForWrite());
-                    memStream.Seek(0);
-
-                    var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(memStream);
+                    await using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(fileStream.AsRandomAccessStream());
                     uint origW = decoder.PixelWidth;
                     uint origH = decoder.PixelHeight;
                     if (origW == 0 || origH == 0) return string.Empty;
 
-                    uint targetW = 160;
+                    uint targetW = 360;
                     uint targetH = Math.Max(10, (origH * targetW) / origW);
 
                     var transform = new Windows.Graphics.Imaging.BitmapTransform
@@ -189,25 +194,23 @@ namespace WallSafeWinUI.Services
                         Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
 
                     byte[] pixels = pixelData.DetachPixelData();
-                    FastBlur.ProcessBgra(pixels, (int)targetW, (int)targetH, radius: 8);
-
-                    var outMem = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                    var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId, outMem);
-                    encoder.SetPixelData(
-                        Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-                        Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
-                        targetW,
-                        targetH,
-                        96,
-                        96,
-                        pixels);
-                    await encoder.FlushAsync();
+                    FastBlur.ProcessBgra(pixels, (int)targetW, (int)targetH, radius: strength);
 
                     string tempFile = Path.Combine(_cacheFolder, $"blur_{Guid.NewGuid():N}.tmp");
-                    using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
                     {
-                        outMem.Seek(0);
-                        await outMem.AsStreamForRead().CopyToAsync(fs);
+                        var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(
+                            Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId,
+                            fs.AsRandomAccessStream());
+                        encoder.SetPixelData(
+                            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+                            Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+                            targetW,
+                            targetH,
+                            96,
+                            96,
+                            pixels);
+                        await encoder.FlushAsync();
                     }
 
                     if (File.Exists(tempFile) && new FileInfo(tempFile).Length > 0)
@@ -218,65 +221,12 @@ namespace WallSafeWinUI.Services
 
                     return string.Empty;
                 }
-                catch { return string.Empty; }
+                catch
+                {
+                    return string.Empty;
+                }
                 finally { _inFlightBlur.TryRemove(imageUrl, out _); }
             });
-        }
-
-        public async Task<ImageSource?> GetBlurredBitmapSourceAsync(string sourcePath)
-        {
-            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
-                return null;
-
-            if (_memoryBlurCache.TryGetValue(sourcePath, out var cached))
-                return cached;
-
-            try
-            {
-                using var fileStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                var memStream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                await fileStream.CopyToAsync(memStream.AsStreamForWrite());
-                memStream.Seek(0);
-
-                var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(memStream);
-                uint origW = decoder.PixelWidth;
-                uint origH = decoder.PixelHeight;
-                if (origW == 0 || origH == 0) return null;
-
-                uint targetW = 160;
-                uint targetH = Math.Max(10, (origH * targetW) / origW);
-
-                var transform = new Windows.Graphics.Imaging.BitmapTransform
-                {
-                    ScaledWidth = targetW,
-                    ScaledHeight = targetH,
-                    InterpolationMode = Windows.Graphics.Imaging.BitmapInterpolationMode.Fant
-                };
-
-                var pixelData = await decoder.GetPixelDataAsync(
-                    Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-                    Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
-                    transform,
-                    Windows.Graphics.Imaging.ExifOrientationMode.RespectExifOrientation,
-                    Windows.Graphics.Imaging.ColorManagementMode.ColorManageToSRgb);
-
-                byte[] pixels = pixelData.DetachPixelData();
-                FastBlur.ProcessBgra(pixels, (int)targetW, (int)targetH, radius: 7);
-
-                var wb = new Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap((int)targetW, (int)targetH);
-                using (var pixelStream = wb.PixelBuffer.AsStream())
-                {
-                    await pixelStream.WriteAsync(pixels, 0, pixels.Length);
-                }
-                wb.Invalidate();
-
-                _memoryBlurCache[sourcePath] = wb;
-                return wb;
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         public void ClearCache()

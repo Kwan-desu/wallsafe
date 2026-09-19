@@ -33,15 +33,12 @@
                 <!-- TitleBar Action Controls -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="0,0,148,0" VerticalAlignment="Center">
                     <!-- Quick Slideshow Flyout Button (compact sleek pill) -->
-                    <Button x:Name="SlideshowBtn" Height="26" Padding="7,1" CornerRadius="6"
-                            Background="{ThemeResource WallSafeAcrylicCardBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
+                    <Button x:Name="SlideshowBtn" Style="{StaticResource WallSafePillButtonStyle}"
                             ToolTipService.ToolTip="Wallpaper Slideshow auto-rotation settings and toggle">
                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="11" Foreground="{ThemeResource WallSafeAccentBrush}" />
-                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="11" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                            <FontIcon Glyph="&#xE70D;" FontSize="7" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="11" />
+                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="11" VerticalAlignment="Center" />
+                            <FontIcon x:Name="SlideshowChevron" Glyph="&#xE70D;" FontSize="7" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button.Flyout>
                             <Flyout Placement="Bottom">
@@ -71,6 +68,16 @@
                         </Button.Flyout>
                     </Button>
 
+                    <!-- Quick Discretion Blur Button (compact sleek pill) -->
+                    <Button x:Name="TitleDiscretionBtn" Style="{StaticResource WallSafePillButtonStyle}"
+                            Click="TitleDiscretionBtn_Click"
+                            ToolTipService.ToolTip="Discretion blur: Blur sensitive 16+ thumbnails">
+                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                            <FontIcon x:Name="TitleDiscretionIcon" Glyph="&#xED1A;" FontSize="11" />
+                            <TextBlock x:Name="TitleDiscretionLabel" Text="Blur: Off" FontSize="11" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
                     <!-- 3-mode rating selector (SFW / Questionable / Explicit) (compact sleek pill) -->
                     <Border Height="26" CornerRadius="6" Padding="2"
                             Background="{ThemeResource WallSafeAcrylicCardBrush}"
@@ -93,7 +100,8 @@
 
         <!-- Navigation + content -->
         <NavigationView x:Name="RootNav" Grid.Row="1"
-                        PaneDisplayMode="Auto"
+                        PaneDisplayMode="LeftCompact"
+                        IsPaneOpen="False"
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="True"
                         Background="Transparent"

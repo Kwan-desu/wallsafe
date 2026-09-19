@@ -1,5 +1,7 @@
 using System;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace WallSafeWinUI.Services
 {
@@ -25,6 +27,46 @@ namespace WallSafeWinUI.Services
 
             wrap.ItemWidth = cellWidth;
             wrap.ItemHeight = Math.Round((cellWidth - margin) * aspect) + margin;
+        }
+
+        /// <summary>
+        /// Walks the visual tree depth-first to find the first child of the given type.
+        /// Use this when ItemsPanelRoot returns null (e.g. during initial page load).
+        /// </summary>
+        public static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T found) return found;
+                var result = FindVisualChild<T>(child);
+                if (result != null) return result;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolves the ItemsWrapGrid from a GridView using ItemsPanelRoot first,
+        /// then falling back to a visual tree walk.
+        /// </summary>
+        public static ItemsWrapGrid? GetWrapGrid(GridView gridView)
+        {
+            if (gridView == null) return null;
+            return gridView.ItemsPanelRoot as ItemsWrapGrid
+                   ?? FindVisualChild<ItemsWrapGrid>(gridView);
+        }
+
+        /// <summary>
+        /// Convenience: resolve the wrap grid from a GridView and fit columns.
+        /// </summary>
+        public static void UpdateLayout(GridView gridView)
+        {
+            if (gridView == null) return;
+            var wrap = GetWrapGrid(gridView);
+            if (wrap != null)
+                FitColumns(wrap, gridView.ActualWidth - gridView.Padding.Left - gridView.Padding.Right);
         }
     }
 }

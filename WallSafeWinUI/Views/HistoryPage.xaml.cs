@@ -10,6 +10,7 @@ namespace WallSafeWinUI.Views
     public sealed partial class HistoryPage : Page
     {
         private readonly ObservableCollection<PostItem> _items = new();
+        private bool _layoutDone;
 
         public HistoryPage()
         {
@@ -43,12 +44,16 @@ namespace WallSafeWinUI.Views
                 card.PreviewRequested -= OnCardPreview;
                 card.PreviewRequested += OnCardPreview;
             }
+            if (!_layoutDone)
+            {
+                _layoutDone = true;
+                GridLayoutHelper.UpdateLayout(Grid);
+            }
         }
 
         private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (Grid.ItemsPanelRoot is ItemsWrapGrid wrap)
-                GridLayoutHelper.FitColumns(wrap, Grid.ActualWidth - Grid.Padding.Left - Grid.Padding.Right);
+            GridLayoutHelper.UpdateLayout(Grid);
         }
 
         private void OnCardPreview(PostItem post) => _ = PreviewDialog.ShowAsync(XamlRoot, post);

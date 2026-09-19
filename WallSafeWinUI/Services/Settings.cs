@@ -160,6 +160,7 @@ namespace WallSafeWinUI.Services
 
         // Content Discretion
         public bool DiscretionBlur { get; set; } = false;
+        public int BlurStrength { get; set; } = 8;
         public string TagBlacklist { get; set; } = "";
 
         // ── Taskbar transparency (TranslucentTB-style) ──

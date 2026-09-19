@@ -129,11 +129,65 @@
                 <Setter Property="UseSystemFocusVisuals" Value="False" />
             </Style>
 
+            <!-- Unified sleek pill button for top title bar action controls -->
+            <Style x:Key="WallSafePillButtonStyle" TargetType="Button">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="Padding" Value="9,0" />
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+                <Setter Property="FocusVisualMargin" Value="0" />
+                <Setter Property="Background" Value="{ThemeResource WallSafeAcrylicCardBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Root"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Padding="{TemplateBinding Padding}"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter x:Name="Content"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Opacity" Value="0.88" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Opacity" Value="0.75" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Opacity" Value="0.5" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- Segmented RadioButton (pill) for the rating-mode selector -->
             <Style x:Key="WallSafeSegmentStyle" TargetType="RadioButton">
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="Height" Value="22" />
-                <Setter Property="Padding" Value="9,0" />
+                <Setter Property="Padding" Value="10,0" />
                 <Setter Property="FontSize" Value="11" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="UseSystemFocusVisuals" Value="False" />
@@ -150,23 +204,56 @@
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 <VisualStateManager.VisualStateGroups>
                                     <VisualStateGroup x:Name="CommonStates">
-                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="Transparent" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
                                                 <Setter Target="Root.Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
                                                 <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
-                                        <VisualState x:Name="Pressed" />
-                                    </VisualStateGroup>
-                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
+                                                <Setter Target="Root.Opacity" Value="0.8" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
                                         <VisualState x:Name="Checked">
                                             <VisualState.Setters>
                                                 <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
                                                 <Setter Target="Content.Foreground" Value="White" />
                                             </VisualState.Setters>
                                         </VisualState>
-                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="CheckedPointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
+                                                <Setter Target="Content.Foreground" Value="White" />
+                                                <Setter Target="Root.Opacity" Value="0.9" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckedPressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
+                                                <Setter Target="Content.Foreground" Value="White" />
+                                                <Setter Target="Root.Opacity" Value="0.75" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckedDisabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
+                                                <Setter Target="Content.Foreground" Value="White" />
+                                                <Setter Target="Root.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
                                         <VisualState x:Name="Indeterminate" />
                                     </VisualStateGroup>
                                 </VisualStateManager.VisualStateGroups>

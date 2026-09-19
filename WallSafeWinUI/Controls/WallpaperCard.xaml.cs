@@ -24,9 +24,24 @@ namespace WallSafeWinUI.Controls
         {
             InitializeComponent();
             DataContextChanged += (_, _) => Bind(DataContext as PostItem);
+            Loaded += (_, _) => AppEvents.DiscretionBlurChanged += OnDiscretionBlurChanged;
+            Unloaded += (_, _) => AppEvents.DiscretionBlurChanged -= OnDiscretionBlurChanged;
         }
 
         private bool _isDiscretionActive;
+
+        private void OnDiscretionBlurChanged(bool enabled)
+        {
+            if (_post == null) return;
+            _isDiscretionActive = enabled && _post.Rating != "s";
+            if (_isDiscretionActive)
+            {
+                // Clear first to force DependencyProperty change callback even if URL is same
+                CachedImage.SetSourceUrl(BlurredThumb, null);
+                CachedImage.SetSourceUrl(BlurredThumb, _post.PreviewUrl);
+            }
+            ApplyDiscretionState(revealed: false, animate: true);
+        }
 
         private void Bind(PostItem? post)
         {
@@ -34,13 +49,22 @@ namespace WallSafeWinUI.Controls
             if (post == null) return;
 
             CachedImage.SetSourceUrl(Thumb, post.PreviewUrl);
-            CachedImage.SetSourceUrl(BlurredThumb, post.PreviewUrl);
+
+            _isDiscretionActive = Settings.Instance.DiscretionBlur && post.Rating != "s";
+            if (_isDiscretionActive)
+            {
+                CachedImage.SetSourceUrl(BlurredThumb, post.PreviewUrl);
+            }
+            else
+            {
+                CachedImage.SetSourceUrl(BlurredThumb, null);
+            }
+
             ResText.Text = post.ResolutionText;
             RatingText.Text = post.RatingDisplay;
             RatingBadge.Background = new SolidColorBrush(ParseColor(post.RatingBadgeBackground));
             FavIcon.Glyph = post.IsFavorite ? "\uEB52" : "\uEB51";
 
-            _isDiscretionActive = Settings.Instance.DiscretionBlur && post.Rating != "s";
             ApplyDiscretionState(revealed: false, animate: false);
         }
 
