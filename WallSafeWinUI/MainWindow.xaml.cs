@@ -58,6 +58,8 @@ namespace WallSafeWinUI
             // slideshow, Wi-Fi watcher and tray menu. Real exit goes through the tray's
             // "Exit WallSafe" item. This matches the old WPF build's behavior.
             _appWindow.Closing += AppWindow_Closing;
+
+            RootGrid.Loaded += (_, _) => _ = CheckForUpdatesOnStartupAsync();
         }
 
         public bool ForceClosing { get; set; }
@@ -389,6 +391,121 @@ namespace WallSafeWinUI
             var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             try { int v = enabled ? 1 : 0; DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref v, sizeof(int)); }
             catch { }
+        }
+
+        // ── Automatic In-App Updates ──────────────────────────────
+        private async System.Threading.Tasks.Task CheckForUpdatesOnStartupAsync()
+        {
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(3500);
+                var info = await UpdateService.CheckForUpdateAsync();
+                if (info != null && info.IsUpdateAvailable && !string.IsNullOrEmpty(info.DownloadUrl))
+                {
+                    DispatcherQueue.TryEnqueue(async () =>
+                    {
+                        await PromptAndInstallUpdateAsync(info);
+                    });
+                }
+            }
+            catch
+            {
+                // Silent fail on startup check (e.g. offline, rate-limited)
+            }
+        }
+
+        private async System.Threading.Tasks.Task PromptAndInstallUpdateAsync(UpdateInfo info)
+        {
+            if (Content?.XamlRoot == null) return;
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = $"Update Available: WallSafe v{info.LatestVersionString}",
+                Content = new StackPanel
+                {
+                    Spacing = 10,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = $"A new update (v{info.LatestVersionString}) is available! You are currently running v{info.CurrentVersion}.",
+                            TextWrapping = TextWrapping.Wrap,
+                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                        },
+                        new TextBlock
+                        {
+                            Text = string.IsNullOrWhiteSpace(info.ReleaseNotes)
+                                ? "Would you like to download and install this update automatically now?"
+                                : info.ReleaseNotes,
+                            TextWrapping = TextWrapping.Wrap,
+                            MaxHeight = 160
+                        }
+                    }
+                },
+                PrimaryButtonText = "Update Now",
+                CloseButtonText = "Later",
+                DefaultButton = ContentDialogButton.Primary
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await PerformAutoUpdateAsync(info);
+            }
+        }
+
+        private async System.Threading.Tasks.Task PerformAutoUpdateAsync(UpdateInfo info)
+        {
+            if (Content?.XamlRoot == null) return;
+
+            var progressBar = new ProgressBar { Maximum = 1, Value = 0, IsIndeterminate = true };
+            var statusText = new TextBlock
+            {
+                Text = "Downloading update package...",
+                FontSize = 12,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            };
+
+            var progressDialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = "Updating WallSafe...",
+                Content = new StackPanel
+                {
+                    Spacing = 12,
+                    Children = { statusText, progressBar }
+                }
+            };
+
+            var progress = new Progress<double>(p =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    progressBar.IsIndeterminate = false;
+                    progressBar.Value = p;
+                    statusText.Text = $"Downloading update: {(int)(p * 100)}%...";
+                });
+            });
+
+            _ = progressDialog.ShowAsync();
+
+            try
+            {
+                await UpdateService.DownloadAndInstallUpdateAsync(info.DownloadUrl, progress);
+            }
+            catch (Exception ex)
+            {
+                progressDialog.Hide();
+                var errDialog = new ContentDialog
+                {
+                    XamlRoot = Content.XamlRoot,
+                    Title = "Update Failed",
+                    Content = $"Could not complete automatic update: {ex.Message}",
+                    CloseButtonText = "OK"
+                };
+                await errDialog.ShowAsync();
+            }
         }
     }
 }

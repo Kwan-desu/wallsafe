@@ -70,6 +70,9 @@ namespace WallSafeWinUI.Views
             HomeFranchises.IsOn = s.ShowHomeFranchises;
             HomeShelf.IsOn = s.ShowHomeQuickShelf;
 
+            if (AppVersionText != null)
+                AppVersionText.Text = $"Version {UpdateService.CurrentVersion} · Rebuilt on Windows App SDK 1.6 with Fluent 11 design.";
+
             _loading = false;
         }
 

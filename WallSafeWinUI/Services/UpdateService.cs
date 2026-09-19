@@ -33,7 +33,7 @@ namespace WallSafeWinUI.Services
             var info = new UpdateInfo { CurrentVersion = CurrentVersion };
 
             using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"WallSafe-WinUI-App/{CurrentVersion}");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github.v3+json");
             if (!string.IsNullOrEmpty(ApiToken))
             {
@@ -87,7 +87,7 @@ namespace WallSafeWinUI.Services
             using var handler = new HttpClientHandler { AllowAutoRedirect = false };
             using var client = new HttpClient(handler);
             var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
-            request.Headers.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+            request.Headers.UserAgent.ParseAdd($"WallSafe-WinUI-App/{CurrentVersion}");
             if (!string.IsNullOrEmpty(ApiToken) && downloadUrl.Contains("api.github.com"))
             {
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", ApiToken);
@@ -104,7 +104,7 @@ namespace WallSafeWinUI.Services
                 if (redirectUrl != null)
                 {
                     using var redirectClient = new HttpClient();
-                    redirectClient.DefaultRequestHeaders.UserAgent.ParseAdd("WallSafe-WinUI-App/3.1.0");
+                    redirectClient.DefaultRequestHeaders.UserAgent.ParseAdd($"WallSafe-WinUI-App/{CurrentVersion}");
                     response = await redirectClient.GetAsync(redirectUrl, HttpCompletionOption.ResponseHeadersRead);
                 }
             }

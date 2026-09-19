@@ -205,7 +205,7 @@
                 <StackPanel Spacing="12">
                     <StackPanel Spacing="2">
                         <TextBlock Text="WallSafe (WinUI 3)" Style="{StaticResource BodyStrongTextBlockStyle}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="Version 3.1.0 · Rebuilt on Windows App SDK 1.6 with Fluent 11 design." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="AppVersionText" Text="Version 3.1.1 · Rebuilt on Windows App SDK 1.6 with Fluent 11 design." Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
 
                     <!-- Update Status and Action -->
