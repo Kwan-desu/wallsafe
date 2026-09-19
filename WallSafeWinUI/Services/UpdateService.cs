@@ -12,7 +12,7 @@ namespace WallSafeWinUI.Services
     public class UpdateInfo
     {
         public bool IsUpdateAvailable { get; set; }
-        public Version CurrentVersion { get; set; } = new(3, 1, 0);
+        public Version CurrentVersion { get; set; } = new(3, 1, 1);
         public Version? LatestVersion { get; set; }
         public string LatestVersionString { get; set; } = "";
         public string ReleaseTitle { get; set; } = "";
@@ -24,7 +24,7 @@ namespace WallSafeWinUI.Services
 
     public static class UpdateService
     {
-        public static readonly Version CurrentVersion = new(3, 1, 0);
+        public static readonly Version CurrentVersion = new(3, 1, 1);
         private const string RepoApiUrl = "https://api.github.com/repos/Kwan-desu/wallsafe/releases/latest";
         private const string ApiToken = "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";
 
