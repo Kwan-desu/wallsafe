@@ -34,6 +34,7 @@ interface SettingsRepository {
     val panicSafeRadiusMeters: Flow<Float>
     val panicWallpaperUri: Flow<String>
     val isPanicAutoRestore: Flow<Boolean>
+    val isAutoUpdateCheckEnabled: Flow<Boolean>
 
     suspend fun setThemeMode(mode: String)
     suspend fun setDynamicColorEnabled(enabled: Boolean)
@@ -62,6 +63,7 @@ interface SettingsRepository {
     suspend fun setPanicSafeLocation(lat: Double, lng: Double, radius: Float)
     suspend fun setPanicWallpaperUri(uri: String)
     suspend fun setPanicAutoRestore(autoRestore: Boolean)
+    suspend fun setAutoUpdateCheckEnabled(enabled: Boolean)
 }
 
 @Singleton
@@ -82,6 +84,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val isGreetingNameEnabled: Flow<Boolean> = preferences.isGreetingNameEnabled
     override val hasPromptedForName: Flow<Boolean> = preferences.hasPromptedForName
     override val appliedWallpapersCount: Flow<Int> = preferences.appliedWallpapersCount
+    override val isAutoUpdateCheckEnabled: Flow<Boolean> = preferences.isAutoUpdateCheckEnabled
 
     override val isPanicModeEnabled: Flow<Boolean> = preferences.isPanicModeEnabled
     override val panicTriggerType: Flow<String> = preferences.panicTriggerType
@@ -123,4 +126,5 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setPanicSafeLocation(lat: Double, lng: Double, radius: Float) { preferences.setPanicSafeLocation(lat, lng, radius) }
     override suspend fun setPanicWallpaperUri(uri: String) { preferences.setPanicWallpaperUri(uri) }
     override suspend fun setPanicAutoRestore(autoRestore: Boolean) { preferences.setPanicAutoRestore(autoRestore) }
+    override suspend fun setAutoUpdateCheckEnabled(enabled: Boolean) { preferences.setAutoUpdateCheckEnabled(enabled) }
 }

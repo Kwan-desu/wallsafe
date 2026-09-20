@@ -104,7 +104,11 @@ class WallSafePreferences @Inject constructor(
     suspend fun setPanicWallpaperUri(uri: String): Unit { dataStore.edit { it[PANIC_WALLPAPER_URI] = uri } }
     suspend fun setPanicAutoRestore(autoRestore: Boolean): Unit { dataStore.edit { it[PANIC_AUTO_RESTORE] = autoRestore } }
 
+    val isAutoUpdateCheckEnabled: Flow<Boolean> = dataStore.data.map { it[AUTO_UPDATE_CHECK_ENABLED] ?: true }
+    suspend fun setAutoUpdateCheckEnabled(enabled: Boolean): Unit { dataStore.edit { it[AUTO_UPDATE_CHECK_ENABLED] = enabled } }
+
     companion object {
+        val AUTO_UPDATE_CHECK_ENABLED = booleanPreferencesKey("auto_update_check_enabled")
         val HAS_AGREED_TO_TERMS = booleanPreferencesKey("has_agreed_to_terms")
         val USER_NAME = stringPreferencesKey("user_name")
         val IS_GREETING_NAME_ENABLED = booleanPreferencesKey("is_greeting_name_enabled")

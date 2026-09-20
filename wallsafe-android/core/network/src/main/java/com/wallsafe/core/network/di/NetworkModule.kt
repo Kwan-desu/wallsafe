@@ -70,4 +70,15 @@ object NetworkModule {
     ): BooruApiServiceFactory {
         return BooruApiServiceFactory(retrofitBuilder)
     }
+
+    @Provides
+    @Singleton
+    fun provideGitHubApiService(
+        retrofitBuilder: Retrofit.Builder
+    ): com.wallsafe.core.network.GitHubApiService {
+        return retrofitBuilder
+            .baseUrl("https://api.github.com/")
+            .build()
+            .create(com.wallsafe.core.network.GitHubApiService::class.java)
+    }
 }

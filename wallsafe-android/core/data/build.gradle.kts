@@ -28,6 +28,8 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(libs.datastore.preferences)
+    implementation(libs.core.ktx)
+    implementation(libs.okhttp)
     
     implementation(libs.paging.common)
     implementation(libs.kotlinx.coroutines.core)

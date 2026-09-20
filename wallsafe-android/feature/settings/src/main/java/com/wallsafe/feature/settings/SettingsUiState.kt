@@ -25,7 +25,20 @@ data class SettingsUiState(
     val isPanicAutoRestore: Boolean = true,
     val isPanicActive: Boolean = false,
     val userName: String = "",
-    val isGreetingNameEnabled: Boolean = true
+    val isGreetingNameEnabled: Boolean = true,
+    val isAutoUpdateEnabled: Boolean = true,
+    val updateInfo: com.wallsafe.core.model.AppUpdateInfo? = null,
+    val showUpdateDialog: Boolean = false,
+    val isCheckingForUpdate: Boolean = false,
+    val updateCheckMessage: String? = null,
+    val isDownloadingUpdate: Boolean = false,
+    val updateDownloadProgress: Float = 0f,
+    val updateDownloadedBytes: Long = 0L,
+    val updateDownloadTotalBytes: Long = 0L,
+    val isUpdateDownloaded: Boolean = false,
+    val needsInstallPermission: Boolean = false,
+    val updateErrorMessage: String? = null,
+    val currentAppVersion: String = "1.0.7"
 )
 
 sealed interface SettingsIntent {
@@ -54,4 +67,11 @@ sealed interface SettingsIntent {
     data class SetPanicAutoRestore(val autoRestore: Boolean) : SettingsIntent
     data object TestPanicMode : SettingsIntent
     data object RestorePanicMode : SettingsIntent
+    data class ToggleAutoUpdate(val enabled: Boolean) : SettingsIntent
+    data object CheckForUpdates : SettingsIntent
+    data object StartUpdateDownload : SettingsIntent
+    data object InstallUpdate : SettingsIntent
+    data object OpenInstallPermissionSettings : SettingsIntent
+    data object DismissUpdateDialog : SettingsIntent
+    data object ClearUpdateMessage : SettingsIntent
 }

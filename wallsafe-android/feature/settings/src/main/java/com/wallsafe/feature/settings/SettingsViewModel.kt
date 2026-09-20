@@ -17,11 +17,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.wallsafe.core.data.repository.UpdateRepository
+import com.wallsafe.core.model.AppUpdateInfo
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val updateRepository: UpdateRepository,
     private val panicTriggerHandler: PanicTriggerHandler,
     private val panicManager: PanicManager,
     private val wifiPanicMonitor: WifiPanicMonitor,
@@ -37,6 +41,12 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
+        val version = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.7"
+        } catch (e: Exception) {
+            "1.0.7"
+        }
+        _uiState.update { it.copy(currentAppVersion = version) }
         observeSettings()
     }
 
@@ -151,6 +161,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.isPanicAutoRestore.collect { autoRestore ->
                 _uiState.update { it.copy(isPanicAutoRestore = autoRestore) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.isAutoUpdateCheckEnabled.collect { enabled ->
+                _uiState.update { it.copy(isAutoUpdateEnabled = enabled) }
             }
         }
     }
@@ -273,6 +288,117 @@ class SettingsViewModel @Inject constructor(
             is SettingsIntent.RestorePanicMode -> {
                 viewModelScope.launch {
                     panicTriggerHandler.restorePanic(context)
+                }
+            }
+            is SettingsIntent.ToggleAutoUpdate -> {
+                viewModelScope.launch { settingsRepository.setAutoUpdateCheckEnabled(intent.enabled) }
+            }
+            is SettingsIntent.CheckForUpdates -> {
+                checkForUpdates(isUserInitiated = true)
+            }
+            is SettingsIntent.StartUpdateDownload -> {
+                val updateInfo = _uiState.value.updateInfo ?: return
+                startDownload(updateInfo)
+            }
+            is SettingsIntent.InstallUpdate -> {
+                val updateInfo = _uiState.value.updateInfo ?: return
+                val cachedFile = updateRepository.getCachedApk(updateInfo)
+                if (cachedFile != null) {
+                    if (!updateRepository.canRequestPackageInstalls()) {
+                        _uiState.update { it.copy(needsInstallPermission = true) }
+                    } else {
+                        updateRepository.installApk(cachedFile)
+                    }
+                } else {
+                    startDownload(updateInfo)
+                }
+            }
+            is SettingsIntent.OpenInstallPermissionSettings -> {
+                updateRepository.openInstallPermissionSettings()
+            }
+            is SettingsIntent.DismissUpdateDialog -> {
+                _uiState.update { it.copy(showUpdateDialog = false) }
+            }
+            is SettingsIntent.ClearUpdateMessage -> {
+                _uiState.update { it.copy(updateCheckMessage = null) }
+            }
+        }
+    }
+
+    fun checkForUpdates(isUserInitiated: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCheckingForUpdate = true, updateCheckMessage = null) }
+            val currentVersion = _uiState.value.currentAppVersion
+            val result = updateRepository.checkForUpdate(currentVersion)
+            result.onSuccess { info ->
+                val cached = updateRepository.getCachedApk(info)
+                _uiState.update {
+                    it.copy(
+                        isCheckingForUpdate = false,
+                        updateInfo = info,
+                        showUpdateDialog = info.isUpdateAvailable,
+                        isUpdateDownloaded = cached != null,
+                        needsInstallPermission = !updateRepository.canRequestPackageInstalls(),
+                        updateCheckMessage = if (info.isUpdateAvailable) {
+                            "Update available: ${info.versionName}"
+                        } else if (isUserInitiated) {
+                            "WallSafe is up to date (v$currentVersion)"
+                        } else null
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isCheckingForUpdate = false,
+                        updateCheckMessage = if (isUserInitiated) {
+                            "Could not check for updates: ${error.localizedMessage ?: "Unknown error"}"
+                        } else null
+                    )
+                }
+            }
+        }
+    }
+
+    private fun startDownload(updateInfo: AppUpdateInfo) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isDownloadingUpdate = true,
+                    updateDownloadProgress = 0f,
+                    updateDownloadedBytes = 0L,
+                    updateDownloadTotalBytes = updateInfo.apkSize,
+                    updateErrorMessage = null
+                )
+            }
+
+            val result = updateRepository.downloadApk(updateInfo) { progress, downloaded, total ->
+                _uiState.update {
+                    it.copy(
+                        updateDownloadProgress = progress,
+                        updateDownloadedBytes = downloaded,
+                        updateDownloadTotalBytes = total
+                    )
+                }
+            }
+
+            result.onSuccess { file ->
+                val needsPerm = !updateRepository.canRequestPackageInstalls()
+                _uiState.update {
+                    it.copy(
+                        isDownloadingUpdate = false,
+                        isUpdateDownloaded = true,
+                        needsInstallPermission = needsPerm
+                    )
+                }
+                if (!needsPerm) {
+                    updateRepository.installApk(file)
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isDownloadingUpdate = false,
+                        updateErrorMessage = "Download failed: ${error.localizedMessage ?: "Unknown error"}"
+                    )
                 }
             }
         }

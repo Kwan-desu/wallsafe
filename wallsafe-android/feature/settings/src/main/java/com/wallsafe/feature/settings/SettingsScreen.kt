@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wallsafe.core.ui.components.AppUpdateDialog
 import com.wallsafe.feature.settings.components.SettingsListItem
 import com.wallsafe.feature.settings.components.SettingsSection
 
@@ -79,6 +80,30 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.updateCheckMessage) {
+        uiState.updateCheckMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            onIntent(SettingsIntent.ClearUpdateMessage)
+        }
+    }
+
+    if (uiState.showUpdateDialog && uiState.updateInfo != null) {
+        AppUpdateDialog(
+            updateInfo = uiState.updateInfo,
+            isDownloading = uiState.isDownloadingUpdate,
+            downloadProgress = uiState.updateDownloadProgress,
+            downloadedBytes = uiState.updateDownloadedBytes,
+            totalBytes = uiState.updateDownloadTotalBytes,
+            isDownloaded = uiState.isUpdateDownloaded,
+            needsPermission = uiState.needsInstallPermission,
+            errorMessage = uiState.updateErrorMessage,
+            onStartDownload = { onIntent(SettingsIntent.StartUpdateDownload) },
+            onInstall = { onIntent(SettingsIntent.InstallUpdate) },
+            onGrantPermission = { onIntent(SettingsIntent.OpenInstallPermissionSettings) },
+            onDismiss = { onIntent(SettingsIntent.DismissUpdateDialog) }
+        )
+    }
 
     if (showEditNameDialog) {
         var inputName by remember { mutableStateOf(uiState.userName) }
@@ -338,12 +363,55 @@ fun SettingsScreen(
                 )
             }
 
+            SettingsSection(title = "App Updates") {
+                SettingsListItem(
+                    title = "Auto-Check for Updates",
+                    subtitle = "Automatically check for new releases when launching",
+                    icon = Icons.Default.Sync,
+                    trailingContent = {
+                        Switch(
+                            checked = uiState.isAutoUpdateEnabled,
+                            onCheckedChange = { onIntent(SettingsIntent.ToggleAutoUpdate(it)) }
+                        )
+                    }
+                )
+                SettingsListItem(
+                    title = "Check for Updates",
+                    subtitle = if (uiState.isCheckingForUpdate) {
+                        "Checking GitHub for new releases..."
+                    } else {
+                        "Current version: v${uiState.currentAppVersion}"
+                    },
+                    icon = Icons.Default.SystemUpdate,
+                    trailingContent = {
+                        if (uiState.isCheckingForUpdate) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        }
+                    },
+                    onClick = {
+                        if (!uiState.isCheckingForUpdate) {
+                            onIntent(SettingsIntent.CheckForUpdates)
+                        }
+                    }
+                )
+            }
+
             SettingsSection(title = "About") {
                 SettingsListItem(
                     title = "App Version",
-                    subtitle = "WallSafe v1.0.6 (Build 7) • Open Source",
+                    subtitle = "WallSafe v${uiState.currentAppVersion} • Tap to check updates",
                     icon = Icons.Default.Info,
-                    onClick = { }
+                    onClick = { onIntent(SettingsIntent.CheckForUpdates) }
                 )
                 SettingsListItem(
                     title = "Source Code",
