@@ -3,15 +3,14 @@ package com.wallsafe.feature.home.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,13 +41,6 @@ fun WelcomeHeader(
     isGreetingNameEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    val isSystemDark = isSystemInDarkTheme()
-    val isDark = when (themeMode.lowercase()) {
-        "dark" -> true
-        "light" -> false
-        else -> isSystemDark
-    }
-
     var showNameDialog by remember { mutableStateOf(false) }
 
     if (showNameDialog) {
@@ -114,28 +106,30 @@ fun WelcomeHeader(
                     text = greetingText,
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 28.sp,
                         letterSpacing = (-0.5).sp
                     ),
-                    color = if (isDark) Color(0xFFF2F2F5) else Color(0xFF1E1D24)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            // Sleek Crescent Moon Theme Toggle Button
-            IconButton(
+            // Material 3 Styled Crescent Moon Theme Toggle Button
+            FilledTonalIconButton(
                 onClick = onToggleTheme,
-                modifier = Modifier.size(40.dp)
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.size(42.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.DarkMode,
                     contentDescription = "Toggle Dark Mode",
-                    tint = if (isDark) Color(0xFFB388FF) else Color(0xFF6E6B7B),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
 
-        // 2. Overview Statistics Dashboard Strip (Favorites, Downloads, Applied, Top pick)
+        // 2. Material You Overview Statistics Dashboard Strip (Favorites, Downloads, Applied, Top pick)
         if (isTabletOrLandscape) {
             // Tablet / Landscape: All 4 in a wide row
             Row(
@@ -147,7 +141,8 @@ fun WelcomeHeader(
                     value = favoritesCount.toString(),
                     label = "Favorites",
                     onClick = onFavoritesClick,
-                    isDark = isDark,
+                    iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 OverviewStatsCard(
@@ -155,7 +150,8 @@ fun WelcomeHeader(
                     value = downloadsCount.toString(),
                     label = "Downloads",
                     onClick = onDownloadsClick,
-                    isDark = isDark,
+                    iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 OverviewStatsCard(
@@ -163,15 +159,17 @@ fun WelcomeHeader(
                     value = appliedCount.toString(),
                     label = "Applied",
                     onClick = onAppliedClick,
-                    isDark = isDark,
+                    iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 OverviewStatsCard(
-                    icon = Icons.Outlined.StarBorder,
+                    icon = Icons.Default.AutoAwesome,
                     value = topPickTitle,
                     label = "Top pick",
                     onClick = onTopPickClick,
-                    isDark = isDark,
+                    iconContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    iconColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1.3f)
                 )
             }
@@ -190,7 +188,8 @@ fun WelcomeHeader(
                         value = favoritesCount.toString(),
                         label = "Favorites",
                         onClick = onFavoritesClick,
-                        isDark = isDark,
+                        iconContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.weight(1f)
                     )
                     OverviewStatsCard(
@@ -198,7 +197,8 @@ fun WelcomeHeader(
                         value = downloadsCount.toString(),
                         label = "Downloads",
                         onClick = onDownloadsClick,
-                        isDark = isDark,
+                        iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -211,15 +211,17 @@ fun WelcomeHeader(
                         value = appliedCount.toString(),
                         label = "Applied",
                         onClick = onAppliedClick,
-                        isDark = isDark,
+                        iconContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         modifier = Modifier.weight(1f)
                     )
                     OverviewStatsCard(
-                        icon = Icons.Outlined.StarBorder,
+                        icon = Icons.Default.AutoAwesome,
                         value = topPickTitle,
                         label = "Top pick",
                         onClick = onTopPickClick,
-                        isDark = isDark,
+                        iconContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        iconColor = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -234,67 +236,64 @@ fun OverviewStatsCard(
     value: String,
     label: String,
     onClick: () -> Unit,
-    isDark: Boolean,
+    iconContainerColor: Color,
+    iconColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val cardBg = if (isDark) Color(0xFF1B1D27) else Color.White
-    val iconBoxBg = if (isDark) Color(0xFF252736) else Color(0xFFEDE9FE)
-    val iconColor = Color(0xFF8B80F8)
-    val textColor = if (isDark) Color(0xFFF3F4F8) else Color(0xFF1E1D24)
-    val labelColor = if (isDark) Color(0xFF8E90A2) else Color(0xFF6B7280)
-    val borderColor = if (isDark) Color(0xFF2A2C3A) else Color(0xFFE5E7EB)
-
-    Surface(
+    OutlinedCard(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = cardBg,
-        border = BorderStroke(1.dp, borderColor),
-        shadowElevation = if (isDark) 0.dp else 2.dp,
-        modifier = modifier.height(68.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        ),
+        modifier = modifier.height(72.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iconBoxBg),
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(iconContainerColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
                     tint = iconColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
             Column(
+                modifier = Modifier.weight(1f, fill = false),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = value,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                        letterSpacing = (-0.3).sp
+                        letterSpacing = (-0.2).sp
                     ),
-                    color = textColor,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Medium
                     ),
-                    color = labelColor,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
