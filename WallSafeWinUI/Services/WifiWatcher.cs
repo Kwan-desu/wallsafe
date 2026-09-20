@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,10 +12,10 @@ using System.Threading.Tasks;
 namespace WallSafeWinUI.Services
 {
     /// <summary>
-    /// Watches currently-connected Wi-Fi SSIDs and Network Connection Profiles.
-    /// When any connected network matches the user-configured trigger networks (e.g. school, work,
-    /// or specific SSIDs/profiles), automatically applies the safe wallpaper and pauses slideshow.
-    /// Optionally restores the previous wallpaper on disconnect.
+    /// Watches ONLY connected Wi-Fi (WLAN) networks (ignoring Ethernet, cellular, and virtual adapters).
+    /// When the active Wi-Fi SSID matches any user-configured trigger network (e.g. school, work, or hotspot),
+    /// automatically applies the safe wallpaper and pauses slideshow.
+    /// Optionally restores previous wallpaper when disconnecting from the trigger Wi-Fi network.
     /// </summary>
     public sealed class WifiWatcher : IDisposable
     {
@@ -22,9 +24,9 @@ namespace WallSafeWinUI.Services
 
         private readonly object _sync = new();
         private System.Threading.Timer? _timer;
-        private string? _lastMatchedNetwork;
-        private bool _triggerActive;             // currently on the trigger network
-        private string? _wallpaperBeforeTrigger; // to restore on disconnect
+        private string? _lastMatchedSsid;
+        private bool _triggerActive;
+        private string? _wallpaperBeforeTrigger;
         private bool _disposed;
         private bool _eventHooked;
 
@@ -33,14 +35,10 @@ namespace WallSafeWinUI.Services
             get { lock (_sync) return _triggerActive; }
         }
 
-        /// <summary>
-        /// Fired whenever network status or trigger state updates: (currentNetwork, isTriggerActive, matchedTrigger).
-        /// </summary>
         public event Action<string?, bool, string?>? StatusChanged;
 
         private WifiWatcher() { }
 
-        /// <summary>Start (or restart) polling based on current settings.</summary>
         public void Start(bool immediate = false)
         {
             lock (_sync)
@@ -55,12 +53,11 @@ namespace WallSafeWinUI.Services
                     {
                         _triggerActive = false;
                         RestoreWallpaperAfterTrigger();
-                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                        NotifyStatus(GetConnectedWifiSsid(), false, null);
                     }
                     return;
                 }
 
-                // Hook Windows network change notifications once for instant reaction
                 if (!_eventHooked)
                 {
                     try
@@ -71,7 +68,6 @@ namespace WallSafeWinUI.Services
                     catch { }
                 }
 
-                // Reset trigger edge so immediate poll re-evaluates
                 _triggerActive = false;
 
                 _timer = new System.Threading.Timer(_ => Poll(), null,
@@ -100,7 +96,7 @@ namespace WallSafeWinUI.Services
                 {
                     _triggerActive = false;
                     RestoreWallpaperAfterTrigger();
-                    NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                    NotifyStatus(GetConnectedWifiSsid(), false, null);
                 }
             }
         }
@@ -113,23 +109,24 @@ namespace WallSafeWinUI.Services
 
                 try
                 {
-                    var activeNetworks = GetAllCurrentNetworkNames();
+                    // Query ONLY real connected Wi-Fi (WLAN) SSIDs
+                    var activeWifiSsids = GetConnectedWifiSsids();
                     var triggers = Settings.Instance.WifiTriggerSsids;
 
                     string? matchedTrigger = null;
-                    string? matchedNetwork = null;
+                    string? matchedSsid = null;
 
-                    if (triggers.Count > 0 && activeNetworks.Count > 0)
+                    if (triggers.Count > 0 && activeWifiSsids.Count > 0)
                     {
-                        foreach (var net in activeNetworks)
+                        foreach (var ssid in activeWifiSsids)
                         {
                             foreach (var tr in triggers)
                             {
-                                if (string.Equals(net, tr, StringComparison.OrdinalIgnoreCase) ||
-                                    net.IndexOf(tr, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                    tr.IndexOf(net, StringComparison.OrdinalIgnoreCase) >= 0)
+                                if (string.Equals(ssid, tr, StringComparison.OrdinalIgnoreCase) ||
+                                    ssid.IndexOf(tr, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    tr.IndexOf(ssid, StringComparison.OrdinalIgnoreCase) >= 0)
                                 {
-                                    matchedNetwork = net;
+                                    matchedSsid = ssid;
                                     matchedTrigger = tr;
                                     break;
                                 }
@@ -140,38 +137,36 @@ namespace WallSafeWinUI.Services
 
                     bool onTrigger = matchedTrigger != null;
 
-                    // Rising edge: just connected to the trigger network
                     if (onTrigger && !_triggerActive)
                     {
                         _triggerActive = true;
-                        _lastMatchedNetwork = matchedNetwork;
+                        _lastMatchedSsid = matchedSsid;
                         ApplyTriggerWallpaper();
-                        NotifyStatus(matchedNetwork, true, matchedTrigger);
+                        NotifyStatus(matchedSsid, true, matchedTrigger);
                     }
                     else if (onTrigger && _triggerActive)
                     {
-                        NotifyStatus(matchedNetwork ?? _lastMatchedNetwork, true, matchedTrigger);
+                        NotifyStatus(matchedSsid ?? _lastMatchedSsid, true, matchedTrigger);
                     }
-                    // Falling edge: disconnected from the trigger network
                     else if (!onTrigger && _triggerActive)
                     {
                         _triggerActive = false;
-                        _lastMatchedNetwork = null;
+                        _lastMatchedSsid = null;
                         RestoreWallpaperAfterTrigger();
-                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                        NotifyStatus(GetConnectedWifiSsid(), false, null);
                     }
                     else
                     {
-                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                        NotifyStatus(GetConnectedWifiSsid(), false, null);
                     }
                 }
                 catch { /* best-effort background watcher */ }
             }
         }
 
-        private void NotifyStatus(string? currentNet, bool isActive, string? matchedTrig)
+        private void NotifyStatus(string? currentSsid, bool isActive, string? matchedTrig)
         {
-            try { StatusChanged?.Invoke(currentNet, isActive, matchedTrig); } catch { }
+            try { StatusChanged?.Invoke(currentSsid, isActive, matchedTrig); } catch { }
         }
 
         private void ApplyTriggerWallpaper()
@@ -183,7 +178,6 @@ namespace WallSafeWinUI.Services
                 if (string.IsNullOrEmpty(safeTarget) || !File.Exists(safeTarget))
                     safeTarget = Settings.DetectDefaultWin11Wallpaper();
 
-                // Only record previous wallpaper if it's not already the safe wallpaper
                 if (!string.Equals(curr, safeTarget, StringComparison.OrdinalIgnoreCase))
                     _wallpaperBeforeTrigger = curr;
             }
@@ -219,34 +213,25 @@ namespace WallSafeWinUI.Services
         private static void RunOnUi(Action action) => UiDispatch.Post(action);
 
         /// <summary>
-        /// Returns all currently active Wi-Fi SSIDs, Network Names, and Connection Profiles.
-        /// Uses Windows Network List Manager COM API, WinRT NetworkInformation, and netsh fallback.
+        /// Returns all currently connected Wi-Fi (WLAN) SSIDs. Strictly ignores Ethernet, cellular, and virtual adapters.
         /// </summary>
-        public static HashSet<string> GetAllCurrentNetworkNames()
+        public static HashSet<string> GetConnectedWifiSsids()
         {
-            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var ssids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // 1. Windows Network List Manager (NLM) COM API - works on all Windows versions,
-            // non-admin, returns actual active network names (e.g. Kwanmk_5G, Student@APU, etc.)
+            // 1. Windows Native WLAN API (wlanapi.dll) - queries physical Wi-Fi adapters directly
             try
             {
-                var nlmType = Type.GetTypeFromCLSID(new Guid("DCB00C01-570F-4A9B-8D69-199FDBA5723B"));
-                if (nlmType != null)
+                var nativeSsids = QueryNativeWlanConnectedSsids();
+                foreach (var s in nativeSsids)
                 {
-                    dynamic nlm = Activator.CreateInstance(nlmType)!;
-                    var networks = nlm.GetNetworks(1); // NLM_ENUM_NETWORK_CONNECTED = 1
-                    foreach (dynamic net in networks)
-                    {
-                        string name = net.GetName();
-                        if (!string.IsNullOrWhiteSpace(name)) names.Add(name.Trim());
-                        string desc = net.GetDescription();
-                        if (!string.IsNullOrWhiteSpace(desc)) names.Add(desc.Trim());
-                    }
+                    if (!string.IsNullOrWhiteSpace(s))
+                        ssids.Add(s.Trim());
                 }
             }
             catch { }
 
-            // 2. WinRT NetworkInformation - queries all connected profiles and Wi-Fi SSIDs
+            // 2. WinRT NetworkInformation - filtered STRICTLY to WLAN profiles that are currently connected
             try
             {
                 var profiles = Windows.Networking.Connectivity.NetworkInformation.GetConnectionProfiles();
@@ -254,101 +239,174 @@ namespace WallSafeWinUI.Services
                 {
                     foreach (var p in profiles)
                     {
-                        var level = p.GetNetworkConnectivityLevel();
-                        if (level != Windows.Networking.Connectivity.NetworkConnectivityLevel.None)
+                        if (p.IsWlanConnectionProfile &&
+                            p.GetNetworkConnectivityLevel() != Windows.Networking.Connectivity.NetworkConnectivityLevel.None)
                         {
-                            if (!string.IsNullOrWhiteSpace(p.ProfileName))
-                                names.Add(p.ProfileName.Trim());
-
-                            var netNames = p.GetNetworkNames();
-                            if (netNames != null)
-                            {
-                                foreach (var n in netNames)
-                                    if (!string.IsNullOrWhiteSpace(n)) names.Add(n.Trim());
-                            }
-
                             if (p.WlanConnectionProfileDetails != null)
                             {
                                 string ssid = p.WlanConnectionProfileDetails.GetConnectedSsid();
-                                if (!string.IsNullOrWhiteSpace(ssid)) names.Add(ssid.Trim());
+                                if (!string.IsNullOrWhiteSpace(ssid))
+                                    ssids.Add(ssid.Trim());
                             }
 
-                            // If connected to internet, also include "Internet" as a recognized keyword
-                            if (level == Windows.Networking.Connectivity.NetworkConnectivityLevel.InternetAccess)
-                            {
-                                names.Add("Internet");
-                            }
+                            if (!string.IsNullOrWhiteSpace(p.ProfileName))
+                                ssids.Add(p.ProfileName.Trim());
                         }
                     }
                 }
             }
             catch { }
 
-            // 3. Fallback: netsh wlan show interfaces
+            // 3. Fallback: netsh wlan show interfaces (only if connected)
             try
             {
                 string output = RunNetsh("wlan show interfaces");
+                bool isConnected = false;
                 foreach (var rawLine in output.Split('\n'))
                 {
                     var line = rawLine.Trim();
-                    var m = Regex.Match(line, @"^SSID\s*:\s*(.+)$");
-                    if (m.Success)
+                    if (Regex.IsMatch(line, @"^State\s*:\s*connected", RegexOptions.IgnoreCase))
+                        isConnected = true;
+
+                    if (isConnected)
                     {
-                        string val = m.Groups[1].Value.Trim();
-                        if (!string.IsNullOrWhiteSpace(val)) names.Add(val);
+                        var m = Regex.Match(line, @"^SSID\s*:\s*(.+)$");
+                        if (m.Success)
+                        {
+                            string val = m.Groups[1].Value.Trim();
+                            if (!string.IsNullOrWhiteSpace(val))
+                                ssids.Add(val);
+                        }
                     }
                 }
             }
             catch { }
 
-            return names;
+            return ssids;
         }
 
         /// <summary>
-        /// Return the primary connected network name for UI display.
+        /// Return the primary connected Wi-Fi SSID, or null if Wi-Fi is disconnected.
         /// </summary>
-        public static string? GetPrimaryConnectedNetworkName()
+        public static string? GetConnectedWifiSsid()
         {
-            var all = GetAllCurrentNetworkNames();
-            // Prioritize user-facing network names over virtual adapters
-            var prioritized = all.Where(n => !n.StartsWith("vEthernet", StringComparison.OrdinalIgnoreCase) &&
-                                             !string.Equals(n, "Tailscale", StringComparison.OrdinalIgnoreCase) &&
-                                             !string.Equals(n, "Internet", StringComparison.OrdinalIgnoreCase)).ToList();
-
-            return prioritized.FirstOrDefault() ?? all.FirstOrDefault();
+            return GetConnectedWifiSsids().FirstOrDefault();
         }
 
-        /// <summary>Run a netsh command and return its stdout (empty string on failure).</summary>
-        private static string RunNetsh(string arguments)
+        public static string? GetCurrentSsid() => GetConnectedWifiSsid();
+        public static string? GetPrimaryConnectedNetworkName() => GetConnectedWifiSsid();
+
+        #region Native WLAN API Interop
+
+        [DllImport("wlanapi.dll")]
+        private static extern int WlanOpenHandle(uint dwClientVersion, IntPtr pReserved, out uint pdwNegotiatedVersion, out IntPtr phClientHandle);
+
+        [DllImport("wlanapi.dll")]
+        private static extern int WlanCloseHandle(IntPtr hClientHandle, IntPtr pReserved);
+
+        [DllImport("wlanapi.dll")]
+        private static extern int WlanEnumInterfaces(IntPtr hClientHandle, IntPtr pReserved, out IntPtr ppInterfaceList);
+
+        [DllImport("wlanapi.dll")]
+        private static extern void WlanFreeMemory(IntPtr pMemory);
+
+        [DllImport("wlanapi.dll")]
+        private static extern int WlanQueryInterface(IntPtr hClientHandle, ref Guid pInterfaceGuid, int OpCode, IntPtr pReserved, out uint pdwDataSize, out IntPtr ppData, out int pWlanOpcodeValueType);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WLAN_INTERFACE_INFO
         {
+            public Guid InterfaceGuid;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string strInterfaceDescription;
+            public int isState; // 1 = connected
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct DOT11_SSID
+        {
+            public uint uSSIDLength;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            public byte[] ucSSID;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WLAN_CONNECTION_ATTRIBUTES
+        {
+            public int isState;
+            public int wlanConnectionMode;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string strProfileName;
+            public WLAN_ASSOCIATION_ATTRIBUTES wlanAssociationAttributes;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WLAN_ASSOCIATION_ATTRIBUTES
+        {
+            public DOT11_SSID dot11Ssid;
+            public int dot11BssType;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public byte[] dot11Bssid;
+            public int dot11PhyType;
+            public uint uDot11PhyIndex;
+            public uint wlanSignalQuality;
+            public uint ulRxRate;
+            public uint ulTxRate;
+        }
+
+        private static List<string> QueryNativeWlanConnectedSsids()
+        {
+            var list = new List<string>();
+            IntPtr clientHandle = IntPtr.Zero;
+            IntPtr pIfList = IntPtr.Zero;
+
             try
             {
-                var psi = new ProcessStartInfo
+                if (WlanOpenHandle(2, IntPtr.Zero, out _, out clientHandle) != 0) return list;
+                if (WlanEnumInterfaces(clientHandle, IntPtr.Zero, out pIfList) != 0) return list;
+
+                uint count = (uint)Marshal.ReadInt32(pIfList);
+                IntPtr pInfo = new IntPtr(pIfList.ToInt64() + 8);
+                int infoSize = Marshal.SizeOf(typeof(WLAN_INTERFACE_INFO));
+
+                for (int i = 0; i < count; i++)
                 {
-                    FileName = "netsh",
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var proc = Process.Start(psi);
-                if (proc == null) return "";
-                string output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit(4000);
-                return output;
+                    var info = (WLAN_INTERFACE_INFO)Marshal.PtrToStructure(new IntPtr(pInfo.ToInt64() + (i * infoSize)), typeof(WLAN_INTERFACE_INFO))!;
+                    if (info.isState == 1) // wlan_interface_state_connected
+                    {
+                        IntPtr pConn = IntPtr.Zero;
+                        try
+                        {
+                            // 7 = wlan_intf_opcode_current_connection
+                            if (WlanQueryInterface(clientHandle, ref info.InterfaceGuid, 7, IntPtr.Zero, out _, out pConn, out _) == 0 && pConn != IntPtr.Zero)
+                            {
+                                var conn = (WLAN_CONNECTION_ATTRIBUTES)Marshal.PtrToStructure(pConn, typeof(WLAN_CONNECTION_ATTRIBUTES))!;
+                                if (conn.wlanAssociationAttributes.dot11Ssid.uSSIDLength > 0)
+                                {
+                                    string ssid = Encoding.UTF8.GetString(conn.wlanAssociationAttributes.dot11Ssid.ucSSID, 0, (int)conn.wlanAssociationAttributes.dot11Ssid.uSSIDLength);
+                                    if (!string.IsNullOrEmpty(ssid) && !list.Contains(ssid))
+                                        list.Add(ssid);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (pConn != IntPtr.Zero) WlanFreeMemory(pConn);
+                        }
+                    }
+                }
             }
-            catch { return ""; }
+            finally
+            {
+                if (pIfList != IntPtr.Zero) WlanFreeMemory(pIfList);
+                if (clientHandle != IntPtr.Zero) WlanCloseHandle(clientHandle, IntPtr.Zero);
+            }
+
+            return list;
         }
 
-        /// <summary>Return the SSID of the currently-connected Wi-Fi network, or null if none.</summary>
-        public static string? GetCurrentSsid()
-        {
-            return GetPrimaryConnectedNetworkName();
-        }
+        #endregion
 
-        /// <summary>
-        /// Return all Wi-Fi network profiles saved on this machine.
-        /// </summary>
         public static List<string> GetSavedProfiles()
         {
             var result = new List<string>();
@@ -370,6 +428,27 @@ namespace WallSafeWinUI.Services
             }
             result.Sort(StringComparer.OrdinalIgnoreCase);
             return result;
+        }
+
+        private static string RunNetsh(string arguments)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "netsh",
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return "";
+                string output = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit(4000);
+                return output;
+            }
+            catch { return ""; }
         }
 
         public void Dispose()
