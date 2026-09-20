@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -35,11 +36,13 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var currentRatingMode: ContentRatingMode = ContentRatingMode.SfwOnly
+    private var hasPromptedForNameInSession = false
 
     init {
         observeFavorites()
         observeDownloads()
         observeSettings()
+        loadData()
     }
 
     private fun observeDownloads() {
@@ -98,9 +101,14 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            settingsRepository.hasPromptedForName.collect { prompted ->
-                if (!prompted) {
-                    _uiState.update { it.copy(showNamePromptDialog = true) }
+            settingsRepository.hasAgreedToTerms.collect { agreed ->
+                if (agreed && !hasPromptedForNameInSession) {
+                    val alreadyPrompted = settingsRepository.hasPromptedForName.first()
+                    val existingName = settingsRepository.userName.first()
+                    if (!alreadyPrompted && existingName.isBlank() && !hasPromptedForNameInSession) {
+                        hasPromptedForNameInSession = true
+                        _uiState.update { it.copy(showNamePromptDialog = true) }
+                    }
                 }
             }
         }
@@ -207,14 +215,14 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.SetFilter -> setFilter(intent.filter)
             is HomeIntent.SetUserName -> setUserName(intent.name)
             is HomeIntent.DismissNamePrompt -> {
+                hasPromptedForNameInSession = true
                 _uiState.update { it.copy(showNamePromptDialog = false) }
                 viewModelScope.launch {
-                    val name = intent.enteredName?.trim()
-                    if (!name.isNullOrBlank()) {
+                    val name = intent.enteredName?.trim().orEmpty()
+                    if (name.isNotBlank()) {
                         _uiState.update { it.copy(userName = name) }
-                        settingsRepository.setUserName(name)
                     }
-                    settingsRepository.setHasPromptedForName(true)
+                    settingsRepository.saveInitialUserName(name)
                 }
             }
             is HomeIntent.ToggleGreetingName -> {

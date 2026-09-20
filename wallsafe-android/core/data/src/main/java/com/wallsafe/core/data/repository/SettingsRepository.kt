@@ -58,6 +58,7 @@ interface SettingsRepository {
     suspend fun setUserName(name: String)
     suspend fun setIsGreetingNameEnabled(enabled: Boolean)
     suspend fun setHasPromptedForName(prompted: Boolean)
+    suspend fun saveInitialUserName(name: String)
     suspend fun incrementAppliedCount()
 
     suspend fun setPanicModeEnabled(enabled: Boolean)
@@ -129,6 +130,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setUserName(name: String) { preferences.setUserName(name) }
     override suspend fun setIsGreetingNameEnabled(enabled: Boolean) { preferences.setIsGreetingNameEnabled(enabled) }
     override suspend fun setHasPromptedForName(prompted: Boolean) { preferences.setHasPromptedForName(prompted) }
+    override suspend fun saveInitialUserName(name: String) { preferences.saveInitialUserName(name) }
     override suspend fun incrementAppliedCount() { preferences.incrementAppliedCount() }
 
     override suspend fun setPanicModeEnabled(enabled: Boolean) { preferences.setPanicModeEnabled(enabled) }

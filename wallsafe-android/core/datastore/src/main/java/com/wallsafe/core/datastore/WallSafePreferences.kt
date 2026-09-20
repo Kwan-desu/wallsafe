@@ -4,34 +4,43 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import com.wallsafe.core.model.ContentRatingMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class WallSafePreferences @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
-    val themeMode: Flow<String> = dataStore.data.map { it[THEME_MODE] ?: "system" }
-    val isDynamicColorEnabled: Flow<Boolean> = dataStore.data.map { it[DYNAMIC_COLOR] ?: true }
+    val themeMode: Flow<String> = dataStore.data.map { it[THEME_MODE] ?: "system" }.distinctUntilChanged()
+    val isDynamicColorEnabled: Flow<Boolean> = dataStore.data.map { it[DYNAMIC_COLOR] ?: true }.distinctUntilChanged()
     val ratingMode: Flow<ContentRatingMode> = dataStore.data.map { prefs ->
         val mode = prefs[RATING_MODE] ?: ContentRatingMode.SfwOnly.name
         try { ContentRatingMode.valueOf(mode) } catch (e: Exception) { ContentRatingMode.SfwOnly }
-    }
-    val isDiscretionBlurEnabled: Flow<Boolean> = dataStore.data.map { it[DISCRETION_BLUR] ?: true }
-    val tagBlacklist: Flow<String> = dataStore.data.map { it[TAG_BLACKLIST] ?: "guro,scat,loli,shota" }
-    val cardDensity: Flow<String> = dataStore.data.map { it[CARD_DENSITY] ?: "comfortable" }
-    val showHomeHero: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_HERO] ?: true }
-    val showHomeTrending: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_TRENDING] ?: true }
-    val showHomeFranchises: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_FRANCHISES] ?: true }
-    val filterProfiles: Flow<String> = dataStore.data.map { it[FILTER_PROFILES] ?: "{}" }
-    val hasAgreedToTerms: Flow<Boolean> = dataStore.data.map { it[HAS_AGREED_TO_TERMS] ?: false }
-    val userName: Flow<String> = dataStore.data.map { it[USER_NAME] ?: "" }
-    val isGreetingNameEnabled: Flow<Boolean> = dataStore.data.map { it[IS_GREETING_NAME_ENABLED] ?: true }
-    val hasPromptedForName: Flow<Boolean> = dataStore.data.map { it[HAS_PROMPTED_FOR_NAME] ?: false }
-    val appliedWallpapersCount: Flow<Int> = dataStore.data.map { it[APPLIED_WALLPAPERS_COUNT] ?: 15 }
+    }.distinctUntilChanged()
+    val isDiscretionBlurEnabled: Flow<Boolean> = dataStore.data.map { it[DISCRETION_BLUR] ?: true }.distinctUntilChanged()
+    val tagBlacklist: Flow<String> = dataStore.data.map { it[TAG_BLACKLIST] ?: "guro,scat,loli,shota" }.distinctUntilChanged()
+    val cardDensity: Flow<String> = dataStore.data.map { it[CARD_DENSITY] ?: "comfortable" }.distinctUntilChanged()
+    val showHomeHero: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_HERO] ?: true }.distinctUntilChanged()
+    val showHomeTrending: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_TRENDING] ?: true }.distinctUntilChanged()
+    val showHomeFranchises: Flow<Boolean> = dataStore.data.map { it[SHOW_HOME_FRANCHISES] ?: true }.distinctUntilChanged()
+    val filterProfiles: Flow<String> = dataStore.data.map { it[FILTER_PROFILES] ?: "{}" }.distinctUntilChanged()
+    val hasAgreedToTerms: Flow<Boolean> = dataStore.data.map { it[HAS_AGREED_TO_TERMS] ?: false }.distinctUntilChanged()
+    val userName: Flow<String> = dataStore.data.map { it[USER_NAME] ?: "" }.distinctUntilChanged()
+    val isGreetingNameEnabled: Flow<Boolean> = dataStore.data.map { it[IS_GREETING_NAME_ENABLED] ?: true }.distinctUntilChanged()
+    val hasPromptedForName: Flow<Boolean> = dataStore.data.map { it[HAS_PROMPTED_FOR_NAME] ?: false }.distinctUntilChanged()
+    val appliedWallpapersCount: Flow<Int> = dataStore.data.map { it[APPLIED_WALLPAPERS_COUNT] ?: 15 }.distinctUntilChanged()
 
     suspend fun setUserName(name: String): Unit { dataStore.edit { it[USER_NAME] = name } }
     suspend fun setIsGreetingNameEnabled(enabled: Boolean): Unit { dataStore.edit { it[IS_GREETING_NAME_ENABLED] = enabled } }
     suspend fun setHasPromptedForName(prompted: Boolean): Unit { dataStore.edit { it[HAS_PROMPTED_FOR_NAME] = prompted } }
+    suspend fun saveInitialUserName(name: String): Unit {
+        dataStore.edit {
+            it[HAS_PROMPTED_FOR_NAME] = true
+            if (name.isNotBlank()) {
+                it[USER_NAME] = name
+            }
+        }
+    }
     suspend fun incrementAppliedCount(): Unit { dataStore.edit { it[APPLIED_WALLPAPERS_COUNT] = (it[APPLIED_WALLPAPERS_COUNT] ?: 15) + 1 } }
 
     // Panic Mode Preferences
