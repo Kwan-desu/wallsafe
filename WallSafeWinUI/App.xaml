@@ -24,6 +24,9 @@
                     <Color x:Key="WallSafeAccent">#2563EB</Color>
                     <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{StaticResource WallSafeAccent}" />
                     <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="#B3000000" />
+                    <SolidColorBrush x:Key="WallSafeActivePillFillBrush" Color="#E4EFFF" />
+                    <SolidColorBrush x:Key="WallSafeActivePillStrokeBrush" Color="#502563EB" />
+                    <SolidColorBrush x:Key="WallSafeSegmentCheckedBgBrush" Color="#FFFFFF" />
 
                     <!-- In-app acrylic surfaces (frosted glass over the window backdrop) -->
                     <media:AcrylicBrush x:Key="WallSafeAcrylicCardBrush"
@@ -56,6 +59,9 @@
                     <Color x:Key="WallSafeAccent">#3B82F6</Color>
                     <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{StaticResource WallSafeAccent}" />
                     <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="#CC000000" />
+                    <SolidColorBrush x:Key="WallSafeActivePillFillBrush" Color="#1E283D" />
+                    <SolidColorBrush x:Key="WallSafeActivePillStrokeBrush" Color="#503B82F6" />
+                    <SolidColorBrush x:Key="WallSafeSegmentCheckedBgBrush" Color="#2A2C32" />
 
                     <!-- In-app acrylic surfaces (neutral dark tones matching app body) -->
                     <media:AcrylicBrush x:Key="WallSafeAcrylicCardBrush"
@@ -84,6 +90,9 @@
                     <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{ThemeResource SystemColorButtonTextColor}" />
                     <SolidColorBrush x:Key="WallSafeAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
                     <SolidColorBrush x:Key="CardOverlayScrimBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="WallSafeActivePillFillBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="WallSafeActivePillStrokeBrush" Color="{ThemeResource SystemColorButtonTextColor}" />
+                    <SolidColorBrush x:Key="WallSafeSegmentCheckedBgBrush" Color="{ThemeResource SystemColorHighlightColor}" />
                     <!-- Materials collapse to solid system colors under High Contrast. -->
                     <SolidColorBrush x:Key="WallSafeAcrylicCardBrush" Color="{ThemeResource SystemColorWindowColor}" />
                     <SolidColorBrush x:Key="WallSafePaneAcrylicBrush" Color="{ThemeResource SystemColorWindowColor}" />
@@ -132,14 +141,14 @@
             <!-- Unified sleek pill button for top title bar action controls -->
             <Style x:Key="WallSafePillButtonStyle" TargetType="Button">
                 <Setter Property="MinWidth" Value="0" />
-                <Setter Property="Height" Value="26" />
-                <Setter Property="Padding" Value="9,0" />
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Height" Value="30" />
+                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="FontWeight" Value="Normal" />
                 <Setter Property="UseSystemFocusVisuals" Value="False" />
                 <Setter Property="FocusVisualMargin" Value="0" />
-                <Setter Property="Background" Value="{ThemeResource WallSafeAcrylicCardBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="6" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -162,17 +171,19 @@
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Opacity" Value="0.88" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource ControlStrokeColorSecondaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Opacity" Value="0.75" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource ControlFillColorTertiaryBrush}" />
+                                                <Setter Target="Content.Opacity" Value="0.8" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Opacity" Value="0.5" />
+                                                <Setter Target="Root.Opacity" Value="0.4" />
                                             </VisualState.Setters>
                                         </VisualState>
                                     </VisualStateGroup>
@@ -186,18 +197,18 @@
             <!-- Segmented RadioButton (pill) for the rating-mode selector -->
             <Style x:Key="WallSafeSegmentStyle" TargetType="RadioButton">
                 <Setter Property="MinWidth" Value="0" />
-                <Setter Property="Height" Value="22" />
+                <Setter Property="Height" Value="24" />
                 <Setter Property="Padding" Value="10,0" />
-                <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="FontWeight" Value="Normal" />
                 <Setter Property="UseSystemFocusVisuals" Value="False" />
                 <Setter Property="FocusVisualMargin" Value="0" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="RadioButton">
-                            <Border x:Name="Root" CornerRadius="4" Padding="{TemplateBinding Padding}"
-                                    Background="Transparent" BorderThickness="0">
+                            <Border x:Name="Root" CornerRadius="5" Padding="{TemplateBinding Padding}"
+                                    Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
                                 <ContentPresenter x:Name="Content"
                                                   Content="{TemplateBinding Content}"
                                                   Foreground="{TemplateBinding Foreground}"
@@ -207,19 +218,20 @@
                                         <VisualState x:Name="Normal">
                                             <VisualState.Setters>
                                                 <Setter Target="Root.Background" Value="Transparent" />
+                                                <Setter Target="Root.BorderBrush" Value="Transparent" />
                                                 <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
                                                 <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource LayerFillColorDefaultBrush}" />
-                                                <Setter Target="Root.Opacity" Value="0.8" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled">
@@ -229,28 +241,29 @@
                                         </VisualState>
                                         <VisualState x:Name="Checked">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
-                                                <Setter Target="Content.Foreground" Value="White" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeSegmentCheckedBgBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="CheckedPointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
-                                                <Setter Target="Content.Foreground" Value="White" />
-                                                <Setter Target="Root.Opacity" Value="0.9" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeSegmentCheckedBgBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="CheckedPressed">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
-                                                <Setter Target="Content.Foreground" Value="White" />
-                                                <Setter Target="Root.Opacity" Value="0.75" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeSegmentCheckedBgBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                                <Setter Target="Content.Opacity" Value="0.85" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="CheckedDisabled">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeAccentBrush}" />
-                                                <Setter Target="Content.Foreground" Value="White" />
+                                                <Setter Target="Root.Background" Value="{ThemeResource WallSafeSegmentCheckedBgBrush}" />
                                                 <Setter Target="Root.Opacity" Value="0.4" />
                                             </VisualState.Setters>
                                         </VisualState>

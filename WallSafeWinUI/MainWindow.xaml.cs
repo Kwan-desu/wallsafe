@@ -131,12 +131,40 @@ namespace WallSafeWinUI
         private void ConfigureTitleBar()
         {
             ExtendsContentIntoTitleBar = true;
-            SetTitleBar(AppTitleBar);
+            SetTitleBar(TitleBarDragArea);
             if (_appWindow.TitleBar is { } tb)
             {
                 tb.ButtonBackgroundColor = Colors.Transparent;
                 tb.ButtonInactiveBackgroundColor = Colors.Transparent;
+                tb.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(25, 128, 128, 128);
+                tb.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(40, 128, 128, 128);
             }
+
+            UpdateCaptionPadding();
+            _appWindow.Changed += (s, e) =>
+            {
+                if (e.DidPositionChange || e.DidSizeChange)
+                {
+                    DispatcherQueue.TryEnqueue(UpdateCaptionPadding);
+                }
+            };
+        }
+
+        private void UpdateCaptionPadding()
+        {
+            try
+            {
+                if (_appWindow?.TitleBar is { } tb)
+                {
+                    double scale = RootGrid?.XamlRoot?.RasterizationScale ?? 1.0;
+                    int rightInset = tb.RightInset;
+                    if (rightInset > 0)
+                    {
+                        CaptionPaddingArea.Width = Math.Max(100, rightInset / scale);
+                    }
+                }
+            }
+            catch { }
         }
 
         private AppWindow GetAppWindow()
@@ -222,24 +250,28 @@ namespace WallSafeWinUI
             SlideshowIcon.Glyph = enabled ? "\uE768" : "\uE71A";
 
             var accentBrush = (Brush)Application.Current.Resources["WallSafeAccentBrush"];
-            var cardBrush = (Brush)Application.Current.Resources["WallSafeAcrylicCardBrush"];
-            var borderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+            var activeFillBrush = (Brush)Application.Current.Resources["WallSafeActivePillFillBrush"];
+            var activeStrokeBrush = (Brush)Application.Current.Resources["WallSafeActivePillStrokeBrush"];
+            var defaultFillBrush = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"];
+            var borderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
             var textPrimary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
             var textSecondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
 
             if (enabled)
             {
-                SlideshowBtn.Background = accentBrush;
-                SlideshowBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-                SlideshowLabel.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
-                SlideshowIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
-                SlideshowChevron.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
+                SlideshowBtn.Background = activeFillBrush;
+                SlideshowBtn.BorderBrush = activeStrokeBrush;
+                SlideshowLabel.Foreground = textPrimary;
+                SlideshowLabel.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+                SlideshowIcon.Foreground = accentBrush;
+                SlideshowChevron.Foreground = textSecondary;
             }
             else
             {
-                SlideshowBtn.Background = cardBrush;
+                SlideshowBtn.Background = defaultFillBrush;
                 SlideshowBtn.BorderBrush = borderBrush;
-                SlideshowLabel.Foreground = textPrimary;
+                SlideshowLabel.Foreground = textSecondary;
+                SlideshowLabel.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
                 SlideshowIcon.Foreground = textSecondary;
                 SlideshowChevron.Foreground = textSecondary;
             }
@@ -338,23 +370,27 @@ namespace WallSafeWinUI
             TitleDiscretionIcon.Glyph = enabled ? "\uED1A" : "\uF78D";
 
             var accentBrush = (Brush)Application.Current.Resources["WallSafeAccentBrush"];
-            var cardBrush = (Brush)Application.Current.Resources["WallSafeAcrylicCardBrush"];
-            var borderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"];
+            var activeFillBrush = (Brush)Application.Current.Resources["WallSafeActivePillFillBrush"];
+            var activeStrokeBrush = (Brush)Application.Current.Resources["WallSafeActivePillStrokeBrush"];
+            var defaultFillBrush = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"];
+            var borderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
             var textPrimary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
             var textSecondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
 
             if (enabled)
             {
-                TitleDiscretionBtn.Background = accentBrush;
-                TitleDiscretionBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-                TitleDiscretionLabel.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
-                TitleDiscretionIcon.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                TitleDiscretionBtn.Background = activeFillBrush;
+                TitleDiscretionBtn.BorderBrush = activeStrokeBrush;
+                TitleDiscretionLabel.Foreground = textPrimary;
+                TitleDiscretionLabel.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+                TitleDiscretionIcon.Foreground = accentBrush;
             }
             else
             {
-                TitleDiscretionBtn.Background = cardBrush;
+                TitleDiscretionBtn.Background = defaultFillBrush;
                 TitleDiscretionBtn.BorderBrush = borderBrush;
-                TitleDiscretionLabel.Foreground = textPrimary;
+                TitleDiscretionLabel.Foreground = textSecondary;
+                TitleDiscretionLabel.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
                 TitleDiscretionIcon.Foreground = textSecondary;
             }
         }

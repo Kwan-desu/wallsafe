@@ -11,92 +11,111 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Custom acrylic title bar (seamless transparent background) -->
-        <Border Grid.Row="0" Background="Transparent"
-                BorderThickness="0,0,0,1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-            <Grid x:Name="AppTitleBar" Height="40" Background="Transparent">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+        <!-- Native WinUI 3 Title Bar (seamless background, 44px standard height) -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-                <FontIcon Grid.Column="0" Glyph="&#xE72E;" FontSize="15" Margin="16,0,0,0"
-                          VerticalAlignment="Center" Foreground="{ThemeResource WallSafeAccentBrush}" />
-
-                <TextBlock Grid.Column="1" Text="WallSafe"
-                           FontWeight="SemiBold" FontSize="12.5"
-                           Margin="10,0,0,0" VerticalAlignment="Center"
+            <!-- App Identity (Left) -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="16,0,12,0" VerticalAlignment="Center">
+                <Image Source="Assets/WallSafe.ico" Width="16" Height="16" VerticalAlignment="Center" />
+                <TextBlock Text="WallSafe"
+                           FontSize="12" FontWeight="SemiBold"
+                           VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            </StackPanel>
 
-                <!-- TitleBar Action Controls -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="0,0,148,0" VerticalAlignment="Center">
-                    <!-- Quick Slideshow Flyout Button (compact sleek pill) -->
-                    <Button x:Name="SlideshowBtn" Style="{StaticResource WallSafePillButtonStyle}"
-                            ToolTipService.ToolTip="Wallpaper Slideshow auto-rotation settings and toggle">
-                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                            <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="11" />
-                            <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="11" VerticalAlignment="Center" />
-                            <FontIcon x:Name="SlideshowChevron" Glyph="&#xE70D;" FontSize="7" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <Button.Flyout>
-                            <Flyout Placement="Bottom">
-                                <StackPanel Width="270" Spacing="12">
-                                    <TextBlock Text="Wallpaper Slideshow" FontWeight="SemiBold" FontSize="15" />
-                                    <ToggleSwitch x:Name="FlyoutSlideshowSwitch" Header="Auto-rotate wallpapers" Toggled="FlyoutSlideshow_Toggled" />
-                                    <ComboBox x:Name="FlyoutSourceCombo" Header="Source" HorizontalAlignment="Stretch" SelectionChanged="FlyoutSource_Changed">
-                                        <ComboBoxItem Content="Favorites collection" Tag="favorites" />
-                                        <ComboBoxItem Content="Downloads folder" Tag="downloads" />
-                                    </ComboBox>
-                                    <ComboBox x:Name="FlyoutIntervalCombo" Header="Rotation interval" HorizontalAlignment="Stretch" SelectionChanged="FlyoutInterval_Changed">
-                                        <ComboBoxItem Content="30 seconds" Tag="30s" />
-                                        <ComboBoxItem Content="1 minute" Tag="1m" />
-                                        <ComboBoxItem Content="5 minutes" Tag="5m" />
-                                        <ComboBoxItem Content="15 minutes" Tag="15m" />
-                                        <ComboBoxItem Content="30 minutes" Tag="30m" />
-                                        <ComboBoxItem Content="1 hour" Tag="1h" />
-                                    </ComboBox>
-                                    <Button HorizontalAlignment="Stretch" Click="FlyoutNext_Click">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <FontIcon Glyph="&#xE893;" FontSize="14" />
-                                            <TextBlock Text="Next wallpaper now" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
+            <!-- Middle Draggable Region -->
+            <Grid x:Name="TitleBarDragArea" Grid.Column="1" Background="Transparent" />
 
-                    <!-- Quick Discretion Blur Button (compact sleek pill) -->
-                    <Button x:Name="TitleDiscretionBtn" Style="{StaticResource WallSafePillButtonStyle}"
-                            Click="TitleDiscretionBtn_Click"
-                            ToolTipService.ToolTip="Discretion blur: Blur sensitive 16+ thumbnails">
-                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                            <FontIcon x:Name="TitleDiscretionIcon" Glyph="&#xED1A;" FontSize="11" />
-                            <TextBlock x:Name="TitleDiscretionLabel" Text="Blur: Off" FontSize="11" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
+            <!-- TitleBar Action Controls (Right) -->
+            <StackPanel x:Name="TitleBarControls" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,4,0">
+                <!-- Quick Slideshow Flyout Button (Fluent pill) -->
+                <Button x:Name="SlideshowBtn" Style="{StaticResource WallSafePillButtonStyle}"
+                        ToolTipService.ToolTip="Wallpaper Slideshow auto-rotation settings and toggle">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon x:Name="SlideshowIcon" Glyph="&#xE768;" FontSize="11.5" VerticalAlignment="Center" />
+                        <TextBlock x:Name="SlideshowLabel" Text="Slideshow: Off" FontSize="11.5" VerticalAlignment="Center" />
+                        <FontIcon x:Name="SlideshowChevron" Glyph="&#xE70D;" FontSize="7" VerticalAlignment="Center" Opacity="0.7" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel Width="270" Spacing="12">
+                                <TextBlock Text="Wallpaper Slideshow" FontWeight="SemiBold" FontSize="15" />
+                                <ToggleSwitch x:Name="FlyoutSlideshowSwitch" Header="Auto-rotate wallpapers" Toggled="FlyoutSlideshow_Toggled" />
+                                <ComboBox x:Name="FlyoutSourceCombo" Header="Source" HorizontalAlignment="Stretch" SelectionChanged="FlyoutSource_Changed">
+                                    <ComboBoxItem Content="Favorites collection" Tag="favorites" />
+                                    <ComboBoxItem Content="Downloads folder" Tag="downloads" />
+                                </ComboBox>
+                                <ComboBox x:Name="FlyoutIntervalCombo" Header="Rotation interval" HorizontalAlignment="Stretch" SelectionChanged="FlyoutInterval_Changed">
+                                    <ComboBoxItem Content="30 seconds" Tag="30s" />
+                                    <ComboBoxItem Content="1 minute" Tag="1m" />
+                                    <ComboBoxItem Content="5 minutes" Tag="5m" />
+                                    <ComboBoxItem Content="15 minutes" Tag="15m" />
+                                    <ComboBoxItem Content="30 minutes" Tag="30m" />
+                                    <ComboBoxItem Content="1 hour" Tag="1h" />
+                                </ComboBox>
+                                <Button HorizontalAlignment="Stretch" Click="FlyoutNext_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE893;" FontSize="14" />
+                                        <TextBlock Text="Next wallpaper now" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
 
-                    <!-- 3-mode rating selector (SFW / Questionable / Explicit) (compact sleek pill) -->
-                    <Border Height="26" CornerRadius="6" Padding="2"
-                            Background="{ThemeResource WallSafeAcrylicCardBrush}"
-                            BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                        <StackPanel Orientation="Horizontal" Spacing="1">
-                            <RadioButton x:Name="ModeSfw" GroupName="RatingMode" Content="SFW"
-                                         Style="{StaticResource WallSafeSegmentStyle}"
-                                         Checked="RatingMode_Checked" Tag="SfwOnly" />
-                            <RadioButton x:Name="ModeQuestionable" GroupName="RatingMode" Content="Questionable"
-                                         Style="{StaticResource WallSafeSegmentStyle}"
-                                         Checked="RatingMode_Checked" Tag="Questionable" />
-                            <RadioButton x:Name="ModeExplicit" GroupName="RatingMode" Content="Explicit"
-                                         Style="{StaticResource WallSafeSegmentStyle}"
-                                         Checked="RatingMode_Checked" Tag="Explicit" />
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </Border>
+                <!-- Quick Discretion Blur Button (Fluent pill) -->
+                <Button x:Name="TitleDiscretionBtn" Style="{StaticResource WallSafePillButtonStyle}"
+                        Click="TitleDiscretionBtn_Click"
+                        ToolTipService.ToolTip="Discretion blur: Blur sensitive thumbnails">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon x:Name="TitleDiscretionIcon" Glyph="&#xED1A;" FontSize="11.5" VerticalAlignment="Center" />
+                        <TextBlock x:Name="TitleDiscretionLabel" Text="Blur: Off" FontSize="11.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- 3-mode rating selector (SFW / Questionable / Explicit) (Fluent segmented pill) -->
+                <Border Height="30" CornerRadius="6" Padding="2"
+                        Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                        BorderThickness="1" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <RadioButton x:Name="ModeSfw" GroupName="RatingMode"
+                                     Style="{StaticResource WallSafeSegmentStyle}"
+                                     Checked="RatingMode_Checked" Tag="SfwOnly">
+                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="#10B981" VerticalAlignment="Center" />
+                                <TextBlock Text="SFW" FontSize="11.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModeQuestionable" GroupName="RatingMode"
+                                     Style="{StaticResource WallSafeSegmentStyle}"
+                                     Checked="RatingMode_Checked" Tag="Questionable">
+                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="#F59E0B" VerticalAlignment="Center" />
+                                <TextBlock Text="Questionable" FontSize="11.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModeExplicit" GroupName="RatingMode"
+                                     Style="{StaticResource WallSafeSegmentStyle}"
+                                     Checked="RatingMode_Checked" Tag="Explicit">
+                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="#EF4444" VerticalAlignment="Center" />
+                                <TextBlock Text="Explicit" FontSize="11.5" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Caption Buttons Spacer (Min/Max/Close reservation, dynamically sized in code) -->
+            <Border x:Name="CaptionPaddingArea" Grid.Column="3" Width="140" Background="Transparent" />
+        </Grid>
 
         <!-- Navigation + content -->
         <NavigationView x:Name="RootNav" Grid.Row="1"
