@@ -23,9 +23,6 @@
     <!-- Notifications for download progress -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- In-App Self-Updater APK Installation -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-
     <application
         android:name=".WallSafeApplication"
         android:allowBackup="true"
@@ -70,7 +67,7 @@
         </activity-alias>
 
         <activity-alias
-            android:name=".MainActivityAliasCalculator"
+            android:name=".MainActivityAliasAlt"
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"
@@ -84,7 +81,7 @@
         </activity-alias>
 
         <activity-alias
-            android:name=".MainActivityAliasNotes"
+            android:name=".MainActivityAliasAux"
             android:targetActivity=".MainActivity"
             android:exported="true"
             android:enabled="false"

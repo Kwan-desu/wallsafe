@@ -29,6 +29,7 @@ interface UpdateRepository {
     fun openInstallPermissionSettings()
     fun installApk(apkFile: File): Result<Unit>
     fun getCachedApk(updateInfo: AppUpdateInfo): File?
+    fun openDownloadInBrowser(updateInfo: AppUpdateInfo)
 }
 
 @Singleton
@@ -149,20 +150,26 @@ class UpdateRepositoryImpl @Inject constructor(
     }
 
     override fun canRequestPackageInstalls(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
-        } else {
-            true
-        }
+        return true
     }
 
     override fun openInstallPermissionSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = Uri.parse("package:${context.packageName}")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+        // No special package install permission required when routing via browser
+    }
+
+    override fun openDownloadInBrowser(updateInfo: AppUpdateInfo) {
+        val url = if (updateInfo.downloadUrl.isNotBlank()) {
+            updateInfo.downloadUrl
+        } else {
+            "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
             context.startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

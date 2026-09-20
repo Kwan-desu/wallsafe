@@ -159,40 +159,16 @@ class MainActivity : ComponentActivity() {
                         needsPermission = needsInstallPermission,
                         errorMessage = updateErrorMessage,
                         onStartDownload = {
-                            scope.launch {
-                                isDownloadingUpdate = true
-                                updateDownloadProgress = 0f
-                                updateErrorMessage = null
-                                val result = updateRepository.downloadApk(updateInfo!!) { p, d, t ->
-                                    updateDownloadProgress = p
-                                    updateDownloadedBytes = d
-                                    updateDownloadTotalBytes = t
-                                }
-                                result.onSuccess { file ->
-                                    isDownloadingUpdate = false
-                                    isUpdateDownloaded = true
-                                    needsInstallPermission = !updateRepository.canRequestPackageInstalls()
-                                    if (!needsInstallPermission) {
-                                        updateRepository.installApk(file)
-                                    }
-                                }.onFailure { err ->
-                                    isDownloadingUpdate = false
-                                    updateErrorMessage = "Download failed: ${err.localizedMessage ?: "Network error"}"
-                                }
-                            }
+                            updateRepository.openDownloadInBrowser(updateInfo!!)
+                            showUpdateDialog = false
                         },
                         onInstall = {
-                            val cached = updateRepository.getCachedApk(updateInfo!!)
-                            if (cached != null) {
-                                if (!updateRepository.canRequestPackageInstalls()) {
-                                    needsInstallPermission = true
-                                } else {
-                                    updateRepository.installApk(cached)
-                                }
-                            }
+                            updateRepository.openDownloadInBrowser(updateInfo!!)
+                            showUpdateDialog = false
                         },
                         onGrantPermission = {
-                            updateRepository.openInstallPermissionSettings()
+                            updateRepository.openDownloadInBrowser(updateInfo!!)
+                            showUpdateDialog = false
                         },
                         onDismiss = {
                             showUpdateDialog = false

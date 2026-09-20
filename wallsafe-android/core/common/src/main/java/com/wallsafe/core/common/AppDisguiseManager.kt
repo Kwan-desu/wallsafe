@@ -9,8 +9,8 @@ import javax.inject.Singleton
 
 enum class AppDisguise(val key: String, val title: String, val aliasName: String) {
     DEFAULT("default", "WallSafe (Default)", "com.wallsafe.MainActivityAliasDefault"),
-    CALCULATOR("calculator", "Calculator", "com.wallsafe.MainActivityAliasCalculator"),
-    NOTES("notes", "Notes", "com.wallsafe.MainActivityAliasNotes");
+    CALCULATOR("calculator", "Calculator", "com.wallsafe.MainActivityAliasAlt"),
+    NOTES("notes", "Notes", "com.wallsafe.MainActivityAliasAux");
 
     companion object {
         fun fromKey(key: String): AppDisguise = entries.find { it.key.equals(key, ignoreCase = true) } ?: DEFAULT

@@ -322,23 +322,20 @@ class SettingsViewModel @Inject constructor(
             }
             is SettingsIntent.StartUpdateDownload -> {
                 val updateInfo = _uiState.value.updateInfo ?: return
-                startDownload(updateInfo)
+                updateRepository.openDownloadInBrowser(updateInfo)
+                _uiState.update { it.copy(showUpdateDialog = false) }
             }
             is SettingsIntent.InstallUpdate -> {
                 val updateInfo = _uiState.value.updateInfo ?: return
-                val cachedFile = updateRepository.getCachedApk(updateInfo)
-                if (cachedFile != null) {
-                    if (!updateRepository.canRequestPackageInstalls()) {
-                        _uiState.update { it.copy(needsInstallPermission = true) }
-                    } else {
-                        updateRepository.installApk(cachedFile)
-                    }
-                } else {
-                    startDownload(updateInfo)
-                }
+                updateRepository.openDownloadInBrowser(updateInfo)
+                _uiState.update { it.copy(showUpdateDialog = false) }
             }
             is SettingsIntent.OpenInstallPermissionSettings -> {
-                updateRepository.openInstallPermissionSettings()
+                val updateInfo = _uiState.value.updateInfo
+                if (updateInfo != null) {
+                    updateRepository.openDownloadInBrowser(updateInfo)
+                }
+                _uiState.update { it.copy(showUpdateDialog = false) }
             }
             is SettingsIntent.DismissUpdateDialog -> {
                 _uiState.update { it.copy(showUpdateDialog = false) }
