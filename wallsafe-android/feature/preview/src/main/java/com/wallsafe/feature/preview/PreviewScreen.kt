@@ -54,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.wallsafe.core.model.PostItem
+import com.wallsafe.core.ui.components.HeartBurstAnimation
 import com.wallsafe.core.ui.components.LoadingIndicator
 import com.wallsafe.core.ui.components.RatingBadge
 import java.text.SimpleDateFormat
@@ -84,6 +85,8 @@ fun PreviewScreen(
     var showApplySheet by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
     var simulationMode by remember { mutableStateOf(ScreenSimulationMode.NONE) }
+    var showHeartBurst by remember { mutableStateOf(false) }
+    var selectedTagAction by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState.userMessage) {
         val msg = uiState.userMessage
@@ -122,11 +125,9 @@ fun PreviewScreen(
                     detectTapGestures(
                         onTap = { isUiVisible = !isUiVisible },
                         onDoubleTap = {
-                            if (scale > 1f) {
-                                scale = 1f
-                                offset = Offset.Zero
-                            } else {
-                                scale = 2.5f
+                            showHeartBurst = true
+                            if (!uiState.isFavorite) {
+                                viewModel.handleIntent(PreviewIntent.ToggleFavorite)
                             }
                         }
                     )
@@ -154,6 +155,12 @@ fun PreviewScreen(
                             translationX = offset.x
                             translationY = offset.y
                         }
+                )
+
+                HeartBurstAnimation(
+                    trigger = showHeartBurst,
+                    onAnimationEnd = { showHeartBurst = false },
+                    modifier = Modifier.align(Alignment.Center)
                 )
 
                 // Live Lock Screen & Home Screen Simulation Overlays
@@ -586,6 +593,27 @@ fun PreviewScreen(
                             showApplySheet = false
                         }
                 )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                ListItem(
+                    headlineContent = { Text("System / Samsung Cropper") },
+                    supportingContent = { Text("Native One UI cropper with clock & lock screen widgets") },
+                    leadingContent = {
+                        FilledTonalIconButton(onClick = {
+                            viewModel.handleIntent(PreviewIntent.ApplyWithSystemCropper)
+                            showApplySheet = false
+                        }) {
+                            Icon(Icons.Default.Crop, contentDescription = null)
+                        }
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            viewModel.handleIntent(PreviewIntent.ApplyWithSystemCropper)
+                            showApplySheet = false
+                        }
+                )
             }
         }
     }
@@ -656,14 +684,45 @@ fun PreviewScreen(
                         OptInFlowRow(
                             tags = tagList,
                             onTagClick = { tag ->
-                                showInfoSheet = false
-                                onTagClick(tag)
+                                selectedTagAction = tag
                             }
                         )
                     }
                 }
             }
         }
+    }
+
+    selectedTagAction?.let { tag ->
+        AlertDialog(
+            onDismissRequest = { selectedTagAction = null },
+            title = { Text("Tag: $tag") },
+            text = { Text("Choose an action for this tag:") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = tag
+                    selectedTagAction = null
+                    showInfoSheet = false
+                    onTagClick(target)
+                }) {
+                    Text("Search Tag")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        val target = tag
+                        selectedTagAction = null
+                        viewModel.handleIntent(PreviewIntent.BlacklistTag(target))
+                    }) {
+                        Text("Add to Blacklist", color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(onClick = { selectedTagAction = null }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
     }
 }
 

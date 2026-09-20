@@ -23,7 +23,8 @@ data class ExploreUiState(
     ),
     val favoriteKeys: Set<String> = emptySet(),
     val isDiscretionBlur: Boolean = false,
-    val isWallpaperTagOnly: Boolean = false
+    val isWallpaperTagOnly: Boolean = false,
+    val tagBlacklist: Set<String> = emptySet()
 )
 
 sealed interface ExploreIntent {

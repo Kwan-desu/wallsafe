@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.wallsafe.core.data.repository.BooruRepository
 import com.wallsafe.core.data.repository.DownloadsRepository
 import com.wallsafe.core.data.repository.FavoritesRepository
+import com.wallsafe.core.data.repository.SettingsRepository
 import com.wallsafe.core.model.PostItem
 import com.wallsafe.core.wallpaper.DownloadManager
 import com.wallsafe.core.wallpaper.WallpaperEngine
@@ -27,6 +28,7 @@ class PreviewViewModel @Inject constructor(
     private val booruRepository: BooruRepository,
     private val favoritesRepository: FavoritesRepository,
     private val downloadsRepository: DownloadsRepository,
+    private val settingsRepository: SettingsRepository,
     private val wallpaperEngine: WallpaperEngine,
     private val downloadManager: DownloadManager
 ) : ViewModel() {
@@ -92,6 +94,8 @@ class PreviewViewModel @Inject constructor(
             is PreviewIntent.ApplyAsHomeWallpaper -> applyWallpaper(WallpaperManager.FLAG_SYSTEM)
             is PreviewIntent.ApplyAsLockWallpaper -> applyWallpaper(WallpaperManager.FLAG_LOCK)
             is PreviewIntent.ApplyBothWallpaper -> applyWallpaper(WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
+            is PreviewIntent.ApplyWithSystemCropper -> applyWithSystemCropper()
+            is PreviewIntent.BlacklistTag -> blacklistTag(intent.tag)
             is PreviewIntent.ToggleFavorite -> toggleFavorite()
             is PreviewIntent.Download -> downloadWallpaper()
             is PreviewIntent.OpenInBrowser -> { /* Handled in UI */ }
@@ -99,6 +103,33 @@ class PreviewViewModel @Inject constructor(
             is PreviewIntent.ClearUserMessage -> {
                 _uiState.update { it.copy(userMessage = null) }
             }
+        }
+    }
+
+    private fun applyWithSystemCropper() {
+        val post = _uiState.value.post ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isApplyingWallpaper = true) }
+            val url = post.fileUrl ?: post.sampleUrl ?: post.previewUrl
+            val uri = wallpaperEngine.prepareWallpaperUriForSystem(context, url)
+            _uiState.update { it.copy(isApplyingWallpaper = false) }
+            if (uri != null) {
+                val launched = wallpaperEngine.openSystemWallpaperChooser(context, uri)
+                if (launched) {
+                    settingsRepository.incrementAppliedCount()
+                } else {
+                    _uiState.update { it.copy(userMessage = "Could not open system wallpaper cropper.") }
+                }
+            } else {
+                _uiState.update { it.copy(userMessage = "Failed to download image for system cropper.") }
+            }
+        }
+    }
+
+    private fun blacklistTag(tag: String) {
+        viewModelScope.launch {
+            settingsRepository.addTagToBlacklist(tag)
+            _uiState.update { it.copy(userMessage = "Added '$tag' to tag blacklist") }
         }
     }
 

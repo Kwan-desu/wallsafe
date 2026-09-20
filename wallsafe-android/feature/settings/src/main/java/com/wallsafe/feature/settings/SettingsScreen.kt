@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,6 +81,9 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showDisguiseDialog by remember { mutableStateOf(false) }
+    var showBlacklistDialog by remember { mutableStateOf(false) }
+    var showCustomSourcesDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.updateCheckMessage) {
         uiState.updateCheckMessage?.let { msg ->
@@ -182,6 +186,227 @@ fun SettingsScreen(
         )
     }
 
+    if (showDisguiseDialog) {
+        val disguiseOptions = listOf(
+            "default" to "WallSafe (Default)",
+            "calculator" to "Calculator (Camouflage)",
+            "notes" to "Notes (Camouflage)"
+        )
+        AlertDialog(
+            onDismissRequest = { showDisguiseDialog = false },
+            title = { Text("App Icon & Title Disguise") },
+            text = {
+                Column {
+                    Text(
+                        text = "Disguise WallSafe on your home screen and app drawer. The launcher icons automatically sync with Samsung Theme Park icon packs.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    disguiseOptions.forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = uiState.appDisguise.equals(key, ignoreCase = true),
+                                    onClick = {
+                                        onIntent(SettingsIntent.SetAppDisguise(key))
+                                        showDisguiseDialog = false
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = uiState.appDisguise.equals(key, ignoreCase = true),
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDisguiseDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showBlacklistDialog) {
+        var newTagInput by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showBlacklistDialog = false },
+            title = { Text("Tag Blacklist (${uiState.tagBlacklist.size})") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Posts containing any blacklisted tag will be automatically hidden from feeds.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newTagInput,
+                            onValueChange = { newTagInput = it },
+                            label = { Text("Add Tag") },
+                            placeholder = { Text("e.g. guro") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                if (newTagInput.isNotBlank()) {
+                                    onIntent(SettingsIntent.AddBlacklistTag(newTagInput.trim()))
+                                    newTagInput = ""
+                                }
+                            }
+                        ) {
+                            Text("Add")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState())) {
+                        OptInFlowRowBlacklist(
+                            tags = uiState.tagBlacklist,
+                            onRemove = { tag -> onIntent(SettingsIntent.RemoveBlacklistTag(tag)) }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBlacklistDialog = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
+    if (showCustomSourcesDialog) {
+        var sourceName by remember { mutableStateOf("") }
+        var sourceUrl by remember { mutableStateOf("") }
+        var showAddFields by remember { mutableStateOf(false) }
+
+        val customSourcesList = remember(uiState.customSourcesJson) {
+            val list = mutableListOf<Pair<String, String>>()
+            try {
+                val arr = org.json.JSONArray(uiState.customSourcesJson)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(obj.optString("id") to obj.optString("name"))
+                }
+            } catch (e: Exception) {}
+            list
+        }
+
+        AlertDialog(
+            onDismissRequest = { showCustomSourcesDialog = false },
+            title = { Text("Custom Booru Sources") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                    Text(
+                        text = "Connect custom Gelbooru / Danbooru compatible endpoints.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (customSourcesList.isEmpty() && !showAddFields) {
+                        Text(
+                            text = "No custom sources added yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    customSourcesList.forEach { (id, name) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(text = id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IconButton(onClick = { onIntent(SettingsIntent.RemoveCustomSource(id)) }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    if (showAddFields) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = sourceName,
+                            onValueChange = { sourceName = it },
+                            label = { Text("Source Name") },
+                            placeholder = { Text("e.g. My Booru") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = sourceUrl,
+                            onValueChange = { sourceUrl = it },
+                            label = { Text("Base URL") },
+                            placeholder = { Text("https://booru.example.com/") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = { showAddFields = false }) {
+                                Text("Cancel")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    if (sourceName.isNotBlank() && sourceUrl.isNotBlank()) {
+                                        onIntent(SettingsIntent.AddCustomSource(sourceName.trim(), sourceUrl.trim()))
+                                        sourceName = ""
+                                        sourceUrl = ""
+                                        showAddFields = false
+                                    }
+                                }
+                            ) {
+                                Text("Save")
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FilledTonalButton(
+                            onClick = { showAddFields = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add Custom Source")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCustomSourcesDialog = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(title = { Text("Settings") })
@@ -220,6 +445,42 @@ fun SettingsScreen(
                         Switch(
                             checked = uiState.isDynamicColor,
                             onCheckedChange = { onIntent(SettingsIntent.ToggleDynamicColor) }
+                        )
+                    }
+                )
+                val currentDisguiseLabel = when (uiState.appDisguise.lowercase()) {
+                    "calculator" -> "Calculator (Camouflage)"
+                    "notes" -> "Notes (Camouflage)"
+                    else -> "WallSafe (Default)"
+                }
+                SettingsListItem(
+                    title = "App Disguise",
+                    subtitle = currentDisguiseLabel,
+                    icon = Icons.Default.Security,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = "Change Disguise",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    onClick = { showDisguiseDialog = true }
+                )
+            }
+
+            SettingsSection(title = "Wallpaper Engine") {
+                SettingsListItem(
+                    title = "System / Samsung Cropper",
+                    subtitle = if (uiState.useSystemWallpaperCropper) 
+                        "Use native One UI cropper with lock screen clock & widgets"
+                    else 
+                        "Use direct WallSafe wallpaper applier",
+                    icon = Icons.Default.Crop,
+                    trailingContent = {
+                        Switch(
+                            checked = uiState.useSystemWallpaperCropper,
+                            onCheckedChange = { onIntent(SettingsIntent.ToggleSystemWallpaperCropper(it)) }
                         )
                     }
                 )
@@ -315,6 +576,40 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { showPanicSubpage = true }
+                )
+                SettingsListItem(
+                    title = "Tag Blacklist",
+                    subtitle = "${uiState.tagBlacklist.size} tags filtered from feeds",
+                    icon = Icons.Default.Block,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = "Manage Tag Blacklist",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    onClick = { showBlacklistDialog = true }
+                )
+            }
+
+            SettingsSection(title = "Booru Sources") {
+                val customCount = try {
+                    org.json.JSONArray(uiState.customSourcesJson).length()
+                } catch (e: Exception) { 0 }
+                SettingsListItem(
+                    title = "Custom Booru Sources",
+                    subtitle = if (customCount > 0) "$customCount custom endpoints configured" else "Danbooru, Safebooru, Gelbooru active",
+                    icon = Icons.Default.Cloud,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = "Manage Booru Sources",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    onClick = { showCustomSourcesDialog = true }
                 )
             }
 
@@ -423,4 +718,27 @@ fun SettingsScreen(
         }
     }
 }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun OptInFlowRowBlacklist(
+    tags: List<String>,
+    onRemove: (String) -> Unit
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        tags.forEach { tag ->
+            InputChip(
+                selected = false,
+                onClick = { onRemove(tag) },
+                label = { Text(tag) },
+                trailingIcon = {
+                    Icon(Icons.Default.Close, contentDescription = "Remove tag", modifier = Modifier.size(16.dp))
+                }
+            )
+        }
+    }
 }

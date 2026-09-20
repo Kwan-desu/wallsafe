@@ -102,4 +102,70 @@ class WallpaperEngine @Inject constructor() {
             null
         }
     }
+
+    suspend fun prepareWallpaperUriForSystem(context: Context, imageUrl: String): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(imageUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.setRequestProperty("User-Agent", "WallSafe/1.0 (Android)")
+            connection.connectTimeout = 15000
+            connection.readTimeout = 30000
+            connection.connect()
+            val bytes = connection.inputStream.use { it.readBytes() }
+            val wallpaperDir = File(context.cacheDir, "wallpaper_system").apply { mkdirs() }
+            val extension = imageUrl.substringAfterLast('.', "jpg").substringBefore('?')
+            val file = File(wallpaperDir, "wallpaper_to_set.$extension")
+            FileOutputStream(file).use { it.write(bytes) }
+            val authority = "${context.packageName}.fileprovider"
+            androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun openSystemWallpaperChooser(context: Context, imageUri: Uri): Boolean {
+        return try {
+            val wm = WallpaperManager.getInstance(context)
+            val cropIntent = try {
+                wm.getCropAndSetWallpaperIntent(imageUri)
+            } catch (e: Exception) {
+                null
+            }
+
+            val attachIntent = android.content.Intent(android.content.Intent.ACTION_ATTACH_DATA).apply {
+                addCategory(android.content.Intent.CATEGORY_DEFAULT)
+                setDataAndType(imageUri, "image/*")
+                putExtra("mimeType", "image/*")
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            val targetIntent = cropIntent ?: attachIntent
+            targetIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+            val resInfoList = context.packageManager.queryIntentActivities(
+                targetIntent,
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+            )
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                try {
+                    context.grantUriPermission(packageName, imageUri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: Exception) {
+                    // Ignore per-package grant failures
+                }
+            }
+
+            val chooser = android.content.Intent.createChooser(targetIntent, "Set as Wallpaper").apply {
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

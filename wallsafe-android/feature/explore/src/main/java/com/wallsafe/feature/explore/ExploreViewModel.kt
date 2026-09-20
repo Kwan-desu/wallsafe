@@ -67,7 +67,8 @@ class ExploreViewModel @Inject constructor(
                         sortOrder = params.sortOrder,
                         resolutionFilter = params.resolutionFilter,
                         aspectRatioFilter = params.aspectRatioFilter,
-                        wallpaperOnly = params.isWallpaperTagOnly
+                        wallpaperOnly = params.isWallpaperTagOnly,
+                        tagBlacklist = params.tagBlacklist
                     )
                 }
             ).flow
@@ -83,6 +84,37 @@ class ExploreViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.ratingMode.collect { mode ->
                 _uiState.update { it.copy(ratingMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.tagBlacklist.collect { blString ->
+                val set = blString.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet()
+                _uiState.update { it.copy(tagBlacklist = set) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.customSourcesJson.collect { json ->
+                try {
+                    val baseSources = listOf(
+                        "all" to "All Sources",
+                        "danbooru" to "Danbooru",
+                        "safebooru" to "Safebooru",
+                        "gelbooru" to "Gelbooru"
+                    )
+                    val jsonArray = org.json.JSONArray(json)
+                    val customList = mutableListOf<Pair<String, String>>()
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val id = obj.optString("id", "")
+                        val name = obj.optString("name", "")
+                        if (id.isNotBlank() && name.isNotBlank()) {
+                            customList.add(id to name)
+                        }
+                    }
+                    _uiState.update { it.copy(availableSources = baseSources + customList) }
+                } catch (e: Exception) {
+                    // Ignore parse errors
+                }
             }
         }
         viewModelScope.launch {
@@ -124,7 +156,8 @@ class ExploreViewModel @Inject constructor(
                 sortOrder = state.sortOrder,
                 resolutionFilter = state.resolutionFilter,
                 aspectRatioFilter = state.aspectRatioFilter,
-                isWallpaperTagOnly = state.isWallpaperTagOnly
+                isWallpaperTagOnly = state.isWallpaperTagOnly,
+                tagBlacklist = state.tagBlacklist
             )
         }.distinctUntilChanged()
         
@@ -205,5 +238,6 @@ private data class PagingParameters(
     val sortOrder: String,
     val resolutionFilter: Int,
     val aspectRatioFilter: Int,
-    val isWallpaperTagOnly: Boolean
+    val isWallpaperTagOnly: Boolean,
+    val tagBlacklist: Set<String>
 )

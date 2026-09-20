@@ -15,7 +15,8 @@ class BooruPagingSource(
     private val sortOrder: String = "score",
     private val resolutionFilter: Int = 0,
     private val aspectRatioFilter: Int = 0,
-    private val wallpaperOnly: Boolean = false
+    private val wallpaperOnly: Boolean = false,
+    private val tagBlacklist: Set<String> = emptySet()
 ) : PagingSource<Int, PostItem>() {
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, PostItem> {
@@ -77,6 +78,12 @@ class BooruPagingSource(
                         else -> true
                     }
                     if (!matchesRating) return@filter false
+
+                    // Tag blacklist check
+                    if (tagBlacklist.isNotEmpty()) {
+                        val postTags = post.tags.lowercase().split("\\s+".toRegex()).toSet()
+                        if (tagBlacklist.any { it.isNotBlank() && it.lowercase() in postTags }) return@filter false
+                    }
 
                     // Wallpaper tag or widescreen check
                     if (wallpaperOnly || sortOrder == "wallpaper") {

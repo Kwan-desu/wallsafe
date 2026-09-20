@@ -72,6 +72,9 @@ fun WallpaperCard(
                      post.rating.lowercase() != "safe" && 
                      !isTemporarilyRevealed
 
+    val hapticFeedback = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var showHeartBurst by remember { mutableStateOf(false) }
+
     val scale by animateFloatAsState(
         targetValue = if (isFavorite) 1.25f else 1f,
         animationSpec = spring(
@@ -87,7 +90,14 @@ fun WallpaperCard(
             .aspectRatio(effectiveAspectRatio)
             .combinedClickable(
                 onClick = onTap,
-                onLongClick = { showMenu = true }
+                onLongClick = { showMenu = true },
+                onDoubleClick = {
+                    showHeartBurst = true
+                    hapticFeedback.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    if (!isFavorite) {
+                        onFavoriteToggle()
+                    }
+                }
             ),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
@@ -101,6 +111,13 @@ fun WallpaperCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (shouldBlur) Modifier.blur(22.dp) else Modifier)
+            )
+
+            // Heart burst animation overlay on double tap
+            HeartBurstAnimation(
+                trigger = showHeartBurst,
+                onAnimationEnd = { showHeartBurst = false },
+                size = 64.dp
             )
 
             // Blur Reveal Overlay Button if blurred

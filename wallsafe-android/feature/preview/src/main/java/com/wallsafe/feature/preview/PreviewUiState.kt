@@ -18,6 +18,8 @@ sealed interface PreviewIntent {
     data object ApplyAsHomeWallpaper : PreviewIntent
     data object ApplyAsLockWallpaper : PreviewIntent
     data object ApplyBothWallpaper : PreviewIntent
+    data object ApplyWithSystemCropper : PreviewIntent
+    data class BlacklistTag(val tag: String) : PreviewIntent
     data object ToggleFavorite : PreviewIntent
     data object Download : PreviewIntent
     data object OpenInBrowser : PreviewIntent

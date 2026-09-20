@@ -38,7 +38,10 @@ data class SettingsUiState(
     val isUpdateDownloaded: Boolean = false,
     val needsInstallPermission: Boolean = false,
     val updateErrorMessage: String? = null,
-    val currentAppVersion: String = "1.0.7"
+    val currentAppVersion: String = "1.0.9",
+    val appDisguise: String = "default",
+    val useSystemWallpaperCropper: Boolean = true,
+    val customSourcesJson: String = "[]"
 )
 
 sealed interface SettingsIntent {
@@ -74,4 +77,10 @@ sealed interface SettingsIntent {
     data object OpenInstallPermissionSettings : SettingsIntent
     data object DismissUpdateDialog : SettingsIntent
     data object ClearUpdateMessage : SettingsIntent
+    data class SetAppDisguise(val disguise: String) : SettingsIntent
+    data class ToggleSystemWallpaperCropper(val enabled: Boolean) : SettingsIntent
+    data class AddCustomSource(val name: String, val url: String) : SettingsIntent
+    data class RemoveCustomSource(val id: String) : SettingsIntent
+    data class AddBlacklistTag(val tag: String) : SettingsIntent
+    data class RemoveBlacklistTag(val tag: String) : SettingsIntent
 }

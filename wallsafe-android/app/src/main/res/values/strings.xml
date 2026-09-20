@@ -3,4 +3,7 @@
     <string name="panic_tile_label">WallSafe Panic</string>
     <string name="shortcut_safe_mode_short">Safe Mode</string>
     <string name="shortcut_safe_mode_long">Trigger Panic Mode</string>
+    <string name="disguise_default_label">WallSafe</string>
+    <string name="disguise_calc_label">Calculator</string>
+    <string name="disguise_notes_label">Notes</string>
 </resources>

@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallsafe.core.common.AppDisguise
+import com.wallsafe.core.common.AppDisguiseManager
 import com.wallsafe.core.data.repository.SettingsRepository
 import com.wallsafe.core.model.ContentRatingMode
 import com.wallsafe.core.panic.LocationPanicHelper
@@ -30,6 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val panicManager: PanicManager,
     private val wifiPanicMonitor: WifiPanicMonitor,
     private val locationPanicHelper: LocationPanicHelper,
+    private val appDisguiseManager: AppDisguiseManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -166,6 +169,27 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.isAutoUpdateCheckEnabled.collect { enabled ->
                 _uiState.update { it.copy(isAutoUpdateEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.tagBlacklist.collect { bl ->
+                val list = bl.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                _uiState.update { it.copy(tagBlacklist = list) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.appDisguise.collect { disguise ->
+                _uiState.update { it.copy(appDisguise = disguise) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.useSystemWallpaperCropper.collect { enabled ->
+                _uiState.update { it.copy(useSystemWallpaperCropper = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.customSourcesJson.collect { json ->
+                _uiState.update { it.copy(customSourcesJson = json) }
             }
         }
     }
@@ -321,6 +345,49 @@ class SettingsViewModel @Inject constructor(
             }
             is SettingsIntent.ClearUpdateMessage -> {
                 _uiState.update { it.copy(updateCheckMessage = null) }
+            }
+            is SettingsIntent.SetAppDisguise -> {
+                viewModelScope.launch {
+                    settingsRepository.setAppDisguise(intent.disguise)
+                    val enumVal = AppDisguise.fromKey(intent.disguise)
+                    appDisguiseManager.setDisguise(enumVal)
+                }
+            }
+            is SettingsIntent.ToggleSystemWallpaperCropper -> {
+                viewModelScope.launch { settingsRepository.setUseSystemWallpaperCropper(intent.enabled) }
+            }
+            is SettingsIntent.AddCustomSource -> {
+                viewModelScope.launch {
+                    val currentJson = _uiState.value.customSourcesJson
+                    val arr = try { org.json.JSONArray(currentJson) } catch (e: Exception) { org.json.JSONArray() }
+                    val newObj = org.json.JSONObject().apply {
+                        put("id", intent.url.trim())
+                        put("name", intent.name.trim())
+                        put("url", intent.url.trim())
+                    }
+                    arr.put(newObj)
+                    settingsRepository.setCustomSourcesJson(arr.toString())
+                }
+            }
+            is SettingsIntent.RemoveCustomSource -> {
+                viewModelScope.launch {
+                    val currentJson = _uiState.value.customSourcesJson
+                    val arr = try { org.json.JSONArray(currentJson) } catch (e: Exception) { org.json.JSONArray() }
+                    val newArr = org.json.JSONArray()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        if (obj.optString("id") != intent.id) {
+                            newArr.put(obj)
+                        }
+                    }
+                    settingsRepository.setCustomSourcesJson(newArr.toString())
+                }
+            }
+            is SettingsIntent.AddBlacklistTag -> {
+                viewModelScope.launch { settingsRepository.addTagToBlacklist(intent.tag) }
+            }
+            is SettingsIntent.RemoveBlacklistTag -> {
+                viewModelScope.launch { settingsRepository.removeTagFromBlacklist(intent.tag) }
             }
         }
     }

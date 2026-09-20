@@ -35,4 +35,5 @@ dependencies {
     ksp(libs.hilt.work.compiler)
     implementation(libs.coil.compose)
     implementation(libs.okhttp)
+    implementation(libs.core.ktx)
 }

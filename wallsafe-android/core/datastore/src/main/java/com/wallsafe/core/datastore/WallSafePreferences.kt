@@ -61,6 +61,35 @@ class WallSafePreferences @Inject constructor(
     suspend fun setRatingMode(mode: ContentRatingMode): Unit { dataStore.edit { it[RATING_MODE] = mode.name } }
     suspend fun setDiscretionBlurEnabled(enabled: Boolean): Unit { dataStore.edit { it[DISCRETION_BLUR] = enabled } }
     suspend fun setTagBlacklist(tags: String): Unit { dataStore.edit { it[TAG_BLACKLIST] = tags } }
+
+    suspend fun addTagToBlacklist(tag: String) {
+        dataStore.edit { prefs ->
+            val current = prefs[TAG_BLACKLIST] ?: "guro,scat,loli,shota"
+            val list = current.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+            if (!list.any { it.equals(tag.trim(), ignoreCase = true) }) {
+                list.add(tag.trim().lowercase())
+                prefs[TAG_BLACKLIST] = list.joinToString(",")
+            }
+        }
+    }
+
+    suspend fun removeTagFromBlacklist(tag: String) {
+        dataStore.edit { prefs ->
+            val current = prefs[TAG_BLACKLIST] ?: "guro,scat,loli,shota"
+            val list = current.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+            list.removeAll { it.equals(tag.trim(), ignoreCase = true) }
+            prefs[TAG_BLACKLIST] = list.joinToString(",")
+        }
+    }
+
+    val appDisguise: Flow<String> = dataStore.data.map { it[APP_DISGUISE] ?: "default" }
+    suspend fun setAppDisguise(disguise: String): Unit { dataStore.edit { it[APP_DISGUISE] = disguise } }
+
+    val customSourcesJson: Flow<String> = dataStore.data.map { it[CUSTOM_SOURCES] ?: "[]" }
+    suspend fun setCustomSourcesJson(json: String): Unit { dataStore.edit { it[CUSTOM_SOURCES] = json } }
+
+    val useSystemWallpaperCropper: Flow<Boolean> = dataStore.data.map { it[USE_SYSTEM_WALLPAPER_CROPPER] ?: true }
+    suspend fun setUseSystemWallpaperCropper(enabled: Boolean): Unit { dataStore.edit { it[USE_SYSTEM_WALLPAPER_CROPPER] = enabled } }
     suspend fun setCardDensity(density: String): Unit { dataStore.edit { it[CARD_DENSITY] = density } }
     suspend fun setShowHomeHero(show: Boolean): Unit { dataStore.edit { it[SHOW_HOME_HERO] = show } }
     suspend fun setShowHomeTrending(show: Boolean): Unit { dataStore.edit { it[SHOW_HOME_TRENDING] = show } }
@@ -126,6 +155,10 @@ class WallSafePreferences @Inject constructor(
         val SHOW_HOME_FRANCHISES = booleanPreferencesKey("show_home_franchises")
         
         val FILTER_PROFILES = stringPreferencesKey("filter_profiles")
+
+        val APP_DISGUISE = stringPreferencesKey("app_disguise")
+        val CUSTOM_SOURCES = stringPreferencesKey("custom_sources")
+        val USE_SYSTEM_WALLPAPER_CROPPER = booleanPreferencesKey("use_system_wallpaper_cropper")
 
         val PANIC_MODE_ENABLED = booleanPreferencesKey("panic_mode_enabled")
         val PANIC_TRIGGER_TYPE = stringPreferencesKey("panic_trigger_type")

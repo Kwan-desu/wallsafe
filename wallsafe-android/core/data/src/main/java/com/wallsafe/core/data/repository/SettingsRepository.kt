@@ -36,11 +36,20 @@ interface SettingsRepository {
     val isPanicAutoRestore: Flow<Boolean>
     val isAutoUpdateCheckEnabled: Flow<Boolean>
 
+    val appDisguise: Flow<String>
+    val customSourcesJson: Flow<String>
+    val useSystemWallpaperCropper: Flow<Boolean>
+
     suspend fun setThemeMode(mode: String)
     suspend fun setDynamicColorEnabled(enabled: Boolean)
     suspend fun setRatingMode(mode: ContentRatingMode)
     suspend fun setDiscretionBlurEnabled(enabled: Boolean)
     suspend fun setTagBlacklist(tags: String)
+    suspend fun addTagToBlacklist(tag: String)
+    suspend fun removeTagFromBlacklist(tag: String)
+    suspend fun setAppDisguise(disguise: String)
+    suspend fun setCustomSourcesJson(json: String)
+    suspend fun setUseSystemWallpaperCropper(enabled: Boolean)
     suspend fun setCardDensity(density: String)
     suspend fun setShowHomeHero(show: Boolean)
     suspend fun setShowHomeTrending(show: Boolean)
@@ -85,6 +94,9 @@ class SettingsRepositoryImpl @Inject constructor(
     override val hasPromptedForName: Flow<Boolean> = preferences.hasPromptedForName
     override val appliedWallpapersCount: Flow<Int> = preferences.appliedWallpapersCount
     override val isAutoUpdateCheckEnabled: Flow<Boolean> = preferences.isAutoUpdateCheckEnabled
+    override val appDisguise: Flow<String> = preferences.appDisguise
+    override val customSourcesJson: Flow<String> = preferences.customSourcesJson
+    override val useSystemWallpaperCropper: Flow<Boolean> = preferences.useSystemWallpaperCropper
 
     override val isPanicModeEnabled: Flow<Boolean> = preferences.isPanicModeEnabled
     override val panicTriggerType: Flow<String> = preferences.panicTriggerType
@@ -104,6 +116,11 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setRatingMode(mode: ContentRatingMode) { preferences.setRatingMode(mode) }
     override suspend fun setDiscretionBlurEnabled(enabled: Boolean) { preferences.setDiscretionBlurEnabled(enabled) }
     override suspend fun setTagBlacklist(tags: String) { preferences.setTagBlacklist(tags) }
+    override suspend fun addTagToBlacklist(tag: String) { preferences.addTagToBlacklist(tag) }
+    override suspend fun removeTagFromBlacklist(tag: String) { preferences.removeTagFromBlacklist(tag) }
+    override suspend fun setAppDisguise(disguise: String) { preferences.setAppDisguise(disguise) }
+    override suspend fun setCustomSourcesJson(json: String) { preferences.setCustomSourcesJson(json) }
+    override suspend fun setUseSystemWallpaperCropper(enabled: Boolean) { preferences.setUseSystemWallpaperCropper(enabled) }
     override suspend fun setCardDensity(density: String) { preferences.setCardDensity(density) }
     override suspend fun setShowHomeHero(show: Boolean) { preferences.setShowHomeHero(show) }
     override suspend fun setShowHomeTrending(show: Boolean) { preferences.setShowHomeTrending(show) }
