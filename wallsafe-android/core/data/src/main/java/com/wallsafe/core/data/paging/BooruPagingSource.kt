@@ -51,59 +51,91 @@ class BooruPagingSource(
 
             val effectiveTags = queryTokens.joinToString(" ")
 
-            val rawItems = if (source == "all") {
-                repository.fetchAllSources(effectiveTags, page, params.loadSize)
-            } else {
-                repository.fetchPosts(source, effectiveTags, page, params.loadSize)
-            }
-            
-            // Strict client-side verification filter
-            val items = rawItems.filter { post ->
-                // Rating check
-                val r = post.rating.lowercase()
-                val matchesRating = when (ratingMode) {
-                    ContentRatingMode.SfwOnly -> r == "s" || r == "safe" || r == "g" || r == "general"
-                    ContentRatingMode.Questionable -> r != "e" && r != "explicit"
-                    else -> true
-                }
-                if (!matchesRating) return@filter false
+            var currentPage = page
+            val collectedItems = mutableListOf<PostItem>()
+            val maxPagesToProbe = if (aspectRatioFilter != 0 || resolutionFilter != 0) 3 else 1
+            var reachedEnd = false
 
-                // Wallpaper tag or widescreen check
-                if (wallpaperOnly || sortOrder == "wallpaper") {
-                    val hasTag = post.tags.split(" ").any { it.equals("wallpaper", ignoreCase = true) }
-                    val isLandscape = post.width > 0 && post.height > 0 && (post.width.toFloat() / post.height.toFloat() >= 1.25f)
-                    if (!hasTag && !isLandscape) return@filter false
+            for (probe in 0 until maxPagesToProbe) {
+                val rawItems = if (source == "all") {
+                    repository.fetchAllSources(effectiveTags, currentPage, params.loadSize)
+                } else {
+                    repository.fetchPosts(source, effectiveTags, currentPage, params.loadSize)
                 }
 
-                // Resolution filter
-                val matchesResolution = when (resolutionFilter) {
-                    1 -> post.width >= 1920 || post.height >= 1080 // 1080p+
-                    2 -> post.width >= 2560 || post.height >= 1440 // 1440p+
-                    3 -> post.width >= 3840 || post.height >= 2160 // 4K+
-                    else -> true
+                if (rawItems.isEmpty()) {
+                    reachedEnd = true
+                    break
                 }
-                if (!matchesResolution) return@filter false
 
-                // Aspect ratio filter
-                if (post.width > 0 && post.height > 0) {
-                    val ratio = post.width.toFloat() / post.height.toFloat()
-                    val matchesAspect = when (aspectRatioFilter) {
-                        1 -> ratio in 1.55f..1.95f // 16:9
-                        2 -> ratio > 1.95f // Ultrawide
-                        3 -> ratio in 1.2f..1.55f // 4:3
-                        4 -> ratio < 0.95f // Portrait
+                val filtered = rawItems.filter { post ->
+                    // Rating check
+                    val r = post.rating.lowercase()
+                    val matchesRating = when (ratingMode) {
+                        ContentRatingMode.SfwOnly -> r == "s" || r == "safe" || r == "g" || r == "general"
+                        ContentRatingMode.Questionable -> r != "e" && r != "explicit"
                         else -> true
                     }
-                    if (!matchesAspect) return@filter false
+                    if (!matchesRating) return@filter false
+
+                    // Wallpaper tag or widescreen check
+                    if (wallpaperOnly || sortOrder == "wallpaper") {
+                        val hasTag = post.tags.split(" ").any { it.equals("wallpaper", ignoreCase = true) }
+                        val isLandscape = post.width > 0 && post.height > 0 && (post.width.toFloat() / post.height.toFloat() >= 1.25f)
+                        val isPortraitWanted = aspectRatioFilter == 4
+                        if (!hasTag && !isLandscape && !isPortraitWanted) return@filter false
+                    }
+
+                    // Resolution filter
+                    if (resolutionFilter != 0) {
+                        val matchesResolution = when (resolutionFilter) {
+                            1 -> post.width >= 1920 || post.height >= 1080 // 1080p+
+                            2 -> post.width >= 2560 || post.height >= 1440 // 1440p+
+                            3 -> post.width >= 3840 || post.height >= 2160 // 4K+
+                            else -> true
+                        }
+                        if (!matchesResolution) return@filter false
+                    }
+
+                    // Aspect ratio filter
+                    if (aspectRatioFilter != 0) {
+                        if (post.width <= 0 || post.height <= 0) return@filter false
+                        val ratio = post.width.toFloat() / post.height.toFloat()
+                        val matchesAspect = when (aspectRatioFilter) {
+                            1 -> ratio in 1.55f..1.95f // 16:9
+                            2 -> ratio > 1.95f // Ultrawide
+                            3 -> ratio in 1.2f..1.55f // 4:3
+                            4 -> ratio < 0.95f // Portrait
+                            else -> true
+                        }
+                        if (!matchesAspect) return@filter false
+                    }
+
+                    true
                 }
 
-                true
+                collectedItems.addAll(filtered)
+                currentPage++
+
+                if (collectedItems.size >= 12 || rawItems.size < params.loadSize) {
+                    if (rawItems.size < params.loadSize) reachedEnd = true
+                    break
+                }
             }
-            
+
+            // Deduplicate items
+            val distinctItems = collectedItems.distinctBy { "${it.source}_${it.id}" }
+
+            val nextKey = if (reachedEnd || (distinctItems.isEmpty() && currentPage > page)) {
+                null
+            } else {
+                currentPage
+            }
+
             LoadResult.Page(
-                data = items,
+                data = distinctItems,
                 prevKey = if (page == 1) null else page - 1,
-                nextKey = if (rawItems.isEmpty()) null else page + 1
+                nextKey = nextKey
             )
         } catch (e: Exception) {
             LoadResult.Error(e)

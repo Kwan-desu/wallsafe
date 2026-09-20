@@ -55,7 +55,8 @@ class ExploreViewModel @Inject constructor(
                 config = PagingConfig(
                     pageSize = 40,
                     prefetchDistance = 10,
-                    initialLoadSize = 40
+                    initialLoadSize = 40,
+                    enablePlaceholders = false
                 ),
                 pagingSourceFactory = {
                     BooruPagingSource(

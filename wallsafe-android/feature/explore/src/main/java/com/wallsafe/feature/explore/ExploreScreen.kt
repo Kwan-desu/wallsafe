@@ -242,7 +242,10 @@ fun ExploreScreen(
             ) {
                 items(
                     count = pagingItems.itemCount,
-                    key = { index -> pagingItems[index]?.id ?: index }
+                    key = { index ->
+                        val item = pagingItems.peek(index)
+                        if (item != null) "${item.source}_${item.id}_$index" else "item_$index"
+                    }
                 ) { index ->
                     val post = pagingItems[index]
                     if (post != null) {
