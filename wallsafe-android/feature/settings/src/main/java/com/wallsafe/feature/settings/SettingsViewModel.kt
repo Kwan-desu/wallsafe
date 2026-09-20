@@ -45,9 +45,9 @@ class SettingsViewModel @Inject constructor(
 
     init {
         val version = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.7"
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.1.0"
         } catch (e: Exception) {
-            "1.0.7"
+            "1.1.0"
         }
         _uiState.update { it.copy(currentAppVersion = version) }
         observeSettings()

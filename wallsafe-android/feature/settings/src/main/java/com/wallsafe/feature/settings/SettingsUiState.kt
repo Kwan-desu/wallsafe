@@ -38,7 +38,7 @@ data class SettingsUiState(
     val isUpdateDownloaded: Boolean = false,
     val needsInstallPermission: Boolean = false,
     val updateErrorMessage: String? = null,
-    val currentAppVersion: String = "1.0.9",
+    val currentAppVersion: String = "1.1.0",
     val appDisguise: String = "default",
     val useSystemWallpaperCropper: Boolean = true,
     val customSourcesJson: String = "[]"
