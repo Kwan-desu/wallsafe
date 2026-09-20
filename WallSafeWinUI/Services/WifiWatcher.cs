@@ -2,18 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace WallSafeWinUI.Services
 {
     /// <summary>
-    /// Watches the currently-connected Wi-Fi SSID and, when it matches any of the user-configured
-    /// trigger networks (e.g. a school/work network), automatically applies a chosen wallpaper
-    /// (or the safe/default wallpaper). Optionally restores the previous wallpaper on disconnect.
-    ///
-    /// SSID detection uses `netsh wlan show interfaces`, which needs no extra dependencies and
-    /// works on all supported Windows versions.
+    /// Watches currently-connected Wi-Fi SSIDs and Network Connection Profiles.
+    /// When any connected network matches the user-configured trigger networks (e.g. school, work,
+    /// or specific SSIDs/profiles), automatically applies the safe wallpaper and pauses slideshow.
+    /// Optionally restores the previous wallpaper on disconnect.
     /// </summary>
     public sealed class WifiWatcher : IDisposable
     {
@@ -22,29 +22,72 @@ namespace WallSafeWinUI.Services
 
         private readonly object _sync = new();
         private System.Threading.Timer? _timer;
-        private string? _lastSsid;
-        private bool _triggerActive;         // currently on the trigger network
+        private string? _lastMatchedNetwork;
+        private bool _triggerActive;             // currently on the trigger network
         private string? _wallpaperBeforeTrigger; // to restore on disconnect
         private bool _disposed;
+        private bool _eventHooked;
+
+        public bool IsTriggerActive
+        {
+            get { lock (_sync) return _triggerActive; }
+        }
+
+        /// <summary>
+        /// Fired whenever network status or trigger state updates: (currentNetwork, isTriggerActive, matchedTrigger).
+        /// </summary>
+        public event Action<string?, bool, string?>? StatusChanged;
 
         private WifiWatcher() { }
 
         /// <summary>Start (or restart) polling based on current settings.</summary>
-        public void Start()
+        public void Start(bool immediate = false)
         {
             lock (_sync)
             {
                 if (_disposed) return;
                 _timer?.Dispose();
+
                 if (!Settings.Instance.WifiAutoWallpaperEnabled)
                 {
                     _timer = null;
+                    if (_triggerActive)
+                    {
+                        _triggerActive = false;
+                        RestoreWallpaperAfterTrigger();
+                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                    }
                     return;
                 }
-                // Poll every 8 seconds — cheap and responsive enough for network changes.
+
+                // Hook Windows network change notifications once for instant reaction
+                if (!_eventHooked)
+                {
+                    try
+                    {
+                        Windows.Networking.Connectivity.NetworkInformation.NetworkStatusChanged += OnNetworkStatusChanged;
+                        _eventHooked = true;
+                    }
+                    catch { }
+                }
+
+                // Reset trigger edge so immediate poll re-evaluates
+                _triggerActive = false;
+
                 _timer = new System.Threading.Timer(_ => Poll(), null,
-                    TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8));
+                    immediate ? TimeSpan.Zero : TimeSpan.FromSeconds(1),
+                    TimeSpan.FromSeconds(5));
             }
+        }
+
+        public void TriggerImmediatePoll()
+        {
+            Task.Run(() => Poll());
+        }
+
+        private void OnNetworkStatusChanged(object? sender)
+        {
+            TriggerImmediatePoll();
         }
 
         public void Stop()
@@ -53,50 +96,98 @@ namespace WallSafeWinUI.Services
             {
                 _timer?.Dispose();
                 _timer = null;
+                if (_triggerActive)
+                {
+                    _triggerActive = false;
+                    RestoreWallpaperAfterTrigger();
+                    NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                }
             }
         }
 
-        private void Poll()
+        public void Poll()
         {
-            try
+            lock (_sync)
             {
-                string? ssid = GetCurrentSsid();
-                var triggers = Settings.Instance.WifiTriggerSsids;
+                if (_disposed || !Settings.Instance.WifiAutoWallpaperEnabled) return;
 
-                bool onTrigger = triggers.Count > 0 &&
-                                 !string.IsNullOrEmpty(ssid) &&
-                                 triggers.Exists(t => string.Equals(ssid, t, StringComparison.OrdinalIgnoreCase));
+                try
+                {
+                    var activeNetworks = GetAllCurrentNetworkNames();
+                    var triggers = Settings.Instance.WifiTriggerSsids;
 
-                // Rising edge: just connected to the trigger network.
-                if (onTrigger && !_triggerActive)
-                {
-                    _triggerActive = true;
-                    ApplyTriggerWallpaper();
-                }
-                // Falling edge: left the trigger network.
-                else if (!onTrigger && _triggerActive)
-                {
-                    _triggerActive = false;
-                    if (Settings.Instance.WifiRestoreOnDisconnect && !string.IsNullOrEmpty(_wallpaperBeforeTrigger))
+                    string? matchedTrigger = null;
+                    string? matchedNetwork = null;
+
+                    if (triggers.Count > 0 && activeNetworks.Count > 0)
                     {
-                        var prev = _wallpaperBeforeTrigger;
-                        RunOnUi(() =>
+                        foreach (var net in activeNetworks)
                         {
-                            if (File.Exists(prev!))
-                                WallpaperManager.Instance.ApplyWallpaperFromPath(prev!, Settings.Instance.TargetMonitor);
-                        });
+                            foreach (var tr in triggers)
+                            {
+                                if (string.Equals(net, tr, StringComparison.OrdinalIgnoreCase) ||
+                                    net.IndexOf(tr, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    tr.IndexOf(net, StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    matchedNetwork = net;
+                                    matchedTrigger = tr;
+                                    break;
+                                }
+                            }
+                            if (matchedTrigger != null) break;
+                        }
+                    }
+
+                    bool onTrigger = matchedTrigger != null;
+
+                    // Rising edge: just connected to the trigger network
+                    if (onTrigger && !_triggerActive)
+                    {
+                        _triggerActive = true;
+                        _lastMatchedNetwork = matchedNetwork;
+                        ApplyTriggerWallpaper();
+                        NotifyStatus(matchedNetwork, true, matchedTrigger);
+                    }
+                    else if (onTrigger && _triggerActive)
+                    {
+                        NotifyStatus(matchedNetwork ?? _lastMatchedNetwork, true, matchedTrigger);
+                    }
+                    // Falling edge: disconnected from the trigger network
+                    else if (!onTrigger && _triggerActive)
+                    {
+                        _triggerActive = false;
+                        _lastMatchedNetwork = null;
+                        RestoreWallpaperAfterTrigger();
+                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
+                    }
+                    else
+                    {
+                        NotifyStatus(GetPrimaryConnectedNetworkName(), false, null);
                     }
                 }
-
-                _lastSsid = ssid;
+                catch { /* best-effort background watcher */ }
             }
-            catch { /* best-effort background watcher */ }
+        }
+
+        private void NotifyStatus(string? currentNet, bool isActive, string? matchedTrig)
+        {
+            try { StatusChanged?.Invoke(currentNet, isActive, matchedTrig); } catch { }
         }
 
         private void ApplyTriggerWallpaper()
         {
-            // Remember the current wallpaper so we can restore it on disconnect.
-            try { _wallpaperBeforeTrigger = WallpaperManager.GetCurrentWallpaper(); } catch { }
+            try
+            {
+                string curr = WallpaperManager.GetCurrentWallpaper();
+                var safeTarget = Settings.Instance.SafeWallpaperPath;
+                if (string.IsNullOrEmpty(safeTarget) || !File.Exists(safeTarget))
+                    safeTarget = Settings.DetectDefaultWin11Wallpaper();
+
+                // Only record previous wallpaper if it's not already the safe wallpaper
+                if (!string.Equals(curr, safeTarget, StringComparison.OrdinalIgnoreCase))
+                    _wallpaperBeforeTrigger = curr;
+            }
+            catch { }
 
             string configured = Settings.Instance.WifiTriggerWallpaperPath?.Trim() ?? "";
             string target = !string.IsNullOrEmpty(configured) && File.Exists(configured)
@@ -108,11 +199,124 @@ namespace WallSafeWinUI.Services
                 if (!string.IsNullOrEmpty(target) && File.Exists(target))
                     WallpaperManager.Instance.ApplyWallpaperFromPath(target, Settings.Instance.TargetMonitor);
                 else
-                    WallpaperManager.Instance.ApplySafeWallpaper();
+                    WallpaperManager.Instance.ApplySafeWallpaper(isWifiTrigger: true);
             });
         }
 
+        private void RestoreWallpaperAfterTrigger()
+        {
+            if (Settings.Instance.WifiRestoreOnDisconnect && !string.IsNullOrEmpty(_wallpaperBeforeTrigger))
+            {
+                var prev = _wallpaperBeforeTrigger;
+                RunOnUi(() =>
+                {
+                    if (File.Exists(prev!))
+                        WallpaperManager.Instance.ApplyWallpaperFromPath(prev!, Settings.Instance.TargetMonitor);
+                });
+            }
+        }
+
         private static void RunOnUi(Action action) => UiDispatch.Post(action);
+
+        /// <summary>
+        /// Returns all currently active Wi-Fi SSIDs, Network Names, and Connection Profiles.
+        /// Uses Windows Network List Manager COM API, WinRT NetworkInformation, and netsh fallback.
+        /// </summary>
+        public static HashSet<string> GetAllCurrentNetworkNames()
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Windows Network List Manager (NLM) COM API - works on all Windows versions,
+            // non-admin, returns actual active network names (e.g. Kwanmk_5G, Student@APU, etc.)
+            try
+            {
+                var nlmType = Type.GetTypeFromCLSID(new Guid("DCB00C01-570F-4A9B-8D69-199FDBA5723B"));
+                if (nlmType != null)
+                {
+                    dynamic nlm = Activator.CreateInstance(nlmType)!;
+                    var networks = nlm.GetNetworks(1); // NLM_ENUM_NETWORK_CONNECTED = 1
+                    foreach (dynamic net in networks)
+                    {
+                        string name = net.GetName();
+                        if (!string.IsNullOrWhiteSpace(name)) names.Add(name.Trim());
+                        string desc = net.GetDescription();
+                        if (!string.IsNullOrWhiteSpace(desc)) names.Add(desc.Trim());
+                    }
+                }
+            }
+            catch { }
+
+            // 2. WinRT NetworkInformation - queries all connected profiles and Wi-Fi SSIDs
+            try
+            {
+                var profiles = Windows.Networking.Connectivity.NetworkInformation.GetConnectionProfiles();
+                if (profiles != null)
+                {
+                    foreach (var p in profiles)
+                    {
+                        var level = p.GetNetworkConnectivityLevel();
+                        if (level != Windows.Networking.Connectivity.NetworkConnectivityLevel.None)
+                        {
+                            if (!string.IsNullOrWhiteSpace(p.ProfileName))
+                                names.Add(p.ProfileName.Trim());
+
+                            var netNames = p.GetNetworkNames();
+                            if (netNames != null)
+                            {
+                                foreach (var n in netNames)
+                                    if (!string.IsNullOrWhiteSpace(n)) names.Add(n.Trim());
+                            }
+
+                            if (p.WlanConnectionProfileDetails != null)
+                            {
+                                string ssid = p.WlanConnectionProfileDetails.GetConnectedSsid();
+                                if (!string.IsNullOrWhiteSpace(ssid)) names.Add(ssid.Trim());
+                            }
+
+                            // If connected to internet, also include "Internet" as a recognized keyword
+                            if (level == Windows.Networking.Connectivity.NetworkConnectivityLevel.InternetAccess)
+                            {
+                                names.Add("Internet");
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Fallback: netsh wlan show interfaces
+            try
+            {
+                string output = RunNetsh("wlan show interfaces");
+                foreach (var rawLine in output.Split('\n'))
+                {
+                    var line = rawLine.Trim();
+                    var m = Regex.Match(line, @"^SSID\s*:\s*(.+)$");
+                    if (m.Success)
+                    {
+                        string val = m.Groups[1].Value.Trim();
+                        if (!string.IsNullOrWhiteSpace(val)) names.Add(val);
+                    }
+                }
+            }
+            catch { }
+
+            return names;
+        }
+
+        /// <summary>
+        /// Return the primary connected network name for UI display.
+        /// </summary>
+        public static string? GetPrimaryConnectedNetworkName()
+        {
+            var all = GetAllCurrentNetworkNames();
+            // Prioritize user-facing network names over virtual adapters
+            var prioritized = all.Where(n => !n.StartsWith("vEthernet", StringComparison.OrdinalIgnoreCase) &&
+                                             !string.Equals(n, "Tailscale", StringComparison.OrdinalIgnoreCase) &&
+                                             !string.Equals(n, "Internet", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            return prioritized.FirstOrDefault() ?? all.FirstOrDefault();
+        }
 
         /// <summary>Run a netsh command and return its stdout (empty string on failure).</summary>
         private static string RunNetsh(string arguments)
@@ -139,26 +343,11 @@ namespace WallSafeWinUI.Services
         /// <summary>Return the SSID of the currently-connected Wi-Fi network, or null if none.</summary>
         public static string? GetCurrentSsid()
         {
-            string output = RunNetsh("wlan show interfaces");
-            // Lines look like: "    SSID                   : MyNetwork"
-            // Guard against matching "BSSID": require the line to start with "SSID".
-            foreach (var rawLine in output.Split('\n'))
-            {
-                var line = rawLine.Trim();
-                var m = Regex.Match(line, @"^SSID\s*:\s*(.+)$");
-                if (m.Success)
-                {
-                    string val = m.Groups[1].Value.Trim();
-                    return string.IsNullOrEmpty(val) ? null : val;
-                }
-            }
-            return null;
+            return GetPrimaryConnectedNetworkName();
         }
 
         /// <summary>
-        /// Return all Wi-Fi network profiles saved on this machine (i.e. networks you've
-        /// connected to before), regardless of whether you're currently online. Uses
-        /// `netsh wlan show profiles`, which reads from Windows' saved profile store.
+        /// Return all Wi-Fi network profiles saved on this machine.
         /// </summary>
         public static List<string> GetSavedProfiles()
         {
@@ -166,10 +355,6 @@ namespace WallSafeWinUI.Services
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             string output = RunNetsh("wlan show profiles");
 
-            // Lines look like: "    All User Profile     : MyNetwork"
-            // The label before the colon is localized on non-English Windows, so we key off
-            // the "Profile" keyword rather than an exact label match, and fall back to any
-            // "... : value" line inside the profiles listing.
             foreach (var rawLine in output.Split('\n'))
             {
                 var line = rawLine.Trim();
@@ -193,6 +378,12 @@ namespace WallSafeWinUI.Services
             {
                 if (_disposed) return;
                 _disposed = true;
+                try
+                {
+                    if (_eventHooked)
+                        Windows.Networking.Connectivity.NetworkInformation.NetworkStatusChanged -= OnNetworkStatusChanged;
+                }
+                catch { }
                 _timer?.Dispose();
                 _timer = null;
             }

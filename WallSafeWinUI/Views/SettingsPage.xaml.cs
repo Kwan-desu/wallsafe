@@ -14,7 +14,15 @@ namespace WallSafeWinUI.Views
         public SettingsPage()
         {
             InitializeComponent();
-            Loaded += (_, _) => LoadState();
+            Loaded += (_, _) =>
+            {
+                LoadState();
+                WifiWatcher.Instance.StatusChanged += UpdateWifiStatusUi;
+            };
+            Unloaded += (_, _) =>
+            {
+                WifiWatcher.Instance.StatusChanged -= UpdateWifiStatusUi;
+            };
         }
 
         private void LoadState()
@@ -51,6 +59,10 @@ namespace WallSafeWinUI.Views
             WifiSwitch.IsOn = s.WifiAutoWallpaperEnabled;
             WifiSsidBox.Text = s.WifiTriggerSsid;
             WifiRestore.IsOn = s.WifiRestoreOnDisconnect;
+
+            string? currentNet = WifiWatcher.GetPrimaryConnectedNetworkName();
+            CurrentWifiNetworkText.Text = !string.IsNullOrEmpty(currentNet) ? currentNet : "None detected";
+            UpdateWifiStatusUi(currentNet, WifiWatcher.Instance.IsTriggerActive, null);
 
             LocationSwitch.IsOn = s.LocationAutoWallpaperEnabled;
             LatBox.Text = s.LocationLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -319,7 +331,9 @@ namespace WallSafeWinUI.Views
             Settings.Instance.WifiAutoWallpaperEnabled = WifiSwitch.IsOn;
             Settings.Instance.WifiRestoreOnDisconnect = WifiRestore.IsOn;
             Settings.Instance.Save();
-            WifiWatcher.Instance.Start();
+            WifiWatcher.Instance.Start(immediate: true);
+            string? currentNet = WifiWatcher.GetPrimaryConnectedNetworkName();
+            UpdateWifiStatusUi(currentNet, WifiWatcher.Instance.IsTriggerActive, null);
         }
 
         private void Wifi_TextChanged(object sender, TextChangedEventArgs e)
@@ -327,6 +341,56 @@ namespace WallSafeWinUI.Views
             if (_loading) return;
             Settings.Instance.WifiTriggerSsid = WifiSsidBox.Text;
             Settings.Instance.Save();
+            if (Settings.Instance.WifiAutoWallpaperEnabled)
+            {
+                WifiWatcher.Instance.TriggerImmediatePoll();
+            }
+        }
+
+        private void AddCurrentNetwork_Click(object sender, RoutedEventArgs e)
+        {
+            string? current = WifiWatcher.GetPrimaryConnectedNetworkName();
+            if (string.IsNullOrWhiteSpace(current)) return;
+
+            string existing = WifiSsidBox.Text ?? "";
+            if (!existing.Contains(current, StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(existing))
+                    WifiSsidBox.Text = current;
+                else
+                    WifiSsidBox.Text = existing.TrimEnd() + Environment.NewLine + current;
+            }
+        }
+
+        private void UpdateWifiStatusUi(string? currentNetwork, bool isTriggerActive, string? matchedTrigger)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                CurrentWifiNetworkText.Text = !string.IsNullOrEmpty(currentNetwork) ? currentNetwork : "None detected";
+
+                if (!Settings.Instance.WifiAutoWallpaperEnabled)
+                {
+                    WifiStatusInfoBar.IsOpen = false;
+                    return;
+                }
+
+                if (isTriggerActive)
+                {
+                    WifiStatusInfoBar.IsOpen = true;
+                    WifiStatusInfoBar.Severity = InfoBarSeverity.Success;
+                    WifiStatusInfoBar.Title = "Safe Wallpaper Active";
+                    WifiStatusInfoBar.Message = $"Connected to trigger network '{(matchedTrigger ?? currentNetwork)}'. Safe wallpaper applied.";
+                }
+                else
+                {
+                    WifiStatusInfoBar.IsOpen = true;
+                    WifiStatusInfoBar.Severity = InfoBarSeverity.Informational;
+                    WifiStatusInfoBar.Title = "Monitoring Network";
+                    WifiStatusInfoBar.Message = !string.IsNullOrEmpty(currentNetwork)
+                        ? $"Connected to '{currentNetwork}'. Not matching any trigger network."
+                        : "No active network connection detected.";
+                }
+            });
         }
 
         // ── Location ──

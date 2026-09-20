@@ -352,15 +352,16 @@ namespace WallSafeWinUI.Services
             if (File.Exists(path))
             {
                 _previousWallpaper = GetCurrentWallpaper();
-                _isPanicActive = false;
+                if (!WifiWatcher.Instance.IsTriggerActive)
+                    _isPanicActive = false;
                 SetWallpaper(path, monitorIndex);
                 WallpaperApplied?.Invoke(path);
             }
         }
 
-        public void ApplySafeWallpaper()
+        public void ApplySafeWallpaper(bool isWifiTrigger = false)
         {
-            if (_isPanicActive && Settings.Instance.PanicRestoreToggle && !string.IsNullOrEmpty(_previousWallpaper) && File.Exists(_previousWallpaper))
+            if (!isWifiTrigger && _isPanicActive && Settings.Instance.PanicRestoreToggle && !string.IsNullOrEmpty(_previousWallpaper) && File.Exists(_previousWallpaper))
             {
                 SetWallpaper(_previousWallpaper);
                 _isPanicActive = false;
@@ -384,8 +385,11 @@ namespace WallSafeWinUI.Services
             {
                 SetWallpaper(target);
                 _isPanicActive = true;
-                Settings.Instance.PanicTriggerCount++;
-                Settings.Instance.Save();
+                if (!isWifiTrigger)
+                {
+                    Settings.Instance.PanicTriggerCount++;
+                    Settings.Instance.Save();
+                }
                 SafeWallpaperTriggered?.Invoke();
                 WallpaperApplied?.Invoke(target);
             }
@@ -459,7 +463,7 @@ namespace WallSafeWinUI.Services
 
         private void OnSlideshowTick()
         {
-            if (!Settings.Instance.SlideshowEnabled || _isPanicActive) return;
+            if (!Settings.Instance.SlideshowEnabled || _isPanicActive || WifiWatcher.Instance.IsTriggerActive) return;
             if (IsForegroundFullscreen()) return;
             NextSlideshowWallpaper();
         }
@@ -505,7 +509,7 @@ namespace WallSafeWinUI.Services
 
         public async Task NextSlideshowWallpaperAsync()
         {
-            if (_isPanicActive) return;
+            if (_isPanicActive || WifiWatcher.Instance.IsTriggerActive) return;
             PostItem? nextItem = null;
 
             lock (_slideshowLock)
