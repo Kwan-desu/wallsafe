@@ -26,6 +26,7 @@ namespace WallSafeWinUI.Services
         private System.Threading.Timer? _timer;
         private string? _lastMatchedSsid;
         private bool _triggerActive;
+        private bool _userBypassedTrigger;
         private string? _wallpaperBeforeTrigger;
         private bool _disposed;
         private bool _eventHooked;
@@ -33,6 +34,42 @@ namespace WallSafeWinUI.Services
         public bool IsTriggerActive
         {
             get { lock (_sync) return _triggerActive; }
+        }
+
+        public bool UserBypassedTrigger
+        {
+            get { lock (_sync) return _userBypassedTrigger; }
+            set { lock (_sync) _userBypassedTrigger = value; }
+        }
+
+        public bool ToggleBypassFromShortcut()
+        {
+            lock (_sync)
+            {
+                if (!_triggerActive) return false;
+                _userBypassedTrigger = !_userBypassedTrigger;
+                NotifyStatus(_lastMatchedSsid ?? GetConnectedWifiSsid(), _triggerActive, _lastMatchedSsid);
+                return _userBypassedTrigger;
+            }
+        }
+
+        public string? GetOriginalWallpaper()
+        {
+            lock (_sync)
+            {
+                if (!string.IsNullOrEmpty(_wallpaperBeforeTrigger) && File.Exists(_wallpaperBeforeTrigger) && !WallpaperManager.IsSafeWallpaper(_wallpaperBeforeTrigger))
+                    return _wallpaperBeforeTrigger;
+
+                var saved = Settings.Instance.WifiSavedOriginalWallpaper;
+                if (!string.IsNullOrEmpty(saved) && File.Exists(saved) && !WallpaperManager.IsSafeWallpaper(saved))
+                    return saved;
+
+                var last = Settings.Instance.LastNormalWallpaperPath;
+                if (!string.IsNullOrEmpty(last) && File.Exists(last) && !WallpaperManager.IsSafeWallpaper(last))
+                    return last;
+
+                return null;
+            }
         }
 
         public event Action<string?, bool, string?>? StatusChanged;
@@ -141,6 +178,7 @@ namespace WallSafeWinUI.Services
                     {
                         _triggerActive = true;
                         _lastMatchedSsid = matchedSsid;
+                        _userBypassedTrigger = false;
                         ApplyTriggerWallpaper();
                         NotifyStatus(matchedSsid, true, matchedTrigger);
                     }
@@ -148,10 +186,11 @@ namespace WallSafeWinUI.Services
                     {
                         NotifyStatus(matchedSsid ?? _lastMatchedSsid, true, matchedTrigger);
                     }
-                    else if (!onTrigger && _triggerActive)
+                    else if (!onTrigger && (_triggerActive || Settings.Instance.WifiTriggerWasActive))
                     {
                         _triggerActive = false;
                         _lastMatchedSsid = null;
+                        _userBypassedTrigger = false;
                         RestoreWallpaperAfterTrigger();
                         NotifyStatus(GetConnectedWifiSsid(), false, null);
                     }
@@ -174,38 +213,50 @@ namespace WallSafeWinUI.Services
             try
             {
                 string curr = WallpaperManager.GetCurrentWallpaper();
-                var safeTarget = Settings.Instance.SafeWallpaperPath;
-                if (string.IsNullOrEmpty(safeTarget) || !File.Exists(safeTarget))
-                    safeTarget = Settings.DetectDefaultWin11Wallpaper();
-
-                if (!string.Equals(curr, safeTarget, StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(curr) && File.Exists(curr) && !WallpaperManager.IsSafeWallpaper(curr))
+                {
                     _wallpaperBeforeTrigger = curr;
+                    Settings.Instance.WifiSavedOriginalWallpaper = curr;
+                }
+                else if (!string.IsNullOrEmpty(Settings.Instance.WifiSavedOriginalWallpaper) && File.Exists(Settings.Instance.WifiSavedOriginalWallpaper))
+                {
+                    _wallpaperBeforeTrigger = Settings.Instance.WifiSavedOriginalWallpaper;
+                }
+                else if (!string.IsNullOrEmpty(Settings.Instance.LastNormalWallpaperPath) && File.Exists(Settings.Instance.LastNormalWallpaperPath))
+                {
+                    _wallpaperBeforeTrigger = Settings.Instance.LastNormalWallpaperPath;
+                    Settings.Instance.WifiSavedOriginalWallpaper = Settings.Instance.LastNormalWallpaperPath;
+                }
+                Settings.Instance.WifiTriggerWasActive = true;
+                Settings.Instance.Save();
             }
             catch { }
 
-            string configured = Settings.Instance.WifiTriggerWallpaperPath?.Trim() ?? "";
-            string target = !string.IsNullOrEmpty(configured) && File.Exists(configured)
-                ? configured
-                : Settings.Instance.SafeWallpaperPath;
+            _userBypassedTrigger = false;
 
             RunOnUi(() =>
             {
-                if (!string.IsNullOrEmpty(target) && File.Exists(target))
-                    WallpaperManager.Instance.ApplyWallpaperFromPath(target, Settings.Instance.TargetMonitor);
-                else
-                    WallpaperManager.Instance.ApplySafeWallpaper(isWifiTrigger: true);
+                WallpaperManager.Instance.ApplySafeWallpaper(isWifiTrigger: true);
             });
         }
 
         private void RestoreWallpaperAfterTrigger()
         {
-            if (Settings.Instance.WifiRestoreOnDisconnect && !string.IsNullOrEmpty(_wallpaperBeforeTrigger))
+            string? prev = GetOriginalWallpaper();
+
+            Settings.Instance.WifiTriggerWasActive = false;
+            Settings.Instance.WifiSavedOriginalWallpaper = null;
+            Settings.Instance.Save();
+
+            _userBypassedTrigger = false;
+            _wallpaperBeforeTrigger = null;
+
+            bool shouldRestore = Settings.Instance.WifiRestoreOnDisconnect || !string.IsNullOrEmpty(prev);
+            if (shouldRestore && !string.IsNullOrEmpty(prev) && File.Exists(prev))
             {
-                var prev = _wallpaperBeforeTrigger;
                 RunOnUi(() =>
                 {
-                    if (File.Exists(prev!))
-                        WallpaperManager.Instance.ApplyWallpaperFromPath(prev!, Settings.Instance.TargetMonitor);
+                    WallpaperManager.Instance.ApplyWallpaperFromPath(prev, Settings.Instance.TargetMonitor);
                 });
             }
         }

@@ -169,6 +169,15 @@ namespace WallSafeWinUI.Services
             }
 
             _previousWallpaper = GetCurrentWallpaper();
+            if (!string.IsNullOrEmpty(_previousWallpaper) && File.Exists(_previousWallpaper) && !IsSafeWallpaper(_previousWallpaper))
+            {
+                Settings.Instance.LastNormalWallpaperPath = _previousWallpaper;
+                Settings.Instance.Save();
+            }
+            else if (!string.IsNullOrEmpty(Settings.Instance.LastNormalWallpaperPath) && File.Exists(Settings.Instance.LastNormalWallpaperPath))
+            {
+                _previousWallpaper = Settings.Instance.LastNormalWallpaperPath;
+            }
 
             if (Settings.Instance.SlideshowEnabled)
                 StartSlideshow(Settings.Instance.SlideshowIntervalMinutes);
@@ -342,7 +351,16 @@ namespace WallSafeWinUI.Services
             _isPanicActive = false;
             SetWallpaper(targetPath, monitorIndex);
 
-            try { HistoryManager.Instance.RecordApplied(post, targetPath); } catch { }
+            try
+            {
+                if (!IsSafeWallpaper(targetPath))
+                {
+                    Settings.Instance.LastNormalWallpaperPath = targetPath;
+                    Settings.Instance.Save();
+                }
+                HistoryManager.Instance.RecordApplied(post, targetPath);
+            }
+            catch { }
 
             WallpaperApplied?.Invoke(targetPath);
         }
@@ -354,13 +372,95 @@ namespace WallSafeWinUI.Services
                 _previousWallpaper = GetCurrentWallpaper();
                 if (!WifiWatcher.Instance.IsTriggerActive)
                     _isPanicActive = false;
+
+                try
+                {
+                    if (!IsSafeWallpaper(path))
+                    {
+                        Settings.Instance.LastNormalWallpaperPath = path;
+                        Settings.Instance.Save();
+                    }
+                }
+                catch { }
+
                 SetWallpaper(path, monitorIndex);
                 WallpaperApplied?.Invoke(path);
             }
         }
 
+        public static bool IsSafeWallpaper(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            var s = Settings.Instance;
+            if (!string.IsNullOrEmpty(s.SafeWallpaperPath) && string.Equals(path, s.SafeWallpaperPath, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!string.IsNullOrEmpty(s.WifiTriggerWallpaperPath) && string.Equals(path, s.WifiTriggerWallpaperPath, StringComparison.OrdinalIgnoreCase))
+                return true;
+            string defWin = Settings.DetectDefaultWin11Wallpaper();
+            if (!string.IsNullOrEmpty(defWin) && string.Equals(path, defWin, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (path.Contains("safe_fallback", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }
+
+        public string GetEffectiveSafeWallpaperPath()
+        {
+            string configured = Settings.Instance.WifiTriggerWallpaperPath?.Trim() ?? "";
+            string target = !string.IsNullOrEmpty(configured) && File.Exists(configured)
+                ? configured
+                : Settings.Instance.SafeWallpaperPath;
+
+            if (string.IsNullOrEmpty(target) || !File.Exists(target))
+                target = Settings.DetectDefaultWin11Wallpaper();
+
+            if (string.IsNullOrEmpty(target) || !File.Exists(target))
+                target = EnsureSolidFallbackImage();
+
+            return target;
+        }
+
         public void ApplySafeWallpaper(bool isWifiTrigger = false)
         {
+            // Case 1: Panic shortcut invoked while Wi-Fi trigger is active on the current network
+            if (!isWifiTrigger && WifiWatcher.Instance.IsTriggerActive)
+            {
+                // Toggle between normal wallpaper and safe wallpaper
+                bool nowBypassed = WifiWatcher.Instance.ToggleBypassFromShortcut();
+                if (nowBypassed)
+                {
+                    // User wants to see normal wallpaper
+                    string? normal = WifiWatcher.Instance.GetOriginalWallpaper();
+                    if (string.IsNullOrEmpty(normal) || !File.Exists(normal))
+                        normal = _previousWallpaper;
+                    if (string.IsNullOrEmpty(normal) || !File.Exists(normal))
+                        normal = Settings.Instance.LastNormalWallpaperPath;
+
+                    if (!string.IsNullOrEmpty(normal) && File.Exists(normal))
+                    {
+                        SetWallpaper(normal);
+                        _isPanicActive = false;
+                        SafeWallpaperRestored?.Invoke();
+                        WallpaperApplied?.Invoke(normal);
+                        return;
+                    }
+                }
+                else
+                {
+                    // User wants to toggle BACK to safe wallpaper (vice versa)
+                    var safeTarget = GetEffectiveSafeWallpaperPath();
+                    if (!string.IsNullOrEmpty(safeTarget) && File.Exists(safeTarget))
+                    {
+                        SetWallpaper(safeTarget);
+                        _isPanicActive = true;
+                        SafeWallpaperTriggered?.Invoke();
+                        WallpaperApplied?.Invoke(safeTarget);
+                        return;
+                    }
+                }
+            }
+
+            // Case 2: Standard Panic Toggle (not on trigger Wi-Fi)
             if (!isWifiTrigger && _isPanicActive && Settings.Instance.PanicRestoreToggle && !string.IsNullOrEmpty(_previousWallpaper) && File.Exists(_previousWallpaper))
             {
                 SetWallpaper(_previousWallpaper);
@@ -370,16 +470,19 @@ namespace WallSafeWinUI.Services
                 return;
             }
 
-            _previousWallpaper = GetCurrentWallpaper();
+            string current = GetCurrentWallpaper();
+            if (!IsSafeWallpaper(current) && File.Exists(current))
+            {
+                _previousWallpaper = current;
+                Settings.Instance.LastNormalWallpaperPath = current;
+                Settings.Instance.Save();
+            }
+            else if (string.IsNullOrEmpty(_previousWallpaper) && !string.IsNullOrEmpty(Settings.Instance.LastNormalWallpaperPath))
+            {
+                _previousWallpaper = Settings.Instance.LastNormalWallpaperPath;
+            }
 
-            var target = Settings.Instance.SafeWallpaperPath;
-            if (string.IsNullOrEmpty(target) || !File.Exists(target))
-                target = Settings.DetectDefaultWin11Wallpaper();
-
-            // Guaranteed fallback: if nothing valid is configured or detected, generate a
-            // neutral solid-color image so the panic ALWAYS visibly changes the wallpaper.
-            if (string.IsNullOrEmpty(target) || !File.Exists(target))
-                target = EnsureSolidFallbackImage();
+            var target = GetEffectiveSafeWallpaperPath();
 
             if (!string.IsNullOrEmpty(target) && File.Exists(target))
             {

@@ -377,9 +377,18 @@ namespace WallSafeWinUI.Views
                 if (isTriggerActive)
                 {
                     WifiStatusInfoBar.IsOpen = true;
-                    WifiStatusInfoBar.Severity = InfoBarSeverity.Success;
-                    WifiStatusInfoBar.Title = "Safe Wallpaper Active";
-                    WifiStatusInfoBar.Message = $"Connected to trigger network '{(matchedTrigger ?? currentNetwork)}'. Safe wallpaper applied.";
+                    if (WifiWatcher.Instance.UserBypassedTrigger)
+                    {
+                        WifiStatusInfoBar.Severity = InfoBarSeverity.Warning;
+                        WifiStatusInfoBar.Title = "Trigger Bypassed (Normal Wallpaper Visible)";
+                        WifiStatusInfoBar.Message = $"Connected to trigger network '{(matchedTrigger ?? currentNetwork)}', but safe wallpaper was temporarily bypassed via the panic shortcut. Press the panic shortcut to re-hide.";
+                    }
+                    else
+                    {
+                        WifiStatusInfoBar.Severity = InfoBarSeverity.Success;
+                        WifiStatusInfoBar.Title = "Safe Wallpaper Active";
+                        WifiStatusInfoBar.Message = $"Connected to trigger network '{(matchedTrigger ?? currentNetwork)}'. Safe wallpaper applied. Press the panic shortcut to temporarily view your normal wallpaper.";
+                    }
                 }
                 else
                 {

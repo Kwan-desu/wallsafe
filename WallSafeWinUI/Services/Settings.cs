@@ -114,7 +114,10 @@ namespace WallSafeWinUI.Services
             }
         }
         public string WifiTriggerWallpaperPath { get; set; } = "";
-        public bool WifiRestoreOnDisconnect { get; set; } = false;
+        public bool WifiRestoreOnDisconnect { get; set; } = true;
+        public string? WifiSavedOriginalWallpaper { get; set; }
+        public bool WifiTriggerWasActive { get; set; }
+        public string? LastNormalWallpaperPath { get; set; }
 
         // ── Location-triggered auto wallpaper ──
         public bool LocationAutoWallpaperEnabled { get; set; } = false;
