@@ -83,6 +83,9 @@ namespace WallSafeWinUI.Services
                 if (_disposed) return;
                 _timer?.Dispose();
 
+                // Clean up any lingering netsh processes from earlier sessions
+                CleanupOrphanedNetshProcesses();
+
                 if (!Settings.Instance.WifiAutoWallpaperEnabled)
                 {
                     _timer = null;
@@ -265,12 +268,13 @@ namespace WallSafeWinUI.Services
 
         /// <summary>
         /// Returns all currently connected Wi-Fi (WLAN) SSIDs. Strictly ignores Ethernet, cellular, and virtual adapters.
+        /// Uses 100% native in-process Windows APIs (wlanapi.dll and WinRT) with ZERO child process spawning.
         /// </summary>
         public static HashSet<string> GetConnectedWifiSsids()
         {
             var ssids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // 1. Windows Native WLAN API (wlanapi.dll) - queries physical Wi-Fi adapters directly
+            // 1. Windows Native WLAN API (wlanapi.dll) - queries physical Wi-Fi adapters directly in-process
             try
             {
                 var nativeSsids = QueryNativeWlanConnectedSsids();
@@ -308,31 +312,6 @@ namespace WallSafeWinUI.Services
             }
             catch { }
 
-            // 3. Fallback: netsh wlan show interfaces (only if connected)
-            try
-            {
-                string output = RunNetsh("wlan show interfaces");
-                bool isConnected = false;
-                foreach (var rawLine in output.Split('\n'))
-                {
-                    var line = rawLine.Trim();
-                    if (Regex.IsMatch(line, @"^State\s*:\s*connected", RegexOptions.IgnoreCase))
-                        isConnected = true;
-
-                    if (isConnected)
-                    {
-                        var m = Regex.Match(line, @"^SSID\s*:\s*(.+)$");
-                        if (m.Success)
-                        {
-                            string val = m.Groups[1].Value.Trim();
-                            if (!string.IsNullOrWhiteSpace(val))
-                                ssids.Add(val);
-                        }
-                    }
-                }
-            }
-            catch { }
-
             return ssids;
         }
 
@@ -363,6 +342,9 @@ namespace WallSafeWinUI.Services
 
         [DllImport("wlanapi.dll")]
         private static extern int WlanQueryInterface(IntPtr hClientHandle, ref Guid pInterfaceGuid, int OpCode, IntPtr pReserved, out uint pdwDataSize, out IntPtr ppData, out int pWlanOpcodeValueType);
+
+        [DllImport("wlanapi.dll")]
+        private static extern int WlanGetProfileList(IntPtr hClientHandle, ref Guid pInterfaceGuid, IntPtr pReserved, out IntPtr ppProfileList);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct WLAN_INTERFACE_INFO
@@ -403,6 +385,14 @@ namespace WallSafeWinUI.Services
             public uint wlanSignalQuality;
             public uint ulRxRate;
             public uint ulTxRate;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WLAN_PROFILE_INFO
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+            public string strProfileName;
+            public uint dwFlags;
         }
 
         private static List<string> QueryNativeWlanConnectedSsids()
@@ -456,29 +446,131 @@ namespace WallSafeWinUI.Services
             return list;
         }
 
+        private static List<string> QueryNativeWlanSavedProfiles()
+        {
+            var list = new List<string>();
+            IntPtr clientHandle = IntPtr.Zero;
+            IntPtr pIfList = IntPtr.Zero;
+
+            try
+            {
+                if (WlanOpenHandle(2, IntPtr.Zero, out _, out clientHandle) != 0) return list;
+                if (WlanEnumInterfaces(clientHandle, IntPtr.Zero, out pIfList) != 0) return list;
+
+                uint count = (uint)Marshal.ReadInt32(pIfList);
+                IntPtr pInfo = new IntPtr(pIfList.ToInt64() + 8);
+                int infoSize = Marshal.SizeOf(typeof(WLAN_INTERFACE_INFO));
+
+                for (int i = 0; i < count; i++)
+                {
+                    var info = (WLAN_INTERFACE_INFO)Marshal.PtrToStructure(new IntPtr(pInfo.ToInt64() + (i * infoSize)), typeof(WLAN_INTERFACE_INFO))!;
+                    IntPtr pProfList = IntPtr.Zero;
+                    try
+                    {
+                        if (WlanGetProfileList(clientHandle, ref info.InterfaceGuid, IntPtr.Zero, out pProfList) == 0 && pProfList != IntPtr.Zero)
+                        {
+                            uint profCount = (uint)Marshal.ReadInt32(pProfList);
+                            IntPtr pProfInfo = new IntPtr(pProfList.ToInt64() + 8);
+                            int profSize = Marshal.SizeOf(typeof(WLAN_PROFILE_INFO));
+
+                            for (int j = 0; j < profCount; j++)
+                            {
+                                var prof = (WLAN_PROFILE_INFO)Marshal.PtrToStructure(new IntPtr(pProfInfo.ToInt64() + (j * profSize)), typeof(WLAN_PROFILE_INFO))!;
+                                if (!string.IsNullOrWhiteSpace(prof.strProfileName) && !list.Contains(prof.strProfileName, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    list.Add(prof.strProfileName.Trim());
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (pProfList != IntPtr.Zero) WlanFreeMemory(pProfList);
+                    }
+                }
+            }
+            finally
+            {
+                if (pIfList != IntPtr.Zero) WlanFreeMemory(pIfList);
+                if (clientHandle != IntPtr.Zero) WlanCloseHandle(clientHandle, IntPtr.Zero);
+            }
+
+            return list;
+        }
+
         #endregion
 
         public static List<string> GetSavedProfiles()
         {
             var result = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            string output = RunNetsh("wlan show profiles");
 
-            foreach (var rawLine in output.Split('\n'))
+            // 1. Native WLAN API (wlanapi.dll) - direct in-process, zero subprocesses
+            try
             {
-                var line = rawLine.Trim();
-                if (line.Length == 0) continue;
-
-                var m = Regex.Match(line, @"[Pp]rofile\s*:\s*(.+)$");
-                if (m.Success)
+                var nativeProfiles = QueryNativeWlanSavedProfiles();
+                foreach (var p in nativeProfiles)
                 {
-                    string name = m.Groups[1].Value.Trim();
-                    if (name.Length > 0 && seen.Add(name))
-                        result.Add(name);
+                    if (seen.Add(p)) result.Add(p);
                 }
             }
+            catch { }
+
+            // 2. WinRT Connection Profiles
+            try
+            {
+                var profiles = Windows.Networking.Connectivity.NetworkInformation.GetConnectionProfiles();
+                if (profiles != null)
+                {
+                    foreach (var p in profiles)
+                    {
+                        if (p.IsWlanConnectionProfile && !string.IsNullOrWhiteSpace(p.ProfileName))
+                        {
+                            if (seen.Add(p.ProfileName.Trim()))
+                                result.Add(p.ProfileName.Trim());
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // 3. Fallback to netsh ONLY if native queries found nothing
+            if (result.Count == 0)
+            {
+                try
+                {
+                    string output = RunNetsh("wlan show profiles");
+                    foreach (var rawLine in output.Split('\n'))
+                    {
+                        var line = rawLine.Trim();
+                        if (line.Length == 0) continue;
+
+                        var m = Regex.Match(line, @"[Pp]rofile\s*:\s*(.+)$");
+                        if (m.Success)
+                        {
+                            string name = m.Groups[1].Value.Trim();
+                            if (name.Length > 0 && seen.Add(name))
+                                result.Add(name);
+                        }
+                    }
+                }
+                catch { }
+            }
+
             result.Sort(StringComparer.OrdinalIgnoreCase);
             return result;
+        }
+
+        public static void CleanupOrphanedNetshProcesses()
+        {
+            try
+            {
+                foreach (var p in Process.GetProcessesByName("netsh"))
+                {
+                    try { p.Kill(); } catch { }
+                }
+            }
+            catch { }
         }
 
         private static string RunNetsh(string arguments)
@@ -487,16 +579,23 @@ namespace WallSafeWinUI.Services
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "netsh",
+                    FileName = "netsh.exe",
                     Arguments = arguments,
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
                 };
                 using var proc = Process.Start(psi);
                 if (proc == null) return "";
+
                 string output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit(4000);
+                if (!proc.WaitForExit(1500))
+                {
+                    try { proc.Kill(); } catch { }
+                    return "";
+                }
                 return output;
             }
             catch { return ""; }
