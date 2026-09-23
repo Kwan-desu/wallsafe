@@ -25,6 +25,13 @@ namespace WallSafeWinUI
             ConfigureTitleBar();
             ConfigureWindowChrome();
 
+            try
+            {
+                IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                ShutdownProtectionService.HookWindow(hWnd);
+            }
+            catch { }
+
             // Theme + backdrop.
             if (RootGrid is FrameworkElement fe)
                 fe.RequestedTheme = ThemeService.CurrentTheme;

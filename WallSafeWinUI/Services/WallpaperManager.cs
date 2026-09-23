@@ -702,7 +702,9 @@ namespace WallSafeWinUI.Services
             catch { }
         }
 
-        private static void SetWallpaper(string path, int monitorIndex = -1)
+        public void NotifyWallpaperApplied(string path) => WallpaperApplied?.Invoke(path);
+
+        public static void SetWallpaper(string path, int monitorIndex = -1)
         {
             try
             {

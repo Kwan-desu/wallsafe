@@ -119,6 +119,11 @@ namespace WallSafeWinUI.Services
         public bool WifiTriggerWasActive { get; set; }
         public string? LastNormalWallpaperPath { get; set; }
 
+        // ── Shutdown / Sleep safe wallpaper protection ──
+        public bool SafeWallpaperOnShutdown { get; set; } = true;
+        public string? ShutdownSavedOriginalWallpaper { get; set; }
+        public bool ShutdownSafeApplied { get; set; }
+
         // ── Location-triggered auto wallpaper ──
         public bool LocationAutoWallpaperEnabled { get; set; } = false;
         public double LocationLatitude { get; set; } = 0;

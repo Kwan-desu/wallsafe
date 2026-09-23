@@ -126,6 +126,7 @@ namespace WallSafeWinUI
             // Optional background features — each isolated so one failure is non-fatal.
             try { SetupNativeHost(); } catch (Exception ex) { LogCrash("NativeHost", ex); }
             try { WifiWatcher.Instance.Start(); } catch (Exception ex) { LogCrash("WifiWatcher", ex); }
+            try { ShutdownProtectionService.Instance.Initialize(); } catch (Exception ex) { LogCrash("ShutdownProtection", ex); }
             try { if (Settings.Instance.LocationAutoWallpaperEnabled) _ = LocationWatcher.Instance.StartAsync(); }
             catch (Exception ex) { LogCrash("LocationWatcher", ex); }
         }

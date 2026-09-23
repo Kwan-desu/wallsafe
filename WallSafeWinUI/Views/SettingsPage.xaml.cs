@@ -59,6 +59,7 @@ namespace WallSafeWinUI.Views
             WifiSwitch.IsOn = s.WifiAutoWallpaperEnabled;
             WifiSsidBox.Text = s.WifiTriggerSsid;
             WifiRestore.IsOn = s.WifiRestoreOnDisconnect;
+            SafeOnShutdownSwitch.IsOn = s.SafeWallpaperOnShutdown;
 
             string? currentNet = WifiWatcher.GetPrimaryConnectedNetworkName();
             CurrentWifiNetworkText.Text = !string.IsNullOrEmpty(currentNet) ? currentNet : "None detected";
@@ -334,6 +335,13 @@ namespace WallSafeWinUI.Views
             WifiWatcher.Instance.Start(immediate: true);
             string? currentNet = WifiWatcher.GetPrimaryConnectedNetworkName();
             UpdateWifiStatusUi(currentNet, WifiWatcher.Instance.IsTriggerActive, null);
+        }
+
+        private void SafeOnShutdown_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_loading) return;
+            Settings.Instance.SafeWallpaperOnShutdown = SafeOnShutdownSwitch.IsOn;
+            Settings.Instance.Save();
         }
 
         private void Wifi_TextChanged(object sender, TextChangedEventArgs e)

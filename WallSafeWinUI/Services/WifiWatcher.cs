@@ -60,6 +60,10 @@ namespace WallSafeWinUI.Services
                 if (!string.IsNullOrEmpty(_wallpaperBeforeTrigger) && File.Exists(_wallpaperBeforeTrigger) && !WallpaperManager.IsSafeWallpaper(_wallpaperBeforeTrigger))
                     return _wallpaperBeforeTrigger;
 
+                var savedShutdown = Settings.Instance.ShutdownSavedOriginalWallpaper;
+                if (!string.IsNullOrEmpty(savedShutdown) && File.Exists(savedShutdown) && !WallpaperManager.IsSafeWallpaper(savedShutdown))
+                    return savedShutdown;
+
                 var saved = Settings.Instance.WifiSavedOriginalWallpaper;
                 if (!string.IsNullOrEmpty(saved) && File.Exists(saved) && !WallpaperManager.IsSafeWallpaper(saved))
                     return saved;
@@ -220,6 +224,11 @@ namespace WallSafeWinUI.Services
                 {
                     _wallpaperBeforeTrigger = curr;
                     Settings.Instance.WifiSavedOriginalWallpaper = curr;
+                }
+                else if (!string.IsNullOrEmpty(Settings.Instance.ShutdownSavedOriginalWallpaper) && File.Exists(Settings.Instance.ShutdownSavedOriginalWallpaper) && !WallpaperManager.IsSafeWallpaper(Settings.Instance.ShutdownSavedOriginalWallpaper))
+                {
+                    _wallpaperBeforeTrigger = Settings.Instance.ShutdownSavedOriginalWallpaper;
+                    Settings.Instance.WifiSavedOriginalWallpaper = Settings.Instance.ShutdownSavedOriginalWallpaper;
                 }
                 else if (!string.IsNullOrEmpty(Settings.Instance.WifiSavedOriginalWallpaper) && File.Exists(Settings.Instance.WifiSavedOriginalWallpaper))
                 {

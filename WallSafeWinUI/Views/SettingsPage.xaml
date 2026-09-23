@@ -148,6 +148,12 @@
                              AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" TextChanged="Wifi_TextChanged" />
                     <ToggleSwitch x:Name="WifiRestore" Header="Restore previous wallpaper on disconnect" Toggled="Wifi_Toggled" />
 
+                    <ToggleSwitch x:Name="SafeOnShutdownSwitch" Header="Safe wallpaper on shutdown &amp; sleep" Toggled="SafeOnShutdown_Toggled" />
+                    <TextBlock Text="Applies safe wallpaper before Windows powers off or sleeps so no risky wallpaper is visible when booting up at school or work. Restores your wallpaper on startup once confirmed safe."
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap" Margin="0,-6,0,0"/>
+
                     <InfoBar x:Name="WifiStatusInfoBar" IsOpen="False" IsClosable="False" Margin="0,4,0,0" />
                 </StackPanel>
             </Border>
