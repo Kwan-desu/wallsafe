@@ -78,9 +78,15 @@
         </StackPanel>
 
         <!-- Active-collection toolbar -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <TextBlock x:Name="ActiveCollectionText" Style="{StaticResource SubtitleTextBlockStyle}"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+            <Button x:Name="PlaySlideshowBtn" Click="PlaySlideshow_Click">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE768;" FontSize="11" />
+                    <TextBlock x:Name="PlaySlideshowText" Text="Play in Slideshow" FontSize="12" />
+                </StackPanel>
+            </Button>
             <Button x:Name="RenameBtn" Content="Rename" Click="Rename_Click" Visibility="Collapsed" />
             <Button x:Name="DeleteBtn" Content="Delete" Click="Delete_Click" Visibility="Collapsed" />
             <TextBlock Text="Tip: drag a wallpaper onto a folder to move it."

@@ -48,7 +48,7 @@ namespace WallSafeWinUI.Views
 
             SlideshowSwitch.IsOn = s.SlideshowEnabled;
             IntervalBox.Value = Math.Round(s.SlideshowIntervalEffectiveSeconds / 60.0, 2);
-            SelectTag(SlideshowSourceCombo, s.SlideshowSource);
+            PopulateSlideshowSources();
             UpdateIntervalHint();
 
             AutoStart.IsOn = StartupManager.IsStartupEnabled();
@@ -286,13 +286,50 @@ namespace WallSafeWinUI.Views
                 : $"Changes wallpaper every {secs / 60.0:0.##} minutes.";
         }
 
+        private void PopulateSlideshowSources()
+        {
+            SlideshowSourceCombo.Items.Clear();
+
+            var favItem = new ComboBoxItem { Content = "All Favorites", Tag = "favorites" };
+            SlideshowSourceCombo.Items.Add(favItem);
+
+            var dlItem = new ComboBoxItem { Content = "Downloads folder", Tag = "downloads" };
+            SlideshowSourceCombo.Items.Add(dlItem);
+
+            var collections = FavoritesManager.Instance.GetCollections();
+            foreach (var col in collections)
+            {
+                if (string.IsNullOrWhiteSpace(col)) continue;
+                int count = FavoritesManager.Instance.GetFavoritesByCollection(col).Count;
+                SlideshowSourceCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"📁 {col} ({count})",
+                    Tag = $"collection:{col}"
+                });
+            }
+
+            string currentSrc = Settings.Instance.SlideshowSource ?? "favorites";
+            ComboBoxItem? matched = null;
+            foreach (var it in SlideshowSourceCombo.Items)
+            {
+                if (it is ComboBoxItem cbi && string.Equals(cbi.Tag as string, currentSrc, StringComparison.OrdinalIgnoreCase))
+                {
+                    matched = cbi;
+                    break;
+                }
+            }
+            SlideshowSourceCombo.SelectedItem = matched ?? favItem;
+        }
+
         private void Slideshow_Config(object sender, SelectionChangedEventArgs e)
         {
             if (_loading) return;
             Settings.Instance.SlideshowSource = (SlideshowSourceCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "favorites";
             Settings.Instance.Save();
+            WallpaperManager.Instance.ResetSlideshowQueue();
             if (Settings.Instance.SlideshowEnabled)
-                WallpaperManager.Instance.StartSlideshowFromSettings();
+                WallpaperManager.Instance.StartSlideshowFromSettings(advanceImmediately: true);
+            App.RootWindow?.SyncSlideshowUi();
         }
 
         // ── Startup ──

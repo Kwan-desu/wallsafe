@@ -1,5 +1,5 @@
 #define MyAppName "WallSafe"
-#define MyAppVersion "3.1.7"
+#define MyAppVersion "3.1.8"
 #define MyAppPublisher "WallSafe Team"
 #define MyAppURL "https://github.com/Kwan-desu/wallsafe"
 #define MyAppExeName "WallSafeWinUI.exe"

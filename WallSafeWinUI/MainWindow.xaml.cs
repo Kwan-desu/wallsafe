@@ -43,6 +43,7 @@ namespace WallSafeWinUI
             AppEvents.RatingModeChanged += _ => SyncRatingModeUi();
 
             SyncSlideshowUi();
+            FavoritesManager.Instance.FavoritesChanged += () => UiDispatch.Post(SyncSlideshowUi);
             SyncDiscretionUi();
             AppEvents.DiscretionBlurChanged += _ => SyncDiscretionUi();
 
@@ -249,7 +250,7 @@ namespace WallSafeWinUI
         }
 
         // ── Slideshow TitleBar Control ──
-        private void SyncSlideshowUi()
+        public void SyncSlideshowUi()
         {
             var s = Settings.Instance;
             bool enabled = s.SlideshowEnabled;
@@ -286,15 +287,7 @@ namespace WallSafeWinUI
             _suppressToggleEvent = true;
             FlyoutSlideshowSwitch.IsOn = enabled;
 
-            string src = s.SlideshowSource?.ToLowerInvariant() ?? "favorites";
-            foreach (var item in FlyoutSourceCombo.Items)
-            {
-                if (item is ComboBoxItem cbi && (cbi.Tag as string) == src)
-                {
-                    FlyoutSourceCombo.SelectedItem = cbi;
-                    break;
-                }
-            }
+            PopulateFlyoutSources();
 
             int sec = s.SlideshowIntervalSeconds;
             int min = s.SlideshowIntervalMinutes;
@@ -315,6 +308,55 @@ namespace WallSafeWinUI
                 }
             }
             _suppressToggleEvent = false;
+        }
+
+        private void SlideshowFlyout_Opening(object? sender, object? e)
+        {
+            PopulateFlyoutSources();
+        }
+
+        private void PopulateFlyoutSources()
+        {
+            bool prevSuppress = _suppressToggleEvent;
+            _suppressToggleEvent = true;
+            try
+            {
+                FlyoutSourceCombo.Items.Clear();
+
+                var favItem = new ComboBoxItem { Content = "All Favorites", Tag = "favorites" };
+                FlyoutSourceCombo.Items.Add(favItem);
+
+                var dlItem = new ComboBoxItem { Content = "Downloads folder", Tag = "downloads" };
+                FlyoutSourceCombo.Items.Add(dlItem);
+
+                var collections = FavoritesManager.Instance.GetCollections();
+                foreach (var col in collections)
+                {
+                    if (string.IsNullOrWhiteSpace(col)) continue;
+                    int count = FavoritesManager.Instance.GetFavoritesByCollection(col).Count;
+                    FlyoutSourceCombo.Items.Add(new ComboBoxItem
+                    {
+                        Content = $"📁 {col} ({count})",
+                        Tag = $"collection:{col}"
+                    });
+                }
+
+                string currentSrc = Settings.Instance.SlideshowSource ?? "favorites";
+                ComboBoxItem? matched = null;
+                foreach (var it in FlyoutSourceCombo.Items)
+                {
+                    if (it is ComboBoxItem cbi && string.Equals(cbi.Tag as string, currentSrc, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matched = cbi;
+                        break;
+                    }
+                }
+                FlyoutSourceCombo.SelectedItem = matched ?? favItem;
+            }
+            finally
+            {
+                _suppressToggleEvent = prevSuppress;
+            }
         }
 
         private void FlyoutSlideshow_Toggled(object sender, RoutedEventArgs e)
@@ -340,6 +382,10 @@ namespace WallSafeWinUI
                 Settings.Instance.SlideshowSource = tag;
                 Settings.Instance.Save();
                 WallpaperManager.Instance.ResetSlideshowQueue();
+                if (Settings.Instance.SlideshowEnabled)
+                {
+                    WallpaperManager.Instance.StartSlideshowFromSettings(advanceImmediately: true);
+                }
             }
         }
 

@@ -74,7 +74,20 @@ namespace WallSafeWinUI.Views
             bool isNamed = !string.IsNullOrEmpty(_activeCollection);
             RenameBtn.Visibility = isNamed ? Visibility.Visible : Visibility.Collapsed;
             DeleteBtn.Visibility = isNamed ? Visibility.Visible : Visibility.Collapsed;
+            PlaySlideshowText.Text = isNamed ? $"Play “{_activeCollection}” in Slideshow" : "Play in Slideshow";
             EmptyState.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void PlaySlideshow_Click(object sender, RoutedEventArgs e)
+        {
+            string targetSource = string.IsNullOrEmpty(_activeCollection) ? "favorites" : $"collection:{_activeCollection}";
+            Settings.Instance.SlideshowSource = targetSource;
+            Settings.Instance.SlideshowEnabled = true;
+            Settings.Instance.Save();
+
+            WallpaperManager.Instance.ResetSlideshowQueue();
+            WallpaperManager.Instance.StartSlideshowFromSettings(advanceImmediately: true);
+            App.RootWindow?.SyncSlideshowUi();
         }
 
         private void Folder_Tapped(object sender, TappedRoutedEventArgs e)

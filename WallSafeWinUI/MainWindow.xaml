@@ -43,14 +43,11 @@
                         <FontIcon x:Name="SlideshowChevron" Glyph="&#xE70D;" FontSize="7" VerticalAlignment="Center" Opacity="0.7" />
                     </StackPanel>
                     <Button.Flyout>
-                        <Flyout Placement="Bottom">
+                        <Flyout x:Name="SlideshowFlyout" Placement="Bottom" Opening="SlideshowFlyout_Opening">
                             <StackPanel Width="270" Spacing="12">
                                 <TextBlock Text="Wallpaper Slideshow" FontWeight="SemiBold" FontSize="15" />
                                 <ToggleSwitch x:Name="FlyoutSlideshowSwitch" Header="Auto-rotate wallpapers" Toggled="FlyoutSlideshow_Toggled" />
-                                <ComboBox x:Name="FlyoutSourceCombo" Header="Source" HorizontalAlignment="Stretch" SelectionChanged="FlyoutSource_Changed">
-                                    <ComboBoxItem Content="Favorites collection" Tag="favorites" />
-                                    <ComboBoxItem Content="Downloads folder" Tag="downloads" />
-                                </ComboBox>
+                                <ComboBox x:Name="FlyoutSourceCombo" Header="Source" HorizontalAlignment="Stretch" SelectionChanged="FlyoutSource_Changed" />
                                 <ComboBox x:Name="FlyoutIntervalCombo" Header="Rotation interval" HorizontalAlignment="Stretch" SelectionChanged="FlyoutInterval_Changed">
                                     <ComboBoxItem Content="30 seconds" Tag="30s" />
                                     <ComboBoxItem Content="1 minute" Tag="1m" />

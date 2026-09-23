@@ -93,10 +93,7 @@
                                    Minimum="0.1" Maximum="1440" SmallChange="0.5" LargeChange="5"
                                    SpinButtonPlacementMode="Compact"
                                    ValueChanged="Interval_ValueChanged" />
-                        <ComboBox x:Name="SlideshowSourceCombo" Header="Source" Width="160" SelectionChanged="Slideshow_Config">
-                            <ComboBoxItem Content="Favorites" Tag="favorites" />
-                            <ComboBoxItem Content="Downloads" Tag="downloads" />
-                        </ComboBox>
+                        <ComboBox x:Name="SlideshowSourceCombo" Header="Source" Width="220" SelectionChanged="Slideshow_Config" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="Quick set:" VerticalAlignment="Center"
