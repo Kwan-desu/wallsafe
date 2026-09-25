@@ -20,6 +20,10 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -27,7 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,14 +59,11 @@ fun ExploreScreen(
     val pagingItems = viewModel.wallpaperPagingFlow.collectAsLazyPagingItems()
     val isRefreshing = pagingItems.loadState.refresh is LoadState.Loading
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+    var searchBarWidth by remember { mutableStateOf(0.dp) }
 
     LaunchedEffect(initialTag) {
-        if (!initialTag.isNullOrBlank()) {
-            viewModel.handleIntent(ExploreIntent.UpdateSearchQuery(initialTag))
-            viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
-            viewModel.handleIntent(ExploreIntent.Search)
-            pagingItems.refresh()
-        }
+        viewModel.setInitialTagOnce(initialTag)
     }
 
     Scaffold(
@@ -81,7 +86,10 @@ fun ExploreScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 720.dp)
-                            .height(50.dp),
+                            .height(50.dp)
+                            .onSizeChanged { size ->
+                                searchBarWidth = with(density) { size.width.toDp() }
+                            },
                         shape = RoundedCornerShape(25.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         tonalElevation = 2.dp
@@ -157,34 +165,36 @@ fun ExploreScreen(
                             }
                         }
                     }
-                }
 
-                // Floating Suggestions Dropdown (Tablet responsive)
-                if (uiState.isSuggestionsVisible && uiState.suggestions.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ElevatedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .widthIn(max = 720.dp)
-                                .heightIn(max = 240.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
+                    // Floating Predictive Suggestions Dropdown (Non-displacing Popup)
+                    if (uiState.isSuggestionsVisible && uiState.suggestions.isNotEmpty() && searchBarWidth > 0.dp) {
+                        val offsetY = with(density) { 54.dp.roundToPx() }
+                        Popup(
+                            alignment = Alignment.TopCenter,
+                            offset = IntOffset(x = 0, y = offsetY),
+                            properties = PopupProperties(focusable = false),
+                            onDismissRequest = {
+                                viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
+                            }
                         ) {
-                            SuggestionsDropdown(
-                                suggestions = uiState.suggestions,
-                                onSuggestionSelected = { selectedTag ->
-                                    focusManager.clearFocus()
-                                    viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
-                                    viewModel.handleIntent(ExploreIntent.UpdateSearchQuery(selectedTag))
-                                    viewModel.handleIntent(ExploreIntent.Search)
-                                    pagingItems.refresh()
-                                }
-                            )
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .width(searchBarWidth)
+                                    .heightIn(max = 240.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
+                            ) {
+                                SuggestionsDropdown(
+                                    suggestions = uiState.suggestions,
+                                    onSuggestionSelected = { selectedTag ->
+                                        focusManager.clearFocus()
+                                        viewModel.handleIntent(ExploreIntent.SelectSuggestion(selectedTag))
+                                        viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
+                                        viewModel.handleIntent(ExploreIntent.Search)
+                                        pagingItems.refresh()
+                                    }
+                                )
+                            }
                         }
                     }
                 }

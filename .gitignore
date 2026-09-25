@@ -46,3 +46,4 @@ wallsafe-android/.idea/
 wallsafe-android/*.log
 installer/bin/
 installer/obj/
+publish/

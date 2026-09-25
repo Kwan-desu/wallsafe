@@ -1,6 +1,7 @@
 package com.wallsafe.feature.explore
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -37,6 +38,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context,
     private val booruRepository: BooruRepository,
     private val favoritesRepository: FavoritesRepository,
@@ -44,6 +46,25 @@ class ExploreViewModel @Inject constructor(
     private val wallpaperEngine: WallpaperEngine,
     private val downloadManager: DownloadManager
 ) : ViewModel() {
+
+    private var isInitialTagConsumed: Boolean
+        get() = savedStateHandle["is_initial_tag_consumed"] ?: false
+        set(value) { savedStateHandle["is_initial_tag_consumed"] = value }
+
+    fun setInitialTagOnce(tag: String?) {
+        val lastTag = savedStateHandle.get<String>("last_applied_tag")
+        if (!tag.isNullOrBlank() && (!isInitialTagConsumed || tag != lastTag)) {
+            isInitialTagConsumed = true
+            savedStateHandle["last_applied_tag"] = tag
+            _uiState.update { 
+                it.copy(
+                    searchQuery = tag, 
+                    isSearchFocused = false, 
+                    isSuggestionsVisible = false 
+                ) 
+            }
+        }
+    }
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
@@ -129,12 +150,13 @@ class ExploreViewModel @Inject constructor(
             .debounce(200)
             .distinctUntilChanged()
             .onEach { query ->
-                if (query.isBlank() || !_uiState.value.isSearchFocused) {
+                val activeToken = query.substringAfterLast(' ').trim()
+                if (activeToken.length < 2 || !_uiState.value.isSearchFocused) {
                     _uiState.update { it.copy(suggestions = emptyList(), isSuggestionsVisible = false) }
                     return@onEach
                 }
                 try {
-                    val suggestions = booruRepository.searchTags(_uiState.value.selectedSource, query)
+                    val suggestions = booruRepository.searchTags(_uiState.value.selectedSource, activeToken)
                     if (_uiState.value.isSearchFocused && _uiState.value.searchQuery.isNotBlank()) {
                         _uiState.update { 
                             it.copy(suggestions = suggestions, isSuggestionsVisible = suggestions.isNotEmpty()) 
@@ -170,6 +192,22 @@ class ExploreViewModel @Inject constructor(
                 _uiState.update { it.copy(searchQuery = intent.query) }
                 if (intent.query.isBlank()) {
                     _uiState.update { it.copy(suggestions = emptyList(), isSuggestionsVisible = false) }
+                }
+            }
+            is ExploreIntent.SelectSuggestion -> {
+                val current = _uiState.value.searchQuery
+                val prefix = if (current.contains(' ')) {
+                    current.substringBeforeLast(' ') + " "
+                } else {
+                    ""
+                }
+                val newQuery = "$prefix${intent.suggestionTag} "
+                _uiState.update { 
+                    it.copy(
+                        searchQuery = newQuery,
+                        suggestions = emptyList(),
+                        isSuggestionsVisible = false
+                    ) 
                 }
             }
             is ExploreIntent.SetSearchFocused -> {

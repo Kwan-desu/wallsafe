@@ -47,10 +47,15 @@ class BooruRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchTags(source: String, query: String): List<TagSuggestion> {
-        val actualSource = if (source == "all") "yande" else source
+        val cleanQuery = query.trim()
+        if (cleanQuery.isBlank()) return emptyList()
+        val actualSource = when (source) {
+            "konasfw", "konansfw" -> source
+            else -> if (source.startsWith("http://") || source.startsWith("https://")) source else "yande"
+        }
         return try {
             val api = apiServiceFactory.create(actualSource)
-            api.searchTags(query = query).map { it.toDomain() }
+            api.searchTags(query = cleanQuery).map { it.toDomain() }
         } catch (e: Exception) {
             emptyList()
         }

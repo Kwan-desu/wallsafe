@@ -30,6 +30,7 @@ data class ExploreUiState(
 sealed interface ExploreIntent {
     data class UpdateSearchQuery(val query: String) : ExploreIntent
     data object Search : ExploreIntent
+    data class SelectSuggestion(val suggestionTag: String) : ExploreIntent
     data class SelectSource(val sourceId: String) : ExploreIntent
     data class SetRatingMode(val mode: ContentRatingMode) : ExploreIntent
     data class SetSortOrder(val order: String) : ExploreIntent
