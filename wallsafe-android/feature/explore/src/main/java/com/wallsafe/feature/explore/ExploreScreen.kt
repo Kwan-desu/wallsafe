@@ -191,16 +191,11 @@ fun ExploreScreen(
                                     onSuggestionSelected = { selectedTag ->
                                         focusManager.clearFocus()
                                         viewModel.handleIntent(ExploreIntent.SelectSuggestion(selectedTag))
-                                        viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
-                                        viewModel.handleIntent(ExploreIntent.Search)
-                                        pagingItems.refresh()
                                     },
                                     recentSearches = uiState.recentSearches,
                                     onRecentSearchSelected = { recentQuery ->
                                         focusManager.clearFocus()
                                         viewModel.handleIntent(ExploreIntent.SelectRecentSearch(recentQuery))
-                                        viewModel.handleIntent(ExploreIntent.Search)
-                                        pagingItems.refresh()
                                     },
                                     onRemoveRecentSearch = { queryToRemove ->
                                         viewModel.handleIntent(ExploreIntent.RemoveRecentSearch(queryToRemove))

@@ -69,6 +69,8 @@ object TagAliases {
 
         // Characters with parenthesized franchise / Booru names
         "azki" to TagAlias("azki_(hololive)", "AZKi (Hololive)", TagCategory.Character),
+        "azki hololive" to TagAlias("azki_(hololive)", "AZKi (Hololive)", TagCategory.Character),
+        "azki (hololive)" to TagAlias("azki_(hololive)", "AZKi (Hololive)", TagCategory.Character),
         "suisei" to TagAlias("hoshimachi_suisei", "Hoshimachi Suisei (Hololive)", TagCategory.Character),
         "hoshimachi suisei" to TagAlias("hoshimachi_suisei", "Hoshimachi Suisei (Hololive)", TagCategory.Character),
         "fubuki" to TagAlias("shirakami_fubuki", "Shirakami Fubuki (Hololive)", TagCategory.Character),

@@ -215,22 +215,24 @@ class ExploreViewModel @Inject constructor(
                 }
             }
             is ExploreIntent.SelectSuggestion -> {
-                val current = _uiState.value.searchQuery
-                val prefix = when {
-                    current.contains(',') -> current.substringBeforeLast(',') + ", "
-                    current.contains(' ') -> current.substringBeforeLast(' ') + " "
-                    else -> ""
+                val current = _uiState.value.searchQuery.trim()
+                val newQuery = if (current.contains(',')) {
+                    val prefix = current.substringBeforeLast(',').trim()
+                    if (prefix.isNotBlank()) "$prefix, ${intent.suggestionTag}" else intent.suggestionTag
+                } else {
+                    intent.suggestionTag
                 }
-                val newQuery = "$prefix${intent.suggestionTag} "
                 _uiState.update { 
                     it.copy(
                         searchQuery = newQuery,
                         suggestions = emptyList(),
-                        isSuggestionsVisible = false
+                        isSuggestionsVisible = false,
+                        isSearchFocused = false,
+                        isSearchActive = false
                     ) 
                 }
                 viewModelScope.launch {
-                    settingsRepository.addRecentSearch(intent.suggestionTag)
+                    settingsRepository.addRecentSearch(newQuery)
                 }
             }
             is ExploreIntent.SelectRecentSearch -> {
@@ -241,7 +243,8 @@ class ExploreViewModel @Inject constructor(
                         searchQuery = resolved,
                         suggestions = emptyList(),
                         isSuggestionsVisible = false,
-                        isSearchFocused = false
+                        isSearchFocused = false,
+                        isSearchActive = false
                     )
                 }
                 viewModelScope.launch {

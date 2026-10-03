@@ -8,7 +8,7 @@ import retrofit2.http.Query
 interface BooruApiService {
     @GET("post.json")
     suspend fun fetchPosts(
-        @Query("tags") tags: String,
+        @Query(value = "tags", encoded = true) tags: String,
         @Query("page") page: Int,
         @Query("limit") limit: Int = 40
     ): List<BooruPostDto>

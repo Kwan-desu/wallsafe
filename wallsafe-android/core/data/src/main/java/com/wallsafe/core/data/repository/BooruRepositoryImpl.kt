@@ -17,13 +17,18 @@ class BooruRepositoryImpl @Inject constructor(
     private val apiServiceFactory: BooruApiServiceFactory
 ) : BooruRepository {
 
+    private fun sanitizeTags(tags: String): String {
+        return tags.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }.joinToString("+")
+    }
+
     override suspend fun fetchPosts(source: String, tags: String, page: Int, limit: Int): List<PostItem> {
+        val sanitized = sanitizeTags(tags)
         if (source == "all") {
-            return fetchAllSources(tags, page, limit)
+            return fetchAllSources(sanitized, page, limit)
         }
         return try {
             val api = apiServiceFactory.create(source)
-            api.fetchPosts(tags = tags, page = page, limit = limit).map { it.toDomain(source) }
+            api.fetchPosts(tags = sanitized, page = page, limit = limit).map { it.toDomain(source) }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -31,13 +36,14 @@ class BooruRepositoryImpl @Inject constructor(
     }
 
     override suspend fun fetchAllSources(tags: String, page: Int, limit: Int): List<PostItem> = coroutineScope {
+        val sanitized = sanitizeTags(tags)
         val sources = listOf("yande", "konasfw")
         val perSourceLimit = (limit / sources.size).coerceAtLeast(1)
         val deferreds = sources.map { src ->
             async {
                 try {
                     val api = apiServiceFactory.create(src)
-                    api.fetchPosts(tags = tags, page = page, limit = perSourceLimit).map { it.toDomain(src) }
+                    api.fetchPosts(tags = sanitized, page = page, limit = perSourceLimit).map { it.toDomain(src) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                     emptyList()
@@ -200,7 +206,7 @@ class BooruRepositoryImpl @Inject constructor(
                 } else {
                     async {
                         val preview = try {
-                            val posts = api.fetchPosts(page = 1, limit = 1, tags = "${item.tag} rating:s")
+                            val posts = api.fetchPosts(page = 1, limit = 1, tags = sanitizeTags("${item.tag} rating:s"))
                             posts.firstOrNull()?.sampleUrl ?: posts.firstOrNull()?.previewUrl
                         } catch (e: Exception) {
                             null

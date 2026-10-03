@@ -3,6 +3,7 @@ package com.wallsafe.core.network.di
 import android.content.Context
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.wallsafe.core.network.BooruApiServiceFactory
+import com.wallsafe.core.network.interceptor.BooruQuerySanitizerInterceptor
 import com.wallsafe.core.network.interceptor.RefererInterceptor
 import com.wallsafe.core.network.interceptor.UserAgentInterceptor
 import dagger.Module
@@ -47,6 +48,7 @@ object NetworkModule {
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(RefererInterceptor())
             .addInterceptor(UserAgentInterceptor())
+            .addInterceptor(BooruQuerySanitizerInterceptor())
             .addInterceptor(loggingInterceptor)
             .build()
     }
