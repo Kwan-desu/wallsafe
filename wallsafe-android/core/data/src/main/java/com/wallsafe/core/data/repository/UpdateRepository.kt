@@ -42,17 +42,14 @@ class UpdateRepositoryImpl @Inject constructor(
     companion object {
         const val GITHUB_OWNER = "Kwan-desu"
         const val GITHUB_REPO = "wallsafe"
-        // Token enables in-app updates while the repository is private
-        const val AUTH_TOKEN = "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"
     }
 
     override suspend fun checkForUpdate(currentVersionName: String): Result<AppUpdateInfo> = withContext(Dispatchers.IO) {
         try {
-            val authHeader = "Bearer $AUTH_TOKEN"
             val releases = gitHubApiService.getReleases(
                 owner = GITHUB_OWNER,
                 repo = GITHUB_REPO,
-                authorization = authHeader
+                authorization = null
             )
 
             // Find the latest non-draft release containing an Android APK asset
@@ -94,17 +91,22 @@ class UpdateRepositoryImpl @Inject constructor(
                 apkFile.delete()
             }
 
-            val downloadUrl = if (updateInfo.assetId > 0) {
+            val downloadUrl = if (updateInfo.downloadUrl.isNotBlank()) {
+                updateInfo.downloadUrl
+            } else if (updateInfo.assetId > 0) {
                 "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/assets/${updateInfo.assetId}"
             } else {
-                updateInfo.downloadUrl
+                return@withContext Result.failure(IllegalStateException("No valid download URL"))
             }
 
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url(downloadUrl)
-                .header("Accept", "application/octet-stream")
-                .header("Authorization", "Bearer $AUTH_TOKEN")
-                .build()
+
+            if (downloadUrl.contains("api.github.com")) {
+                requestBuilder.header("Accept", "application/octet-stream")
+            }
+
+            val request = requestBuilder.build()
 
             val response = okHttpClient.newCall(request).execute()
             if (!response.isSuccessful) {
