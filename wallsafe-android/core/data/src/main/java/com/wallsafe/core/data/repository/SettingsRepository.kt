@@ -74,6 +74,10 @@ interface SettingsRepository {
     suspend fun setPanicWallpaperUri(uri: String)
     suspend fun setPanicAutoRestore(autoRestore: Boolean)
     suspend fun setAutoUpdateCheckEnabled(enabled: Boolean)
+    val recentSearches: Flow<List<String>>
+    suspend fun addRecentSearch(query: String)
+    suspend fun removeRecentSearch(query: String)
+    suspend fun clearRecentSearches()
 }
 
 @Singleton
@@ -146,4 +150,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setPanicWallpaperUri(uri: String) { preferences.setPanicWallpaperUri(uri) }
     override suspend fun setPanicAutoRestore(autoRestore: Boolean) { preferences.setPanicAutoRestore(autoRestore) }
     override suspend fun setAutoUpdateCheckEnabled(enabled: Boolean) { preferences.setAutoUpdateCheckEnabled(enabled) }
+    override val recentSearches: Flow<List<String>> = preferences.recentSearches
+    override suspend fun addRecentSearch(query: String) { preferences.addRecentSearch(query) }
+    override suspend fun removeRecentSearch(query: String) { preferences.removeRecentSearch(query) }
+    override suspend fun clearRecentSearches() { preferences.clearRecentSearches() }
 }

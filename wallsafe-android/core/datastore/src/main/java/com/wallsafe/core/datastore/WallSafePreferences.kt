@@ -145,7 +145,44 @@ class WallSafePreferences @Inject constructor(
     val isAutoUpdateCheckEnabled: Flow<Boolean> = dataStore.data.map { it[AUTO_UPDATE_CHECK_ENABLED] ?: true }
     suspend fun setAutoUpdateCheckEnabled(enabled: Boolean): Unit { dataStore.edit { it[AUTO_UPDATE_CHECK_ENABLED] = enabled } }
 
+    val recentSearches: Flow<List<String>> = dataStore.data.map { prefs ->
+        val raw = prefs[RECENT_SEARCHES] ?: ""
+        if (raw.isBlank()) emptyList()
+        else raw.split("\n").filter { it.isNotBlank() }
+    }.distinctUntilChanged()
+
+    suspend fun addRecentSearch(query: String) {
+        val clean = query.trim()
+        if (clean.isBlank()) return
+        dataStore.edit { prefs ->
+            val raw = prefs[RECENT_SEARCHES] ?: ""
+            val list = if (raw.isBlank()) mutableListOf() else raw.split("\n").filter { it.isNotBlank() }.toMutableList()
+            list.removeAll { it.equals(clean, ignoreCase = true) }
+            list.add(0, clean)
+            val trimmed = list.take(20)
+            prefs[RECENT_SEARCHES] = trimmed.joinToString("\n")
+        }
+    }
+
+    suspend fun removeRecentSearch(query: String) {
+        dataStore.edit { prefs ->
+            val raw = prefs[RECENT_SEARCHES] ?: ""
+            if (raw.isNotBlank()) {
+                val list = raw.split("\n").filter { it.isNotBlank() }.toMutableList()
+                list.removeAll { it.equals(query.trim(), ignoreCase = true) }
+                prefs[RECENT_SEARCHES] = list.joinToString("\n")
+            }
+        }
+    }
+
+    suspend fun clearRecentSearches() {
+        dataStore.edit { prefs ->
+            prefs.remove(RECENT_SEARCHES)
+        }
+    }
+
     companion object {
+        val RECENT_SEARCHES = stringPreferencesKey("recent_searches")
         val AUTO_UPDATE_CHECK_ENABLED = booleanPreferencesKey("auto_update_check_enabled")
         val HAS_AGREED_TO_TERMS = booleanPreferencesKey("has_agreed_to_terms")
         val USER_NAME = stringPreferencesKey("user_name")

@@ -10,8 +10,12 @@ enum class TagCategory {
 data class TagSuggestion(
     val name: String,
     val count: Int,
-    val category: TagCategory
+    val category: TagCategory,
+    val title: String? = null
 ) {
+    val displayTitle: String
+        get() = title?.takeIf { it.isNotBlank() } ?: formatBooruTagName(name)
+
     val categoryColor: String
         get() = when (category) {
             TagCategory.General -> "#009BE6"
@@ -21,4 +25,30 @@ data class TagSuggestion(
             TagCategory.Circle -> "#00CCCC"
             TagCategory.Faults -> "#FF0000"
         }
+
+    companion object {
+        fun formatBooruTagName(rawName: String): String {
+            return rawName.split("_")
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { word ->
+                    when {
+                        word.startsWith("(") && word.endsWith(")") -> {
+                            val inner = word.removeSurrounding("(", ")")
+                            "(" + inner.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } + ")"
+                        }
+                        word.startsWith("(") -> {
+                            val inner = word.removePrefix("(")
+                            "(" + inner.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                        }
+                        word.endsWith(")") -> {
+                            val inner = word.removeSuffix(")")
+                            inner.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } + ")"
+                        }
+                        else -> {
+                            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                        }
+                    }
+                }
+        }
+    }
 }

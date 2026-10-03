@@ -2,6 +2,7 @@ package com.wallsafe.core.data.repository
 
 import com.wallsafe.core.model.PostItem
 import com.wallsafe.core.model.SeriesCategoryItem
+import com.wallsafe.core.model.TagAliases
 import com.wallsafe.core.model.TagSuggestion
 import com.wallsafe.core.network.BooruApiServiceFactory
 import com.wallsafe.core.network.dto.toDomain
@@ -49,16 +50,53 @@ class BooruRepositoryImpl @Inject constructor(
     override suspend fun searchTags(source: String, query: String): List<TagSuggestion> {
         val cleanQuery = query.trim()
         if (cleanQuery.isBlank()) return emptyList()
+
+        val localSuggestions = TagAliases.findSuggestions(cleanQuery)
+        val seenTags = mutableMapOf<String, TagSuggestion>()
+        for (local in localSuggestions) {
+            seenTags[local.name.lowercase()] = local
+        }
+
         val actualSource = when (source) {
             "konasfw", "konansfw" -> source
             else -> if (source.startsWith("http://") || source.startsWith("https://")) source else "yande"
         }
-        return try {
+
+        val remoteList = try {
             val api = apiServiceFactory.create(actualSource)
-            api.searchTags(query = cleanQuery).map { it.toDomain() }
+            val apiQuery = if (!cleanQuery.contains("*")) "*${cleanQuery.replace(' ', '_')}*" else cleanQuery
+            val results = api.searchTags(query = apiQuery)
+            if (results.isEmpty() && apiQuery.startsWith("*") && apiQuery.endsWith("*")) {
+                api.searchTags(query = "${cleanQuery.replace(' ', '_')}*")
+            } else {
+                results
+            }
         } catch (e: Exception) {
             emptyList()
         }
+
+        val resultList = mutableListOf<TagSuggestion>()
+        // Merge remote items, inheriting local title if present
+        for (remoteDto in remoteList) {
+            val domain = remoteDto.toDomain()
+            val lower = domain.name.lowercase()
+            val matchedLocal = seenTags.remove(lower)
+            if (matchedLocal != null) {
+                resultList.add(domain.copy(title = matchedLocal.title ?: matchedLocal.displayTitle))
+            } else {
+                resultList.add(domain)
+            }
+        }
+
+        // Add remaining local items that weren't returned by remote
+        for (remainingLocal in seenTags.values) {
+            resultList.add(remainingLocal)
+        }
+
+        return resultList.sortedWith(
+            compareByDescending<TagSuggestion> { it.count > 0 }
+                .thenByDescending { it.count }
+        ).take(15)
     }
 
     private var cachedPopularSeries: List<SeriesCategoryItem>? = null

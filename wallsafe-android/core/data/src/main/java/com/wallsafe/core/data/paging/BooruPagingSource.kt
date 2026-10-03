@@ -6,6 +6,7 @@ import com.wallsafe.core.data.repository.BooruRepository
 import com.wallsafe.core.model.PostItem
 
 import com.wallsafe.core.model.ContentRatingMode
+import com.wallsafe.core.model.TagAliases
 
 class BooruPagingSource(
     private val repository: BooruRepository,
@@ -23,8 +24,9 @@ class BooruPagingSource(
         return try {
             val page = params.key ?: 1
             
-            // Build effective tags
-            val queryTokens = tags.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }.toMutableList()
+            // Build effective tags with smart alias resolution
+            val resolvedTags = TagAliases.resolveSmartQuery(tags)
+            val queryTokens = resolvedTags.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }.toMutableList()
             
             // 1. Rating filter
             queryTokens.removeAll { it.startsWith("rating:") }

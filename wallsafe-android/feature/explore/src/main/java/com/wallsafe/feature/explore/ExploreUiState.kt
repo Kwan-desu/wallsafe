@@ -24,13 +24,17 @@ data class ExploreUiState(
     val favoriteKeys: Set<String> = emptySet(),
     val isDiscretionBlur: Boolean = false,
     val isWallpaperTagOnly: Boolean = false,
-    val tagBlacklist: Set<String> = emptySet()
+    val tagBlacklist: Set<String> = emptySet(),
+    val recentSearches: List<String> = emptyList()
 )
 
 sealed interface ExploreIntent {
     data class UpdateSearchQuery(val query: String) : ExploreIntent
     data object Search : ExploreIntent
     data class SelectSuggestion(val suggestionTag: String) : ExploreIntent
+    data class SelectRecentSearch(val query: String) : ExploreIntent
+    data class RemoveRecentSearch(val query: String) : ExploreIntent
+    data object ClearRecentSearches : ExploreIntent
     data class SelectSource(val sourceId: String) : ExploreIntent
     data class SetRatingMode(val mode: ContentRatingMode) : ExploreIntent
     data class SetSortOrder(val order: String) : ExploreIntent

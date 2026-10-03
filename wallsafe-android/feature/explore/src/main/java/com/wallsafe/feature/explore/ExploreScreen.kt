@@ -166,8 +166,10 @@ fun ExploreScreen(
                         }
                     }
 
-                    // Floating Predictive Suggestions Dropdown (Non-displacing Popup)
-                    if (uiState.isSuggestionsVisible && uiState.suggestions.isNotEmpty() && searchBarWidth > 0.dp) {
+                    // Floating Predictive Suggestions & Recent Searches Dropdown (Non-displacing Popup)
+                    val showRecents = uiState.isSearchFocused && uiState.searchQuery.isBlank() && uiState.recentSearches.isNotEmpty()
+                    val showSuggestions = uiState.isSuggestionsVisible && uiState.suggestions.isNotEmpty() && uiState.searchQuery.isNotBlank()
+                    if ((showRecents || showSuggestions) && searchBarWidth > 0.dp) {
                         val offsetY = with(density) { 54.dp.roundToPx() }
                         Popup(
                             alignment = Alignment.TopCenter,
@@ -180,7 +182,7 @@ fun ExploreScreen(
                             ElevatedCard(
                                 modifier = Modifier
                                     .width(searchBarWidth)
-                                    .heightIn(max = 240.dp),
+                                    .heightIn(max = 280.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
                             ) {
@@ -192,7 +194,21 @@ fun ExploreScreen(
                                         viewModel.handleIntent(ExploreIntent.SetSearchFocused(false))
                                         viewModel.handleIntent(ExploreIntent.Search)
                                         pagingItems.refresh()
-                                    }
+                                    },
+                                    recentSearches = uiState.recentSearches,
+                                    onRecentSearchSelected = { recentQuery ->
+                                        focusManager.clearFocus()
+                                        viewModel.handleIntent(ExploreIntent.SelectRecentSearch(recentQuery))
+                                        viewModel.handleIntent(ExploreIntent.Search)
+                                        pagingItems.refresh()
+                                    },
+                                    onRemoveRecentSearch = { queryToRemove ->
+                                        viewModel.handleIntent(ExploreIntent.RemoveRecentSearch(queryToRemove))
+                                    },
+                                    onClearRecentSearches = {
+                                        viewModel.handleIntent(ExploreIntent.ClearRecentSearches)
+                                    },
+                                    isShowingRecents = showRecents
                                 )
                             }
                         }

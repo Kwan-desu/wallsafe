@@ -14,6 +14,7 @@ import com.wallsafe.core.data.repository.FavoritesRepository
 import com.wallsafe.core.data.repository.SettingsRepository
 import com.wallsafe.core.model.ContentRatingMode
 import com.wallsafe.core.model.PostItem
+import com.wallsafe.core.model.TagAliases
 import com.wallsafe.core.wallpaper.DownloadManager
 import com.wallsafe.core.wallpaper.WallpaperEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -143,23 +144,42 @@ class ExploreViewModel @Inject constructor(
                 _uiState.update { it.copy(favoriteKeys = favKeys) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.recentSearches.collect { recents ->
+                _uiState.update { it.copy(recentSearches = recents) }
+            }
+        }
 
         // Fast & reliable search query debouncing for suggestions
         _uiState
             .mapStateForSearch()
-            .debounce(200)
+            .debounce(150)
             .distinctUntilChanged()
             .onEach { query ->
-                val activeToken = query.substringAfterLast(' ').trim()
-                if (activeToken.length < 2 || !_uiState.value.isSearchFocused) {
+                val clean = query.trim()
+                if (clean.isBlank() || !_uiState.value.isSearchFocused) {
                     _uiState.update { it.copy(suggestions = emptyList(), isSuggestionsVisible = false) }
                     return@onEach
                 }
+                val activeToken = when {
+                    clean.contains(',') -> clean.substringAfterLast(',').trim()
+                    else -> clean.substringAfterLast(' ').trim()
+                }
                 try {
-                    val suggestions = booruRepository.searchTags(_uiState.value.selectedSource, activeToken)
+                    val phraseMatches = if (clean.contains(' ') && !clean.contains(',')) {
+                        TagAliases.findSuggestions(clean)
+                    } else {
+                        emptyList()
+                    }
+                    val tokenMatches = if (activeToken.length >= 2) {
+                        booruRepository.searchTags(_uiState.value.selectedSource, activeToken)
+                    } else {
+                        emptyList()
+                    }
+                    val combined = (phraseMatches + tokenMatches).distinctBy { it.name.lowercase() }
                     if (_uiState.value.isSearchFocused && _uiState.value.searchQuery.isNotBlank()) {
                         _uiState.update { 
-                            it.copy(suggestions = suggestions, isSuggestionsVisible = suggestions.isNotEmpty()) 
+                            it.copy(suggestions = combined, isSuggestionsVisible = combined.isNotEmpty()) 
                         }
                     }
                 } catch (e: Exception) {
@@ -196,10 +216,10 @@ class ExploreViewModel @Inject constructor(
             }
             is ExploreIntent.SelectSuggestion -> {
                 val current = _uiState.value.searchQuery
-                val prefix = if (current.contains(' ')) {
-                    current.substringBeforeLast(' ') + " "
-                } else {
-                    ""
+                val prefix = when {
+                    current.contains(',') -> current.substringBeforeLast(',') + ", "
+                    current.contains(' ') -> current.substringBeforeLast(' ') + " "
+                    else -> ""
                 }
                 val newQuery = "$prefix${intent.suggestionTag} "
                 _uiState.update { 
@@ -208,6 +228,34 @@ class ExploreViewModel @Inject constructor(
                         suggestions = emptyList(),
                         isSuggestionsVisible = false
                     ) 
+                }
+                viewModelScope.launch {
+                    settingsRepository.addRecentSearch(intent.suggestionTag)
+                }
+            }
+            is ExploreIntent.SelectRecentSearch -> {
+                val raw = intent.query.trim()
+                val resolved = TagAliases.resolveSmartQuery(raw)
+                _uiState.update {
+                    it.copy(
+                        searchQuery = resolved,
+                        suggestions = emptyList(),
+                        isSuggestionsVisible = false,
+                        isSearchFocused = false
+                    )
+                }
+                viewModelScope.launch {
+                    settingsRepository.addRecentSearch(raw)
+                }
+            }
+            is ExploreIntent.RemoveRecentSearch -> {
+                viewModelScope.launch {
+                    settingsRepository.removeRecentSearch(intent.query)
+                }
+            }
+            is ExploreIntent.ClearRecentSearches -> {
+                viewModelScope.launch {
+                    settingsRepository.clearRecentSearches()
                 }
             }
             is ExploreIntent.SetSearchFocused -> {
@@ -219,12 +267,28 @@ class ExploreViewModel @Inject constructor(
                 }
             }
             is ExploreIntent.Search -> {
-                _uiState.update { 
-                    it.copy(
-                        isSuggestionsVisible = false,
-                        isSearchFocused = false,
-                        isSearchActive = false
-                    ) 
+                val raw = _uiState.value.searchQuery.trim()
+                if (raw.isNotBlank()) {
+                    val resolved = TagAliases.resolveSmartQuery(raw)
+                    viewModelScope.launch {
+                        settingsRepository.addRecentSearch(raw)
+                    }
+                    _uiState.update { 
+                        it.copy(
+                            searchQuery = resolved,
+                            isSuggestionsVisible = false,
+                            isSearchFocused = false,
+                            isSearchActive = false
+                        ) 
+                    }
+                } else {
+                    _uiState.update { 
+                        it.copy(
+                            isSuggestionsVisible = false,
+                            isSearchFocused = false,
+                            isSearchActive = false
+                        ) 
+                    }
                 }
             }
             is ExploreIntent.SelectSource -> _uiState.update { it.copy(selectedSource = intent.sourceId) }
