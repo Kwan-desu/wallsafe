@@ -47,19 +47,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
-[InstallDelete]
-; Remove the WinUI 3 / Windows App SDK runtime left behind by 3.x so only the new build remains.
-Type: files; Name: "{app}\WallSafeWinUI.*"
-Type: files; Name: "{app}\*.dll"
-Type: files; Name: "{app}\*.pri"
-Type: files; Name: "{app}\*.winmd"
-Type: files; Name: "{app}\*.json"
-Type: filesandordirs; Name: "{app}\Assets"
-Type: filesandordirs; Name: "{app}\Microsoft.UI.Xaml"
-Type: filesandordirs; Name: "{app}\Views"
-Type: filesandordirs; Name: "{app}\Controls"
-Type: filesandordirs; Name: "{app}\wwwroot"
-
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -76,3 +63,33 @@ Filename: "{cmd}"; Parameters: "/C taskkill /IM {#MyAppExeName} /F"; Flags: runh
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\WallSafe\WebView2"
+
+[Code]
+// Upgrading from 3.x (WinUI 3) leaves hundreds of runtime files and locale folders behind.
+// Before copying, empty the install folder (keeping the uninstaller) — but only when it is
+// clearly a WallSafe folder, so a custom directory with unrelated files is never touched.
+procedure CleanAppDir(Dir: String);
+var
+  FR: TFindRec;
+  Name: String;
+begin
+  if not (FileExists(Dir + '\WallSafe.exe') or FileExists(Dir + '\WallSafeWinUI.exe')) then Exit;
+  if FindFirst(Dir + '\*', FR) then
+  try
+    repeat
+      Name := FR.Name;
+      if (Name = '.') or (Name = '..') or (Pos('unins', LowerCase(Name)) = 1) then Continue;
+      if FR.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0 then
+        DelTree(Dir + '\' + Name, True, True, True)
+      else
+        DeleteFile(Dir + '\' + Name);
+    until not FindNext(FR);
+  finally
+    FindClose(FR);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then CleanAppDir(ExpandConstant('{app}'));
+end;

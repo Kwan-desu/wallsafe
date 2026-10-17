@@ -7,7 +7,7 @@ namespace WallSafeWeb
 {
     /// <summary>
     /// Process entry + app-wide lifecycle (single instance, tray/hotkey host, background services).
-    /// Mirrors WallSafeWinUI.App so the shared services behave identically.
+    /// App lifetime: single instance, tray, hotkey and background watchers.
     /// </summary>
     public static class App
     {

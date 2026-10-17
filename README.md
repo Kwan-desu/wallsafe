@@ -1,111 +1,48 @@
 # 🛡️ WallSafe
 
-> **Next-Generation Windows 11 Desktop Anime Wallpaper Manager with Instant Panic Hotkey Protection (WinUI 3 & Windows App SDK).**
+> Windows anime wallpaper manager with an instant panic hotkey — plus an Android companion app.
 
-WallSafe is a sleek, modern desktop application crafted in **WinUI 3 / Windows App SDK** and **.NET 8** that lets you explore, download, and set high-resolution anime wallpapers from top booru boards—all while keeping your privacy safe with a hardware-level instant panic concealment system.
+WallSafe lets you browse, download and set high-resolution wallpapers from booru boards, and keeps you safe with a global hotkey that instantly switches your desktop to a safe wallpaper.
 
-Designed natively for Windows 11, WallSafe features a modern **Windows App** dashboard layout with horizontal carousels, responsive statistics, smooth pagination controls, Mica/Acrylic backdrops, and instant emergency protection.
+Version 4.0 rebuilt the desktop app with a modern HTML/CSS/JS interface hosted in WebView2.
 
----
+## ✨ Features
+- **Explore** Konachan (SFW), Konachan.com, yande.re and custom Moebooru boards, with tag autocomplete (Ctrl + K), sorting, resolution and desktop-fit filters
+- **SFW / 16+ / 18+** rating switch in the title bar; discretion blur hides sensitive thumbnails until hovered
+- **Panic hotkey** (default `Ctrl + Shift + W`, works in full-screen games): safe wallpaper, hide app, minimize windows, mute — press again to restore
+- **Auto-safe triggers**: switch to the safe wallpaper on chosen Wi-Fi networks, near a location, or before sleep/shutdown
+- **Favorites & collections** with drag & drop, **downloads**, **history** with one-click re-apply
+- **Slideshow** from favorites, a collection or downloads; per-monitor targeting
+- Windows 11 Mica/Acrylic window, light/dark/system theme, accent colors, tray mode, start with Windows, in-app updates
 
-## ✨ Key Features
+## 📦 Download
+Get the latest from **[Releases](https://github.com/Kwan-desu/wallsafe/releases/latest)**:
 
-### 🎨 Windows App Dashboard & Fluent Design (New in v3.0.0)
-- **Windows App Layout**: Restructured around tidy horizontal scrolling shelves (Trending wallpapers, Popular Universes & Franchises, and Your Favorites).
-- **Interactive Carousel Controls**: Smooth horizontal navigation with left/right chevrons (`<` and `>`) and centered live **`PipsPager`** dot indicators (`● ○`).
-- **Mouse Wheel Horizontal Scrolling**: Scroll naturally over any carousel with your mouse wheel—no need to hold `Shift`.
-- **Responsive Statistics Strip**: 5-column full-width overview cards displaying Favorites, Downloads, Applied wallpapers, Top pick franchise, and **Panic Triggers count**.
-- **Dashboard Section Customization**: Toggle individual sections on/off under *Settings → Home dashboard* (including the overview statistics strip).
-- **Mica & Acrylic Material Surfaces**: Deep Windows 11 integration with Mica/Acrylic window backdrops and Fluent theme adaptation (Light & Dark modes).
+| File | Use |
+|---|---|
+| `WallSafe-v4.x.x-Setup.exe` | Installer — also upgrades existing 3.x installs and keeps your data |
+| `WallSafe-v4.x.x-win-x64-portable.zip` | Portable — extract and run `WallSafe.exe` |
 
-### 🌐 Multi-Source Booru Aggregation & Filter Memory
-- Stream thousands of wallpapers from **konachan.net** (SFW), **konachan.com**, and **yande.re**, plus "All Sources" multi-engine aggregation.
-- **3-Mode Segmented Rating Selector**: Instant switching between **SFW**, **Questionable**, and **Explicit** catalogs directly in the title bar.
-- Add and manage custom Danbooru / Moebooru boards with SFW classification.
-- Remembers your customized filter choices independently for each rating mode.
+Requires Windows 10 1809+ and the Microsoft Edge WebView2 Runtime (built into Windows 11).
 
-### ⚡ Instant In-Card Actions
-- Clean action bar on every wallpaper card:
-  - 👁️ **View / Double-click**: Instant progressive 1080p/4K inspection preview modal.
-  - ❤️ **Favorite**: Instantly save to your local offline favorites collection.
-  - ⚡ **Apply Wallpaper**: Set desktop wallpaper immediately with one click.
-  - 📥 **Download**: Download original high-resolution art to your pictures folder.
-  - ↗️ **Source**: Open the original booru post in your browser.
-
-### ✨ Source-Aware Universe & Series Discovery
-- **Live Board Ranking**: Popular franchises automatically rank based on real-time booru popularity and post counts on the currently active image board.
-- **Live Artwork Counts & Badges**: Each card displays live post counts (e.g. `47.6k Artworks`), genre badges (*Anime*, *Gaming*, *Custom*), and representative backdrop art.
-- **Clipped Rounded Banners**: 16:9 banner cards (`CornerRadius="12"`) with dark gradient title overlays and subtle hover elevation.
-
-### 🚨 Global Panic Hotkey & Stealth Suite
-- **Instant Panic Switch**: Press the global shortcut (default `Ctrl + Shift + W`, fully customizable) anywhere—even inside full-screen games.
-- **Bimodal Restore**: First press switches desktop to default Windows 11 safe wallpaper and conceals WallSafe; second press restores your previous anime wallpaper.
-- **Panic Trigger Tracker**: Tracks how many times emergency safe wallpaper has been invoked, displayed directly on your Home dashboard.
-- **Concealment Actions**: Optional auto-minimize all windows (`Win+D` simulation) and master desktop mute.
-
-### 🔄 Automated Slideshow Engine & Title-Bar Quick Control
-- **Title-Bar Slideshow Control**: One-click toggle directly in the top title bar showing live status (`Slideshow: On` / `Slideshow: Off`).
-- **Quick Settings Flyout**: Configure rotation intervals (30s, 1m, 5m, 15m, 30m, 1h), choose wallpaper source (Favorites or Downloads), and skip to next wallpaper with one tap.
-
-### 🛡️ Discretion Mode & Privacy Shield
-- **Genuine Privacy Concealment**: Sensitive (Questionable/Explicit) thumbnails are completely veiled behind an opaque frosted privacy shield (`Thumb.Opacity = 0.05` + frosted overlay).
-- **Hover-to-Reveal**: Hovering smoothly unveils the card; moving away instantly conceals it.
-
-### 🚀 Windows Startup, Background Tray Mode & In-App OTA Updates
-- **In-App OTA Updates**: Built-in GitHub update engine under *Settings → About & Updates*. Checks GitHub releases directly, verifies versions, and downloads & installs updates with 1 click.
-- **Start in Background / System Tray**: Silently loads into the system tray and aggressively compacts process memory (`AppSuspensionManager`) without popping up windows.
-
----
-
-## 📦 Installation & Downloads
-
-Download the latest version from the **[Releases](https://github.com/Kwan-desu/wallsafe/releases)** page:
-
-| Package | Description | Recommended For |
-| :--- | :--- | :--- |
-| **`WallSafe-v3.1.0-Setup.exe`** | **Standalone Inno Setup Wizard**: Installs to `%LOCALAPPDATA%\Programs\WallSafe` (or custom drive like `D:\WallSafe`), creates Desktop & Start Menu shortcuts, and integrates with Windows Settings Apps. | Most users (one-click setup) |
-| **`WallSafe-v3.1.0-win-x64-portable.zip`** | **Self-Contained Portable Archive**: Extract anywhere (or on a USB flash drive) and run `WallSafeWinUI.exe` directly without installation. | Portable / USB drive users |
-
----
-
-## ⌨️ Default Shortcuts
-
+## ⌨️ Shortcuts
 | Shortcut | Action |
-| :--- | :--- |
-| `Ctrl + Shift + W` | **Global Panic Hotkey** (Instantly switch to safe wallpaper and conceal WallSafe) |
-| `Click Tray Icon` | Show / Hide WallSafe window |
-| `Double Click Card` | Open High-Resolution Progressive Preview Dialog |
+|---|---|
+| `Ctrl + Shift + W` | Panic (customizable in Settings) |
+| `Ctrl + K` | Search |
+| `Ctrl + 1…6` | Home / Explore / Favorites / Downloads / History / Settings |
+| `F5` | Refresh |
+| `← →` `Esc` `I` | In the viewer: previous/next, close, toggle details |
 
----
+## 🛠️ Repository
+| Folder | Contents |
+|---|---|
+| `WallSafeWeb/` | Desktop app (.NET 8 WinForms + WebView2, UI in `wwwroot/`) — see [`WallSafeWeb/README.md`](WallSafeWeb/README.md) |
+| `wallsafe-android/` | Android app (Kotlin, Jetpack Compose) |
+| `installer/` | Inno Setup script (`WallSafeWeb.iss`) |
+| `IconGen/` | Icon generation tool |
 
-## 🛠️ Building from Source
-
-### Prerequisites
-- Windows 10 (version 1809+ / build 17763+) or Windows 11
-- [.NET 8 SDK](https://dotnet.microsoft.com/)
-- Visual Studio 2022 / 2026 or Windows App SDK Build Tools
-
-### Building WallSafe (WinUI 3)
-```powershell
-# Clone repository
-git clone https://github.com/Kwan-desu/wallsafe.git
-cd wallsafe
-
-# Build unpackaged self-contained Release
-dotnet build WallSafeWinUI/WallSafeWinUI.csproj -c Release -p:Platform=x64
-
-# Publish portable folder
-dotnet publish WallSafeWinUI/WallSafeWinUI.csproj -c Release -r win-x64 -p:Platform=x64
-```
-
-### Building the Setup Installer
-```powershell
-# Build self-contained single-file installer
-dotnet publish installer/WallSafeInstaller.csproj -c Release -r win-x64
-```
-
----
+Architecture notes and dev workflow: [`CODEBASE_README.md`](CODEBASE_README.md). Versions up to 3.1.8 (WinUI 3) and 2.x (WPF) are in the git history and on the Releases page.
 
 ## 📄 License
-
-WallSafe is distributed under the MIT License.
+MIT
