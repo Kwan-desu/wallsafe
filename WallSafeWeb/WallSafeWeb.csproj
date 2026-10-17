@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Windows 10 TFM so the shared services can keep using WinRT APIs
+         (Wi-Fi profiles, Geolocation, BitmapDecoder). No Windows App SDK needed. -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>WallSafeWeb</RootNamespace>
+    <AssemblyName>WallSafe</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\WallSafe.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+
+    <Version>4.0.0</Version>
+    <Authors>WallSafe Team</Authors>
+    <Description>Modern anime desktop wallpaper manager with instant panic hotkey protection (WebView2 UI).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3485.44" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\WallSafe.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

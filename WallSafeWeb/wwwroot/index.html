@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https://img.wallsafe https://picsum.photos https://fastly.picsum.photos data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'" />
+  <title>WallSafe</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div id="ambient" aria-hidden="true"><div class="ambient-img"></div></div>
+
+  <div class="shell">
+    <header class="titlebar" id="titlebar">
+      <div class="tb-brand drag">
+        <div class="logo" aria-hidden="true"></div>
+        <span class="brand-name">WallSafe</span>
+      </div>
+
+      <div class="tb-search no-drag">
+        <span class="tb-search-icon" data-icon="search"></span>
+        <input id="globalSearch" type="search" placeholder="Search tags, characters, series…" autocomplete="off" spellcheck="false" aria-label="Search wallpapers" />
+        <kbd>Ctrl K</kbd>
+        <div class="suggest" id="globalSuggest" role="listbox" hidden></div>
+      </div>
+
+      <div class="tb-spacer drag"></div>
+
+      <div class="tb-tools no-drag">
+        <div class="segmented" id="ratingSeg" role="radiogroup" aria-label="Content rating">
+          <button role="radio" data-mode="0">SFW</button>
+          <button role="radio" data-mode="1">16+</button>
+          <button role="radio" data-mode="2">18+</button>
+          <span class="seg-thumb"></span>
+        </div>
+        <button class="pill" id="slideshowPill" title="Slideshow"><span data-icon="play"></span><span class="pill-label">Slideshow</span></button>
+        <button class="pill icon-only" id="blurPill" title="Discretion blur"><span data-icon="eye"></span></button>
+        <button class="pill danger" id="panicPill" title="Panic — switch to safe wallpaper"><span data-icon="shield"></span><span class="pill-label">Panic</span></button>
+      </div>
+
+      <div class="win-controls no-drag">
+        <button id="winMin" aria-label="Minimize"><span class="glyph">&#xE921;</span><svg viewBox="0 0 10 10"><path d="M0 5h10" /></svg></button>
+        <button id="winMax" aria-label="Maximize"><span class="glyph">&#xE922;</span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="1.5" /></svg></button>
+        <button id="winClose" class="close" aria-label="Close to tray"><span class="glyph">&#xE8BB;</span><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" /></svg></button>
+      </div>
+    </header>
+
+    <nav class="sidebar" id="sidebar" aria-label="Main">
+      <a href="#/home" data-route="home"><span data-icon="home"></span><span>Home</span></a>
+      <a href="#/explore" data-route="explore"><span data-icon="compass"></span><span>Explore</span></a>
+      <a href="#/favorites" data-route="favorites" data-drop="favorite" data-drop-label="Add to favorites"><span data-icon="heart"></span><span>Favorites</span></a>
+      <a href="#/downloads" data-route="downloads" data-drop="download" data-drop-label="Download"><span data-icon="download"></span><span>Downloads</span></a>
+      <a href="#/history" data-route="history"><span data-icon="clock"></span><span>History</span></a>
+      <div class="nav-flex"></div>
+      <a href="#/settings" data-route="settings"><span data-icon="settings"></span><span>Settings</span></a>
+      <span class="nav-indicator" id="navIndicator"></span>
+    </nav>
+
+    <main class="content" id="content"></main>
+  </div>
+
+  <div id="layer"></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
