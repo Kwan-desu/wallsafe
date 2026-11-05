@@ -15,13 +15,16 @@ if (wv) {
     if (!m) return;
     if (m.id !== undefined && m.id !== null && pending.has(m.id)) {
       const { resolve, reject } = pending.get(m.id);
-      pending.delete(m.id);
       m.ok ? resolve(m.result) : reject(new Error(m.error || 'Request failed'));
     } else if (m.event) {
       emit(m.event, m.data);
     }
   });
 }
+
+// Calls that wait on the user (file pickers, prompts) or long downloads get no deadline.
+const NO_TIMEOUT = /^(dialog\.|update\.install|post\.download|location\.current)/;
+const TIMEOUT_MS = 45000;
 
 export async function rpc(method, params = {}) {
   if (!wv) {
@@ -30,7 +33,14 @@ export async function rpc(method, params = {}) {
   }
   return new Promise((resolve, reject) => {
     const id = ++seq;
-    pending.set(id, { resolve, reject });
+    let timer = null;
+    const done = fn => v => { clearTimeout(timer); pending.delete(id); fn(v); };
+    pending.set(id, { resolve: done(resolve), reject: done(reject) });
+    if (!NO_TIMEOUT.test(method)) {
+      timer = setTimeout(() => {
+        if (pending.has(id)) { pending.delete(id); reject(new Error('The request timed out')); }
+      }, TIMEOUT_MS);
+    }
     wv.postMessage({ id, method, params });
   });
 }

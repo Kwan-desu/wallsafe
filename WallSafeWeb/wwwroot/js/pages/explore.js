@@ -32,6 +32,7 @@ export function create() {
       <div class="result-info" data-e="info"></div>
       <div class="grid" data-e="grid"></div>
       <div class="load-more" data-e="more"><div class="spinner"></div></div>
+      <div class="feed-end" data-e="end" hidden></div>
       <div class="sentinel" data-e="sentinel"></div>
     </section>`);
 
@@ -44,7 +45,9 @@ export function create() {
     minWidth: +(localStorage.getItem('ws.minWidth') || 0),
     wallpaperOnly: localStorage.getItem('ws.wpOnly') === '1',
   };
-  let page = 1, loading = false, done = false, gen = 0, total = 0, initialized = false;
+  let page = 1, loading = false, done = false, gen = 0, total = 0, initialized = false, emptyStreak = 0;
+  const seen = new Set();
+  const MAX_EMPTY_PAGES = 4;  // pages in a row with nothing new before we call it the end
 
   const fillSources = () => {
     const mode = S().RatingMode ?? 0;
@@ -73,45 +76,65 @@ export function create() {
 
   const reload = () => {
     gen++;
-    page = 1; done = false; total = 0; loading = false;
+    page = 1; done = false; total = 0; loading = false; emptyStreak = 0;
+    seen.clear();
     grid.innerHTML = skeletons(12);
+    q('end').hidden = true;
     el.scrollTop = 0;
     syncControls();
     loadMore(true);
   };
 
+  const showEnd = (kind, msg) => {
+    more.hidden = true;
+    const end = q('end');
+    end.hidden = false;
+    end.innerHTML = kind === 'error'
+      ? `${icon('wifi')}<span>${esc(msg)}</span><button class="btn sm" data-e="retry">${icon('refresh')} Try again</button>`
+      : `${icon('check')}<span>No more wallpapers found${f.tags ? ` for “${esc(prettyTag(f.tags))}”` : ''}.</span>`;
+  };
+
+  // The sentinel can stay inside the observer margin after a load, in which case the
+  // IntersectionObserver never fires again. Check its position directly instead.
+  const nearBottom = () => !el.hidden && q('sentinel').getBoundingClientRect().top - el.getBoundingClientRect().bottom < 900;
+
   const loadMore = async (first = false) => {
     if (loading || done) return;
     loading = true;
     more.hidden = first;
+    q('end').hidden = true;
     renderInfo();
     const my = gen;
+    let failed = null;
     try {
-      const posts = track(await rpc('posts.fetch', {
+      const res = await rpc('posts.fetch', {
         source: f.source, sort: f.sort, tags: f.tags, page, limit: PAGE,
-        minWidth: f.minWidth, wallpaperOnly: f.wallpaperOnly,
-      }));
+        minWidth: f.minWidth, wallpaperOnly: f.wallpaperOnly, meta: true,
+      });
       if (my !== gen) return;
+      const fresh = track(res.items).filter(p => !seen.has(p.key));
+      fresh.forEach(p => seen.add(p.key));
       if (first) grid.replaceChildren();
-      renderCards(grid, posts, { append: true });
-      total += posts.length;
+      renderCards(grid, fresh, { append: true });
+      total += fresh.length;
       page++;
-      // Filters can empty a page while more exist; stop only on a truly empty response streak.
-      if (posts.length === 0) done = page > 3 || (!f.minWidth && !f.wallpaperOnly);
-      if (first && posts.length === 0 && done) showEmpty();
+      if (res.raw === 0) done = true;                       // the board has no more pages
+      else if (fresh.length === 0) done = ++emptyStreak >= MAX_EMPTY_PAGES; // filtered out / duplicates
+      else emptyStreak = 0;
+      if (done && total === 0) showEmpty();
+      else if (done) showEnd('end');
     } catch (e) {
       if (my !== gen) return;
-      if (first) grid.innerHTML = '';
+      failed = e;
+      if (!total) { grid.innerHTML = ''; showEmpty(true); }
+      else showEnd('error', 'Couldn’t load more wallpapers.');
       done = true;
-      toast('Could not load wallpapers', { type: 'err', sub: e.message });
-      if (!total) showEmpty(true);
     } finally {
       if (my === gen) {
         loading = false;
-        more.hidden = done;
+        if (done || failed) more.hidden = true;
         renderInfo();
-        // Keep filling if the page isn't scrollable yet.
-        requestAnimationFrame(() => { if (!done && !el.hidden && el.scrollHeight <= el.clientHeight + 400) loadMore(); });
+        if (!done && !failed) requestAnimationFrame(() => { if (nearBottom()) loadMore(); });
       }
     }
   };
@@ -126,6 +149,7 @@ export function create() {
 
   new IntersectionObserver(es => { if (es[0].isIntersecting && !el.hidden && initialized) loadMore(); }, { root: el, rootMargin: '900px' })
     .observe(q('sentinel'));
+  el.addEventListener('scroll', () => { if (initialized && !loading && !done && nearBottom()) loadMore(); }, { passive: true });
 
   // ── controls ──
   attachSuggest(q('search'), q('suggest'), tag => { f.tags = tag; reload(); });
@@ -139,6 +163,7 @@ export function create() {
   el.addEventListener('click', e => {
     const a = e.target.closest('[data-e]')?.dataset.e;
     if (a === 'untag') { f.tags = ''; reload(); }
+    if (a === 'retry') { done = false; loadMore(); }
     if (a === 'reset') { f.tags = ''; f.minWidth = 0; f.wallpaperOnly = false; f.sort = 'order:score'; f.source = 'all'; localStorage.setItem('ws.minWidth', 0); localStorage.setItem('ws.wpOnly', '0'); fillSources(); reload(); }
   });
 
@@ -161,6 +186,7 @@ export function create() {
         history.replaceState(null, '', '#/explore');
         if (changed || fresh) reload();
       } else if (fresh) reload();
+      else if (!loading && !done) requestAnimationFrame(() => { if (nearBottom()) loadMore(); });
     },
     refresh(reason, visible) {
       if (!initialized) return;

@@ -978,3 +978,9 @@ body.dragging-post .col-tile[data-drop] { border-style: dashed; border-color: co
 .dd-target.drop-over { background: var(--accent-soft); color: var(--text); border-style: solid; }
 .dd-target * { pointer-events: none; }
 .col-tile.add * , .sidebar a[data-drop] * { pointer-events: none; }
+
+.feed-end {
+  display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+  padding: 26px 0 8px; color: var(--text-3); font-size: 13px;
+}
+.feed-end svg { font-size: 16px; color: var(--text-3); }

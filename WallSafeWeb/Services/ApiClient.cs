@@ -123,8 +123,9 @@ namespace WallSafeWeb.Services
                     }
                 }
 
-                // If sorting by score, preserve high score order
-                return merged.OrderByDescending(p => p.Score).Take(limit).ToList();
+                // Keep every merged post: each source is paged independently, so trimming to
+                // `limit` here would silently drop images that no later page ever returns.
+                return merged.OrderByDescending(p => p.Score).ToList();
             }
 
             return await FetchSingleSourcePostsAsync(source, tags, page, limit, ct);

@@ -22,7 +22,7 @@ namespace WallSafeWeb.Bridge
     public sealed class RpcBridge
     {
         private readonly MainForm _form;
-        private readonly CoreWebView2 _core;
+        private CoreWebView2 _core;
         private readonly ApiClient _api = new();
         private List<PostItem>? _historyUndo;
 
@@ -53,6 +53,9 @@ namespace WallSafeWeb.Bridge
             HistoryManager.Instance.HistoryChanged += () => Emit("historyChanged", null);
             WifiWatcher.Instance.StatusChanged += (net, active, matched) => Emit("wifiStatus", WifiStatus(net, active, matched));
         }
+
+        /// <summary>Point the bridge at a new WebView after the browser process was recreated.</summary>
+        public void Attach(CoreWebView2 core) => _core = core;
 
         public void Emit(string name, object? data)
         {
@@ -145,9 +148,12 @@ namespace WallSafeWeb.Bridge
                         s.Save();
                     }
 
-                    var list = await _api.FetchPostsAsync(source, tags, page, limit, CancellationToken.None);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    var list = await _api.FetchPostsAsync(source, tags, page, limit, cts.Token);
+                    int raw = list.Count;
                     if (minWidth > 0) list = list.Where(x => x.Width >= minWidth).ToList();
                     if (wallpaperOnly) list = list.Where(x => x.Width <= 0 || ((double)x.Width / Math.Max(1, x.Height) >= 1.5 && x.Width >= 1280)).ToList();
+                    if (B(p, "meta")) return new { items = PostRegistry.Dtos(list), raw };
                     return PostRegistry.Dtos(list);
                 }
                 case "tags.suggest":

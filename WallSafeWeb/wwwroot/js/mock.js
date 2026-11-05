@@ -46,7 +46,8 @@ export function createMock(emit) {
       case 'hotkey.set': settings.HotkeyDisplay = 'Custom'; return { display: 'Custom' };
       case 'posts.fetch': {
         const base = (p.page - 1) * p.limit + (p.tags ? 400 : 0) + settings.RatingMode * 1000;
-        return Array.from({ length: p.page > 4 ? 0 : p.limit }, (_, i) => make(base + i + 1));
+        const items = Array.from({ length: p.page > 4 ? 0 : p.limit }, (_, i) => make(base + i + 1));
+        return p.meta ? { items, raw: items.length } : items;
       }
       case 'tags.suggest': return ['genshin_impact', 'hatsune_miku', 'scenery', 'sky', 'night'].filter(t => t.includes(p.query.toLowerCase()) || true)
         .map((t, i) => ({ name: t, title: null, count: 9000 - i * 1200, category: ['Series', 'Character', 'Tag'][i % 3], color: ['#A855F7', '#10B981', '#94A3B8'][i % 3] }));

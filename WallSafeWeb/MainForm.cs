@@ -21,7 +21,8 @@ namespace WallSafeWeb
     {
         public const string AppHost = "app.wallsafe";
 
-        private readonly WebView2 _web;
+        private WebView2 _web;
+        private int _recoveries;
         private readonly bool _startHidden;
         private bool _webReady;
 
@@ -39,14 +40,32 @@ namespace WallSafeWeb
             BackColor = Color.Black; // black == transparent under DwmExtendFrameIntoClientArea
             ShowInTaskbar = true;
 
-            _web = new WebView2
-            {
-                Dock = DockStyle.Fill,
-                DefaultBackgroundColor = Color.Transparent,
-            };
-            Controls.Add(_web);
+            _web = CreateWebView();
 
             ShutdownProtectionService.HookWindow(Handle);
+            _ = InitWebViewAsync();
+        }
+
+        private WebView2 CreateWebView()
+        {
+            var web = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = Color.Transparent };
+            Controls.Add(web);
+            return web;
+        }
+
+        /// <summary>
+        /// The WebView2 browser process can exit (runtime update, GPU reset, OS memory pressure while
+        /// suspended in the tray). The control is unusable afterwards, so pending RPCs never answer
+        /// and the page sits on spinners. Rebuild the control and reload the UI.
+        /// </summary>
+        private void RecoverWebView()
+        {
+            if (IsDisposed || ++_recoveries > 5) return;
+            _webReady = false;
+            var old = _web;
+            _web = CreateWebView();
+            _web.BringToFront();
+            try { Controls.Remove(old); old.Dispose(); } catch { }
             _ = InitWebViewAsync();
         }
 
@@ -89,7 +108,7 @@ namespace WallSafeWeb
                 core.AddWebResourceRequestedFilter("https://img.wallsafe/*", CoreWebView2WebResourceContext.All);
                 core.WebResourceRequested += images.Handle;
 
-                Bridge = new RpcBridge(this, core);
+                if (Bridge == null) Bridge = new RpcBridge(this, core); else Bridge.Attach(core);
                 core.WebMessageReceived += Bridge.OnMessage;
 
                 // Everything that isn't our own app opens in the user's browser.
@@ -105,7 +124,11 @@ namespace WallSafeWeb
                 core.ProcessFailed += (_, e) =>
                 {
                     App.LogCrash("WebView2ProcessFailed", new Exception(e.ProcessFailedKind.ToString()));
-                    if (e.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited) return;
+                    if (e.ProcessFailedKind == CoreWebView2ProcessFailedKind.BrowserProcessExited)
+                    {
+                        BeginInvoke(new Action(RecoverWebView));
+                        return;
+                    }
                     try { core.Reload(); } catch { }
                 };
 
