@@ -3,7 +3,7 @@
 ; (same folder, same Apps & Features entry). Build: ISCC.exe installer\WallSafeWeb.iss
 
 #define MyAppName "WallSafe"
-#define MyAppVersion "4.0.0"
+#define MyAppVersion "4.0.1"
 #define MyAppPublisher "WallSafe Team"
 #define MyAppURL "https://github.com/Kwan-desu/wallsafe"
 #define MyAppExeName "WallSafe.exe"
