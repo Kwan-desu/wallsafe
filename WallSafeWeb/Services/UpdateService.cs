@@ -70,8 +70,9 @@ namespace WallSafeWeb.Services
 
                 if (setupAsset != null)
                 {
-                    // Prefer direct API asset URL which works for private repositories
-                    info.DownloadUrl = setupAsset["url"]?.ToString() ?? setupAsset["browser_download_url"]?.ToString() ?? "";
+                    // Public repo: the browser URL serves the file directly. The API asset URL returns
+                    // JSON metadata unless Accept: application/octet-stream is sent.
+                    info.DownloadUrl = setupAsset["browser_download_url"]?.ToString() ?? setupAsset["url"]?.ToString() ?? "";
                     info.DownloadSize = setupAsset["size"]?.Value<long>() ?? 0;
                 }
             }
@@ -90,10 +91,11 @@ namespace WallSafeWeb.Services
             using var client = new HttpClient(handler);
             var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
             request.Headers.UserAgent.ParseAdd($"WallSafe-Web-App/{CurrentVersion}");
-            if (!string.IsNullOrEmpty(ApiToken) && downloadUrl.Contains("api.github.com"))
+            if (downloadUrl.Contains("api.github.com"))
             {
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", ApiToken);
                 request.Headers.Accept.ParseAdd("application/octet-stream");
+                if (!string.IsNullOrEmpty(ApiToken))
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", ApiToken);
             }
 
             var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
@@ -129,6 +131,14 @@ namespace WallSafeWeb.Services
                     if (totalBytes > 0)
                         progress?.Report((double)totalRead / totalBytes);
                 }
+            }
+
+            // Never launch something that isn't a Windows executable (e.g. an HTML/JSON error page).
+            using (var fs = File.OpenRead(tempSetup))
+            {
+                var mz = new byte[2];
+                if (fs.Length < 1_000_000 || fs.Read(mz, 0, 2) != 2 || mz[0] != (byte)'M' || mz[1] != (byte)'Z')
+                    throw new InvalidDataException("The downloaded update is not a valid installer.");
             }
 
             // Launch the downloaded setup executable and close current application
